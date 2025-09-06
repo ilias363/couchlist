@@ -125,26 +125,60 @@ export interface TMDBTvSeries {
   vote_count: number;
 }
 
-export interface TMDBSeason {
+interface CrewMember {
+  job: string;
+  department: string;
+  credit_id: string;
+  adult: boolean;
+  gender: number | null;
   id: number;
-  season_number: number;
+  known_for_department: string;
   name: string;
-  overview: string;
-  air_date?: string;
-  poster_path?: string;
-  episodes?: TMDBEpisode[];
+  original_name: string;
+  popularity: number;
+  profile_path: string | null;
 }
 
-export interface TMDBEpisode {
+interface GuestStar {
+  character: string;
+  credit_id: string;
+  order: number;
+  adult: boolean;
+  gender: number | null;
   id: number;
-  season_number: number;
+  known_for_department: string;
+  name: string;
+  original_name: string;
+  popularity: number;
+  profile_path: string | null;
+}
+
+interface Episode {
+  air_date: string | null;
   episode_number: number;
+  crew: CrewMember[];
+  guest_stars: GuestStar[];
+  id: number;
   name: string;
   overview: string;
-  air_date?: string;
-  runtime?: number;
-  still_path?: string;
-  vote_average?: number;
+  production_code: string | null;
+  runtime: number | null;
+  season_number: number;
+  still_path: string | null;
+  vote_average: number;
+  vote_count: number;
+}
+
+export interface TMDBSeason {
+  _id: string;
+  id: number;
+  air_date: string | null;
+  episodes: Episode[];
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  season_number: number;
+  vote_average: number;
 }
 
 export interface TMDBSearchResult {
@@ -175,6 +209,8 @@ export type WatchStatus =
 export type PosterSize = "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "original";
 export type BackdropSize = "w300" | "w780" | "w1280" | "original";
 export type StillSize = "w92" | "w185" | "w300" | "original";
+export type LogoSize = "w45" | "w92" | "w154" | "w185" | "w300" | "w500" | "original";
+export type ProfileSize = "w92" | "w185" | "w300" | "original";
 
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
