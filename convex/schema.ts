@@ -9,7 +9,6 @@ export default defineSchema({
         movieId: v.number(), // TMDB movie ID
         status: v.union(
             v.literal("want_to_watch"),
-            v.literal("currently_watching"),
             v.literal("watched"),
             v.literal("on_hold"),
             v.literal("dropped")
