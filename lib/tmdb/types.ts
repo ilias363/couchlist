@@ -1,16 +1,52 @@
+interface Genre {
+    id: number;
+    name: string;
+}
+
+interface ProductionCompany {
+    id: number;
+    logo_path: string | null;
+    name: string;
+    origin_country: string;
+}
+
+interface ProductionCountry {
+    iso_3166_1: string;
+    name: string;
+}
+
+interface SpokenLanguage {
+    english_name: string;
+    iso_639_1: string;
+    name: string;
+}
+
 export interface TMDBMovie {
     id: number;
     title: string;
+    original_title: string;
     overview: string;
+    poster_path: string | null;
+    backdrop_path?: string | null;
+    popularity: number;
+    vote_average: number;
+    vote_count: number;
+    genre_ids?: number[];
+    original_language?: string;
+    adult: boolean;
+    budget: number;
+    genres: Genre[];
+    homepage: string | null;
+    imdb_id: string | null;
+    production_companies: ProductionCompany[];
+    production_countries: ProductionCountry[];
     release_date: string;
-    runtime?: number;
-    poster_path?: string;
-    backdrop_path?: string;
-    imdb_id?: string;
-    genres?: Array<{ id: number; name: string }>;
-    production_companies?: Array<{ id: number; name: string }>;
-    vote_average?: number;
-    vote_count?: number;
+    revenue: number;
+    runtime: number | null;
+    spoken_languages: SpokenLanguage[];
+    status: string;
+    tagline: string | null;
+    video: boolean;
 }
 
 export interface TMDBTVSeries {
