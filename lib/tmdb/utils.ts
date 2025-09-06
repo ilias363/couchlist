@@ -1,24 +1,8 @@
-import { BackdropSize, PosterSize, StillSize, TMDB_IMAGE_BASE_URL, WatchStatus } from "./types";
+import { TMDB_IMAGE_BASE_URL, WatchStatus } from "./types";
 
-export function getTMDBPosterImgUrl(
+export function getTMDBImgUrl(
   path: string | null | undefined,
-  size: PosterSize = "w500"
-): string | null {
-  if (!path) return null;
-  return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
-}
-
-export function getTMDBBackdropImgUrl(
-  path: string | null | undefined,
-  size: BackdropSize = "w1280"
-): string | null {
-  if (!path) return null;
-  return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
-}
-
-export function getTMDBStillImgUrl(
-  path: string | null | undefined,
-  size: StillSize = "w300"
+  size: string
 ): string | null {
   if (!path) return null;
   return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;

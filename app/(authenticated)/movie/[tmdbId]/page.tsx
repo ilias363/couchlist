@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { TMDBMovie } from "@/lib/tmdb/types";
-import { TMDBImage } from "@/components/tmdb-image";
+import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -70,13 +70,11 @@ export default function MovieDetailsPage() {
       {movie && movie.backdrop_path && (
         <div className="relative h-48 w-full rounded-t-sm md:h-72 lg:h-80 overflow-hidden">
           <div className="absolute inset-0">
-            <TMDBImage
+            <BackdropImage
               src={movie.backdrop_path}
+              size="w1280"
               alt={movie.title}
-              type="backdrop"
-              backdropSize="w1280"
               className="opacity-60 md:opacity-70"
-              fallbackType="movie"
             />
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
@@ -90,10 +88,10 @@ export default function MovieDetailsPage() {
           <div className="space-y-10">
             <div className="flex flex-col gap-6 md:flex-row">
               <div className="w-40 sm:w-48 md:w-60 shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
-                <TMDBImage
+                <PosterImage
                   src={movie.poster_path}
+                  size="w780"
                   alt={movie.title}
-                  type="poster"
                   className="rounded-lg"
                   fallbackType="movie"
                   hoverZoom

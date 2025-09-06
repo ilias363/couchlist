@@ -1,6 +1,6 @@
 import { TMDBSearchResult } from "@/lib/tmdb/types";
 import Link from "next/link";
-import { TMDBImage } from "./tmdb-image";
+import { PosterImage } from "./tmdb-image";
 import { Film, Tv } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -22,10 +22,10 @@ export function MediaCard({ item }: MediaCardProps) {
     <Link href={getItemLink(item)}>
       <div className="group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm hover:cursor-pointer">
         <div className="relative">
-          <TMDBImage
+          <PosterImage
             src={item.poster_path}
+            size="w780"
             alt={title}
-            type="poster"
             className="w-full"
             fallbackType={isMovie ? "movie" : "tv"}
             hoverZoom
