@@ -20,23 +20,28 @@ const NAV_ITEMS: Array<{
   label: string;
   href: string;
   icon: any;
-  exact?: boolean;
+  isActive: (pathname: string) => boolean;
 }> = [
-  { label: "Dashboard", href: "/dashboard", icon: Home, exact: true },
-  { label: "Search", href: "/search", icon: Search },
-  { label: "Movies", href: "/movies", icon: Clapperboard },
-  { label: "TV Series", href: "/tv-series", icon: Tv },
-  { label: "Statistics", href: "/stats", icon: BarChart3 },
+  { label: "Dashboard", href: "/dashboard", icon: Home, isActive: path => path === "/dashboard" },
+  { label: "Search", href: "/search", icon: Search, isActive: path => path.startsWith("/search") },
+  {
+    label: "Movies",
+    href: "/movies",
+    icon: Clapperboard,
+    isActive: path => path.startsWith("/movie"),
+  },
+  { label: "TV Series", href: "/tv", icon: Tv, isActive: path => path.startsWith("/tv") },
+  {
+    label: "Statistics",
+    href: "/stats",
+    icon: BarChart3,
+    isActive: path => path.startsWith("/stats"),
+  },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useUser();
-
-  const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href;
-    return pathname === href || pathname.startsWith(href);
-  };
 
   const displayName =
     user?.username ||
@@ -65,18 +70,17 @@ export function AppSidebar() {
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive(item.href, item.exact)}
+                  isActive={item.isActive(pathname)}
                   tooltip={item.label}
                   className={cn(
                     "relative",
-                    isActive(item.href, item.exact) &&
-                      "bg-sidebar-accent/60 dark:bg-sidebar-accent/40"
+                    item.isActive(pathname) && "bg-sidebar-accent/60 dark:bg-sidebar-accent/40"
                   )}
                 >
                   <Link href={item.href} className="flex items-center">
                     <item.icon className="h-4 w-4" />
                     <span>{item.label}</span>
-                    {isActive(item.href, item.exact) && (
+                    {item.isActive(pathname) && (
                       <span
                         aria-hidden
                         className="absolute left-0 top-0 h-full w-1 rounded-r bg-primary group-data-[collapsible=icon]:hidden"
