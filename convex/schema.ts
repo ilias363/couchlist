@@ -37,8 +37,6 @@ export default defineSchema({
         ),
         startedDate: v.optional(v.number()), // When started watching
         watchedDate: v.optional(v.number()), // When completed/dropped
-        completedSeasons: v.number(), // Number of completed seasons
-        completedEpisodes: v.number(), // Total completed episodes
         createdAt: v.number(),
         updatedAt: v.number(),
     })

@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as movie from "../movie.js";
+import type * as tv from "../tv.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -25,6 +26,7 @@ import type * as movie from "../movie.js";
  */
 declare const fullApi: ApiFromModules<{
   movie: typeof movie;
+  tv: typeof tv;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,
