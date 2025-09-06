@@ -1,118 +1,176 @@
 interface Genre {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
 }
 
 interface ProductionCompany {
-    id: number;
-    logo_path: string | null;
-    name: string;
-    origin_country: string;
+  id: number;
+  logo_path: string | null;
+  name: string;
+  origin_country: string;
 }
 
 interface ProductionCountry {
-    iso_3166_1: string;
-    name: string;
+  iso_3166_1: string;
+  name: string;
 }
 
 interface SpokenLanguage {
-    english_name: string;
-    iso_639_1: string;
-    name: string;
+  english_name: string;
+  iso_639_1: string;
+  name: string;
 }
 
 export interface TMDBMovie {
-    id: number;
-    title: string;
-    original_title: string;
-    overview: string;
-    poster_path: string | null;
-    backdrop_path?: string | null;
-    popularity: number;
-    vote_average: number;
-    vote_count: number;
-    genre_ids?: number[];
-    original_language?: string;
-    adult: boolean;
-    budget: number;
-    genres: Genre[];
-    homepage: string | null;
-    imdb_id: string | null;
-    production_companies: ProductionCompany[];
-    production_countries: ProductionCountry[];
-    release_date: string;
-    revenue: number;
-    runtime: number | null;
-    spoken_languages: SpokenLanguage[];
-    status: string;
-    tagline: string | null;
-    video: boolean;
+  id: number;
+  title: string;
+  original_title: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path?: string | null;
+  popularity: number;
+  vote_average: number;
+  vote_count: number;
+  genre_ids?: number[];
+  original_language?: string;
+  adult: boolean;
+  budget: number;
+  genres: Genre[];
+  homepage: string | null;
+  imdb_id: string | null;
+  production_companies: ProductionCompany[];
+  production_countries: ProductionCountry[];
+  release_date: string;
+  revenue: number;
+  runtime: number | null;
+  spoken_languages: SpokenLanguage[];
+  status: string;
+  tagline: string | null;
+  video: boolean;
 }
 
-export interface TMDBTVSeries {
-    id: number;
-    name: string;
-    overview: string;
-    first_air_date: string;
-    last_air_date?: string;
-    number_of_seasons?: number;
-    number_of_episodes?: number;
-    poster_path?: string;
-    backdrop_path?: string;
-    status?: string;
-    genres?: Array<{ id: number; name: string }>;
-    created_by?: Array<{ id: number; name: string }>;
-    seassons?: (Omit<TMDBSeason, "episodes"> & { episode_count: number })[];
-    vote_average?: number;
-    vote_count?: number;
+interface Network {
+  id: number;
+  name: string;
+  logo_path: string | null;
+  origin_country: string;
+}
+
+interface Season {
+  air_date: string | null;
+  episode_count: number;
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  season_number: number;
+  vote_average: number;
+}
+
+interface Creator {
+  id: number;
+  credit_id: string;
+  name: string;
+  gender: number | null;
+  profile_path: string | null;
+}
+
+interface LastEpisodeToAir {
+  air_date: string | null;
+  episode_number: number;
+  id: number;
+  name: string;
+  overview: string;
+  production_code: string | null;
+  season_number: number;
+  still_path: string | null;
+  vote_average: number;
+  vote_count: number;
+}
+
+interface NextEpisodeToAir extends LastEpisodeToAir { }
+
+export interface TMDBTvSeries {
+  id: number;
+  backdrop_path: string | null;
+  created_by: Creator[];
+  episode_run_time: number[];
+  genres: Genre[];
+  homepage: string | null;
+  in_production: boolean;
+  languages: string[];
+  first_air_date: string;
+  last_air_date: string;
+  last_episode_to_air: LastEpisodeToAir | null;
+  next_episode_to_air: NextEpisodeToAir | null;
+  name: string;
+  networks: Network[];
+  number_of_episodes: number;
+  number_of_seasons: number;
+  origin_country: string[];
+  original_language: string;
+  original_name: string;
+  overview: string;
+  adult: boolean;
+  popularity: number;
+  poster_path: string | null;
+  production_companies: ProductionCompany[];
+  production_countries: ProductionCountry[];
+  seasons: Season[];
+  spoken_languages: SpokenLanguage[];
+  status: string;
+  tagline: string | null;
+  type: string;
+  vote_average: number;
+  vote_count: number;
 }
 
 export interface TMDBSeason {
-    id: number;
-    season_number: number;
-    name: string;
-    overview: string;
-    air_date?: string;
-    poster_path?: string;
-    episodes?: TMDBEpisode[];
+  id: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  air_date?: string;
+  poster_path?: string;
+  episodes?: TMDBEpisode[];
 }
 
 export interface TMDBEpisode {
-    id: number;
-    season_number: number;
-    episode_number: number;
-    name: string;
-    overview: string;
-    air_date?: string;
-    runtime?: number;
-    still_path?: string;
-    vote_average?: number;
+  id: number;
+  season_number: number;
+  episode_number: number;
+  name: string;
+  overview: string;
+  air_date?: string;
+  runtime?: number;
+  still_path?: string;
+  vote_average?: number;
 }
 
 export interface TMDBSearchResult {
-    id: number;
-    title?: string; // for movies
-    name?: string; // for TV series
-    overview: string;
-    release_date?: string; // for movies
-    first_air_date?: string; // for TV series
-    poster_path?: string;
-    media_type?: "movie" | "tv" | "person";
+  id: number;
+  title?: string; // for movies
+  name?: string; // for TV series
+  overview: string;
+  release_date?: string; // for movies
+  first_air_date?: string; // for TV series
+  poster_path?: string;
+  media_type?: "movie" | "tv" | "person";
 }
 
 export interface TMDBSearchResponse {
-    page: number;
-    total_pages: number;
-    total_results: number;
-    results: TMDBSearchResult[];
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: TMDBSearchResult[];
 }
 
 export type WatchStatus =
-    | "want_to_watch"
-    | "currently_watching"
-    | "watched"
-    | "on_hold"
-    | "dropped";
+  | "want_to_watch"
+  | "currently_watching"
+  | "watched"
+  | "on_hold"
+  | "dropped";
 
 export type PosterSize = "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "original";
 export type BackdropSize = "w300" | "w780" | "w1280" | "original";
