@@ -68,40 +68,31 @@ export default function MovieDetailsPage() {
   return (
     <div className="mx-auto">
       {movie && movie.backdrop_path && (
-        <div className="relative h-48 w-full rounded-t-sm md:h-72 lg:h-80 overflow-hidden">
-          <div className="absolute inset-0">
-            <BackdropImage
-              src={movie.backdrop_path}
-              size="w1280"
-              alt={movie.title}
-              className="opacity-60 md:opacity-70"
-            />
-          </div>
+        <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
+          <BackdropImage src={movie.backdrop_path} size="w1280" alt={movie.title} />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
         </div>
       )}
 
-      <div className="relative -mt-12 md:-mt-16 lg:-mt-24 px-4 md:px-8">
+      <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
         {loading && <MovieSkeleton />}
         {error && !loading && <div className="text-center text-sm text-destructive">{error}</div>}
         {!loading && movie && (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 md:flex-row">
-              <div className="w-40 sm:w-48 md:w-60 shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
+              <div className="w-40 sm:w-48 md:w-56 shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
                 <PosterImage
                   src={movie.poster_path}
                   size="w780"
                   alt={movie.title}
-                  className="rounded-lg"
                   fallbackType="movie"
-                  hoverZoom
                 />
               </div>
               <div className="flex-1 space-y-4">
-                <div className="flex flex-col gap-2">
+                <div className="space-y-2">
                   <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-center gap-2 flex-wrap">
                     <Film className="h-7 w-7 md:mt-2" />
-                    <span>{movie.title}</span>
+                    {movie.title}
                     {releaseYear && (
                       <span className="text-primary/70 text-xl md:text-3xl font-medium">
                         ({releaseYear})
@@ -141,13 +132,13 @@ export default function MovieDetailsPage() {
 function MovieSkeleton() {
   return (
     <div className="flex flex-col gap-6 md:flex-row">
-      <div className="w-full md:w-1/3 max-w-xs mx-auto md:mx-0">
+      <div className="w-40 sm:w-48 md:w-56 mx-auto md:mx-0">
         <Skeleton className="aspect-[2/3] w-full rounded-lg" />
       </div>
       <div className="flex-1 space-y-4">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-20 w-full" />
         <Skeleton className="h-4 w-1/3" />
         <div className="flex gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
