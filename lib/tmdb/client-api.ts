@@ -1,4 +1,4 @@
-import { TMDB_BASE_URL, TMDB_IMAGE_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTVSeries } from "./types";
+import { TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
 
 export class TMDBClient {
     private apiKey: string;
@@ -62,7 +62,7 @@ export class TMDBClient {
         return this.makeRequest(`/movie/${movieId}`);
     }
 
-    async getTVSeriesDetails(seriesId: number): Promise<TMDBTVSeries> {
+    async getTVSeriesDetails(seriesId: number): Promise<TMDBTvSeries> {
         return this.makeRequest(`/tv/${seriesId}`);
     }
 
@@ -97,8 +97,8 @@ export class TMDBClient {
         return results;
     }
 
-    async batchGetTVSeriesDetails(seriesIds: number[]): Promise<Map<number, TMDBTVSeries | null>> {
-        const results = new Map<number, TMDBTVSeries | null>();
+    async batchGetTVSeriesDetails(seriesIds: number[]): Promise<Map<number, TMDBTvSeries | null>> {
+        const results = new Map<number, TMDBTvSeries | null>();
 
         // Process in batches to avoid overwhelming the API
         const batchSize = 10;
@@ -125,8 +125,8 @@ export class TMDBClient {
 
     async batchGetMixedDetails(
         items: Array<{ type: "movie" | "tv"; tmdbId: number }>
-    ): Promise<Map<string, TMDBMovie | TMDBTVSeries | null>> {
-        const results = new Map<string, TMDBMovie | TMDBTVSeries | null>();
+    ): Promise<Map<string, TMDBMovie | TMDBTvSeries | null>> {
+        const results = new Map<string, TMDBMovie | TMDBTvSeries | null>();
 
         const movieIds = items.filter(item => item.type === "movie").map(item => item.tmdbId);
         const tvIds = items.filter(item => item.type === "tv").map(item => item.tmdbId);
