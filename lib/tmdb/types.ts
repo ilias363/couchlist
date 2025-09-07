@@ -153,7 +153,7 @@ interface GuestStar {
   profile_path: string | null;
 }
 
-interface Episode {
+export interface SeasonEpisode {
   air_date: string | null;
   episode_number: number;
   crew: CrewMember[];
@@ -173,7 +173,7 @@ export interface TMDBSeason {
   _id: string;
   id: number;
   air_date: string | null;
-  episodes: Episode[];
+  episodes: SeasonEpisode[];
   name: string;
   overview: string;
   poster_path: string | null;
