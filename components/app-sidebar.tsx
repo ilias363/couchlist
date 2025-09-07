@@ -28,9 +28,14 @@ const NAV_ITEMS: Array<{
     label: "Movies",
     href: "/movies",
     icon: Clapperboard,
-    isActive: path => path.startsWith("/movie"),
+    isActive: path => path.startsWith("/movies"),
   },
-  { label: "TV Series", href: "/tv", icon: Tv, isActive: path => path.startsWith("/tv") },
+  {
+    label: "TV Series",
+    href: "/tv-series",
+    icon: Tv,
+    isActive: path => path.startsWith("/tv-series"),
+  },
   {
     label: "Statistics",
     href: "/stats",
