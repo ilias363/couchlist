@@ -51,7 +51,19 @@ export function CrewAndGuests({ season }: { season: TMDBSeason }) {
   );
 }
 
-function PeopleGrid({ people, secondaryKey }: { people: Array<any>; secondaryKey: string }) {
+function PeopleGrid({
+  people,
+  secondaryKey,
+}: {
+  people: Array<{
+    id: number;
+    name: string;
+    profile_path: string | null;
+    job?: string;
+    character?: string;
+  }>;
+  secondaryKey: string;
+}) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
       {people.map(p => (
@@ -64,7 +76,9 @@ function PeopleGrid({ people, secondaryKey }: { people: Array<any>; secondaryKey
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium leading-tight truncate">{p.name}</p>
-            <p className="text-[11px] text-muted-foreground truncate">{p[secondaryKey] || "—"}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {p[secondaryKey as keyof typeof p] || "—"}
+            </p>
           </div>
         </div>
       ))}

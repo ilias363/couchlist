@@ -5,7 +5,7 @@ export function EpisodeFilters({
   setFilter,
 }: {
   filter: "all" | "watched" | "unwatched";
-  setFilter: (f: any) => void;
+  setFilter: (f: "all" | "watched" | "unwatched") => void;
 }) {
   const options: { key: typeof filter; label: string }[] = [
     { key: "all", label: "All" },

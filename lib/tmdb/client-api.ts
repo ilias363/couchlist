@@ -2,7 +2,7 @@ import { TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries 
 
 export class TMDBClient {
     private apiKey: string;
-    private cache: Map<string, { data: any; timestamp: number }>;
+    private cache: Map<string, { data: unknown; timestamp: number }>;
     private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
     constructor(apiKey: string) {
@@ -20,7 +20,7 @@ export class TMDBClient {
         const cached = this.cache.get(cacheKey);
 
         if (cached && this.isValidCache(cached.timestamp)) {
-            return cached.data;
+            return cached.data as T;
         }
 
         const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${this.apiKey

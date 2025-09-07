@@ -33,9 +33,9 @@ export default function MovieDetailsPage() {
         const m = await tmdbClient.getMovieDetails(numericId);
         if (cancelled) return;
         setMovie(m);
-      } catch (e: any) {
+      } catch (e) {
         if (cancelled) return;
-        setError(e.message || "Failed to load movie");
+        setError(e instanceof Error ? e.message : "Failed to load movie");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,7 +54,10 @@ export default function MovieDetailsPage() {
       if (status === currentStatus) return;
       try {
         setUpdating(true);
-        await setStatus({ movieId: numericId, status: status as any });
+        await setStatus({
+          movieId: numericId,
+          status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
+        });
       } finally {
         setUpdating(false);
       }

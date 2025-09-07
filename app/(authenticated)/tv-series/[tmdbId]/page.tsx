@@ -3,13 +3,13 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { tmdbClient } from "@/lib/tmdb/client-api";
-import { TMDBTvSeries, TMDBSeason } from "@/lib/tmdb/types";
+import { TMDBTvSeries } from "@/lib/tmdb/types";
 import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Tv, ExternalLink, Globe2, Users, Clapperboard, CalendarDays, Star } from "lucide-react";
+import { Tv, Users, Clapperboard, CalendarDays, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusSelector } from "@/components/status-selector";
 
@@ -22,7 +22,7 @@ export default function TvSeriesDetailsPage() {
   const [updating, setUpdating] = useState(false);
 
   const userSeries = useQuery(api.tv.getSeriesStatus, seriesId ? { tvSeriesId: seriesId } : "skip");
-  const setSeriesStatus = useMutation((api as any).tv?.setSeriesStatus);
+  const setSeriesStatus = useMutation(api.tv.setSeriesStatus);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,9 +34,9 @@ export default function TvSeriesDetailsPage() {
         const s = await tmdbClient.getTVSeriesDetails(seriesId);
         if (cancelled) return;
         setSeries(s);
-      } catch (e: any) {
+      } catch (e) {
         if (cancelled) return;
-        setError(e.message || "Failed to load series");
+        setError(e instanceof Error ? e.message : "Failed to load series");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,7 +54,10 @@ export default function TvSeriesDetailsPage() {
       if (!seriesId || status === currentStatus) return;
       try {
         setUpdating(true);
-        await setSeriesStatus({ tvSeriesId: seriesId, status: status });
+        await setSeriesStatus({
+          tvSeriesId: seriesId,
+          status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
+        });
       } finally {
         setUpdating(false);
       }

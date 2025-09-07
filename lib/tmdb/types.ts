@@ -75,7 +75,7 @@ interface Creator {
   profile_path: string | null;
 }
 
-interface LastEpisodeToAir {
+interface EpisodeToAir {
   air_date: string | null;
   episode_number: number;
   id: number;
@@ -88,8 +88,6 @@ interface LastEpisodeToAir {
   vote_count: number;
 }
 
-interface NextEpisodeToAir extends LastEpisodeToAir { }
-
 export interface TMDBTvSeries {
   id: number;
   backdrop_path: string | null;
@@ -101,8 +99,8 @@ export interface TMDBTvSeries {
   languages: string[];
   first_air_date: string;
   last_air_date: string;
-  last_episode_to_air: LastEpisodeToAir | null;
-  next_episode_to_air: NextEpisodeToAir | null;
+  last_episode_to_air: EpisodeToAir | null;
+  next_episode_to_air: EpisodeToAir | null;
   name: string;
   networks: Network[];
   number_of_episodes: number;

@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Home, Search, Clapperboard, Tv, BarChart3, Film } from "lucide-react";
+import { Home, Search, Clapperboard, Tv, BarChart3, Film, LucideIcon } from "lucide-react";
 import { ThemeToggle } from "./theme/theme-toggle";
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS: Array<{
   label: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
   isActive: (pathname: string) => boolean;
 }> = [
   { label: "Dashboard", href: "/dashboard", icon: Home, isActive: path => path === "/dashboard" },

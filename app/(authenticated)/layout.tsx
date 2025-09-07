@@ -1,6 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { UserButton } from "@clerk/nextjs";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {

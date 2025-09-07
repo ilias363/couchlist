@@ -5,17 +5,13 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { SeasonEpisode, TMDBSeason } from "@/lib/tmdb/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import { CheckCircle2, Users, Stars } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { SeasonEpisodes } from "@/components/season/season-episodes";
 import { SeasonHeader } from "@/components/season/season-header";
 import { Progress } from "@/components/ui/progress";
 import { EpisodeFilters } from "@/components/season/episode-filters";
 import { ProgressSummary } from "@/components/season/progress-summary";
-import { ProfileImage } from "@/components/tmdb-image";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
 
 export default function SeasonDetailsPage() {
@@ -38,10 +34,10 @@ export default function SeasonDetailsPage() {
       try {
         const s = await tmdbClient.getSeasonDetails(seriesId, seasonNum);
         if (!cancelled) setSeason(s);
-      } catch (e: any) {
-        if (!cancelled) setError(e.message || "Failed to load season");
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load season");
       } finally {
-        !cancelled && setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
