@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { debounce } from "lodash";
@@ -12,6 +12,14 @@ import { SearchMode, useTMDBSearch } from "@/lib/hooks/use-tmdb-search";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchView />
+    </Suspense>
+  );
+}
+
+function SearchView() {
   const [rawQuery, setRawQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("multi");
