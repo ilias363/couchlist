@@ -16,7 +16,7 @@ export function MediaCard({ item }: MediaCardProps) {
 
   const getItemLink = (item: TMDBSearchResult) => {
     const type = item.media_type || (item.title ? "movie" : "tv");
-    return type === "movie" ? `/movie/${item.id}` : `/tv-series/${item.id}`;
+    return type === "movie" ? `/movies/${item.id}` : `/tv-series/${item.id}`;
   };
   return (
     <Link href={getItemLink(item)}>
