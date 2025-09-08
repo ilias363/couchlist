@@ -49,7 +49,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
             {isMovie ? "Movie" : "TV"}
           </span>
           {status && (
-            <span className="absolute right-2 top-2 rounded-md bg-primary/80 px-2 py-1 text-[10px] font-medium text-primary-foreground backdrop-blur">
+            <span className="absolute left-2 bottom-2 rounded-md bg-primary/80 px-2 py-1 text-[10px] font-medium text-primary-foreground backdrop-blur">
               {WATCH_STATUSES.find(s => s.value === status)?.label || status}
             </span>
           )}
