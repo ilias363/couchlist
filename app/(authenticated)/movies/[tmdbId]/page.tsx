@@ -81,7 +81,7 @@ export default function MovieDetailsPage() {
         {!loading && movie && (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 md:flex-row">
-              <div className="w-40 sm:w-48 md:w-56 shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
+              <div className="w-40 sm:w-48 md:w-56 h-fit shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
                 <PosterImage
                   src={movie.poster_path}
                   size="w780"
