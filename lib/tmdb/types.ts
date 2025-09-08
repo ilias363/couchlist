@@ -186,7 +186,7 @@ export interface TMDBSearchResult {
   overview: string;
   release_date?: string; // for movies
   first_air_date?: string; // for TV series
-  poster_path?: string;
+  poster_path?: string | null;
   media_type?: "movie" | "tv" | "person";
 }
 
