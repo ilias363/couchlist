@@ -1,4 +1,5 @@
 import { mutation, query } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 export const getSeriesStatus = query({
@@ -151,4 +152,37 @@ export const bulkToggleSeasonEpisodes = mutation({
       }
     }
   },
+});
+
+export const listUserTvSeries = query({
+  args: {
+    status: v.optional(
+      v.union(
+        v.literal("want_to_watch"),
+        v.literal("currently_watching"),
+        v.literal("watched"),
+        v.literal("on_hold"),
+        v.literal("dropped")
+      )
+    ),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+
+    const base = ctx.db.query("userTvSeries");
+    const ordered = args.status
+      ? base
+        .withIndex("by_user_status_updatedAt", q =>
+          q.eq("userId", identity.subject).eq("status", args.status!)
+        )
+        .order("desc")
+      : base.withIndex("by_user_updatedAt", q => q.eq("userId", identity.subject)).order("desc");
+
+    const page = await ordered.paginate(args.paginationOpts);
+    return page;
+  }
 });
