@@ -70,12 +70,10 @@ export default function MovieDetailsPage() {
 
   return (
     <div className="mx-auto">
-      {movie && movie.backdrop_path && (
-        <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
-          <BackdropImage src={movie.backdrop_path} size="w1280" alt={movie.title} />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
-        </div>
-      )}
+      <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
+        <BackdropImage src={movie?.backdrop_path} size="w1280" alt={movie?.title ?? ""} />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
+      </div>
 
       <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
         {loading && <MovieSkeleton />}

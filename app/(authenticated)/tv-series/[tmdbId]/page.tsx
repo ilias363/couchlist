@@ -80,12 +80,10 @@ export default function TvSeriesDetailsPage() {
 
   return (
     <div className="mx-auto">
-      {series?.backdrop_path && (
-        <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
-          <BackdropImage src={series.backdrop_path} alt={series.name} size="w1280" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
-        </div>
-      )}
+      <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
+        <BackdropImage src={series?.backdrop_path} alt={series?.name ?? ""} size="w1280" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
+      </div>
       <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
         {loading && <TvSeriesSkeleton />}
         {error && !loading && <div className="text-center text-sm text-destructive">{error}</div>}
