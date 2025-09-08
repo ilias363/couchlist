@@ -1,15 +1,18 @@
-import { TMDBSearchResult } from "@/lib/tmdb/types";
+import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import Link from "next/link";
 import { PosterImage } from "./tmdb-image";
 import { Film, Tv } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 
 interface MediaCardProps {
   item: TMDBSearchResult;
+  status?: WatchStatus | null;
+  className?: string;
 }
 
-export function MediaCard({ item }: MediaCardProps) {
+export function MediaCard({ item, status, className }: MediaCardProps) {
   const isMovie = (item.media_type ?? (item.title ? "movie" : "tv")) === "movie";
   const title = item.title || item.name || "Untitled";
   const date = item.release_date || item.first_air_date;
@@ -20,7 +23,12 @@ export function MediaCard({ item }: MediaCardProps) {
   };
   return (
     <Link href={getItemLink(item)}>
-      <div className="group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm hover:cursor-pointer">
+      <div
+        className={cn(
+          "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm hover:cursor-pointer",
+          className
+        )}
+      >
         <div className="relative">
           <PosterImage
             src={item.poster_path}
@@ -40,6 +48,11 @@ export function MediaCard({ item }: MediaCardProps) {
             {isMovie ? <Film className="h-3 w-3" /> : <Tv className="h-3 w-3" />}{" "}
             {isMovie ? "Movie" : "TV"}
           </span>
+          {status && (
+            <span className="absolute right-2 top-2 rounded-md bg-primary/80 px-2 py-1 text-[10px] font-medium text-primary-foreground backdrop-blur">
+              {WATCH_STATUSES.find(s => s.value === status)?.label || status}
+            </span>
+          )}
         </div>
         <div className="flex flex-1 flex-col p-3">
           <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{title}</h3>
