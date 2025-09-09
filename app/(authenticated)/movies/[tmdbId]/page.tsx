@@ -63,7 +63,7 @@ export default function MovieDetailsPage() {
         setUpdating(false);
       }
     },
-    [numericId, currentStatus, setStatus]
+    [numericId, currentStatus, setStatus, movie?.runtime]
   );
 
   const genres = movie?.genres?.map(g => g.name).join(" • ");
