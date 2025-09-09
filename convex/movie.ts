@@ -25,7 +25,8 @@ export const setMovieStatus = mutation({
       v.literal("watched"),
       v.literal("on_hold"),
       v.literal("dropped")
-    )
+    ),
+    runtime: v.optional(v.number())
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -41,6 +42,7 @@ export const setMovieStatus = mutation({
     if (existing) {
       await ctx.db.patch(existing._id, {
         status: args.status,
+        runtime: args.runtime ?? existing.runtime,
         updatedAt: now,
         watchedDate: args.status === "watched" ? now : existing.watchedDate
       });
@@ -51,6 +53,7 @@ export const setMovieStatus = mutation({
       userId: identity.subject,
       movieId: args.movieId,
       status: args.status,
+      runtime: args.runtime,
       createdAt: now,
       updatedAt: now,
       watchedDate: args.status === "watched" ? now : undefined

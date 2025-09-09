@@ -60,12 +60,18 @@ export default function SeasonDetailsPage() {
     return m;
   }, [episodeStatuses]);
 
-  const allEpisodeIds = useMemo(() => season?.episodes.map(e => e.id) || [], [season]);
-  const watchedCount = useMemo(
-    () => allEpisodeIds.filter(id => statusMap.get(id)).length,
-    [allEpisodeIds, statusMap]
+  const episodesInfo = useMemo(
+    () =>
+      season?.episodes.map(e => {
+        return { episodeId: e.id, runtime: e.runtime ?? undefined };
+      }) || [],
+    [season]
   );
-  const allWatched = allEpisodeIds.length > 0 && watchedCount === allEpisodeIds.length;
+  const watchedCount = useMemo(
+    () => episodesInfo.filter(e => statusMap.get(e.episodeId)).length,
+    [episodesInfo, statusMap]
+  );
+  const allWatched = episodesInfo.length > 0 && watchedCount === episodesInfo.length;
 
   const handleBulkToggle = useCallback(async () => {
     if (!season) return;
@@ -74,13 +80,13 @@ export default function SeasonDetailsPage() {
       await bulkToggle({
         tvSeriesId: seriesId,
         seasonId: season.id,
-        episodeIds: allEpisodeIds,
+        episodesInfo: episodesInfo,
         isWatched: !allWatched,
       });
     } finally {
       setBulkUpdating(false);
     }
-  }, [season, seriesId, allEpisodeIds, allWatched, bulkToggle]);
+  }, [season, seriesId, episodesInfo, allWatched, bulkToggle]);
 
   const handleToggleEpisode = useCallback(
     async (ep: SeasonEpisode) => {
@@ -89,6 +95,7 @@ export default function SeasonDetailsPage() {
         tvSeriesId: seriesId,
         seasonId: season.id,
         episodeId: ep.id,
+        runtime: ep.runtime ?? undefined,
         isWatched: !statusMap.get(ep.id),
       });
     },
@@ -107,10 +114,8 @@ export default function SeasonDetailsPage() {
     <div className="mx-auto">
       {season && (
         <div className="flex items-center gap-2 mt-2 mb-4">
-          <ProgressSummary watched={watchedCount} total={allEpisodeIds.length} />
-          <Progress
-            value={allEpisodeIds.length ? (watchedCount / allEpisodeIds.length) * 100 : 0}
-          />
+          <ProgressSummary watched={watchedCount} total={episodesInfo.length} />
+          <Progress value={episodesInfo.length ? (watchedCount / episodesInfo.length) * 100 : 0} />
         </div>
       )}
       {loading && <SeasonSkeleton />}

@@ -77,6 +77,7 @@ export const toggleEpisodeWatched = mutation({
     tvSeriesId: v.number(),
     seasonId: v.number(),
     episodeId: v.number(),
+    runtime: v.optional(v.number()),
     isWatched: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -91,6 +92,7 @@ export const toggleEpisodeWatched = mutation({
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
+        runtime: args.runtime ?? existing.runtime,
         isWatched: args.isWatched,
         watchedDate: args.isWatched ? now : undefined,
         updatedAt: now,
@@ -101,6 +103,7 @@ export const toggleEpisodeWatched = mutation({
         tvSeriesId: args.tvSeriesId,
         seasonId: args.seasonId,
         episodeId: args.episodeId,
+        runtime: args.runtime,
         isWatched: args.isWatched,
         watchedDate: args.isWatched ? now : undefined,
         createdAt: now,
@@ -114,7 +117,7 @@ export const bulkToggleSeasonEpisodes = mutation({
   args: {
     tvSeriesId: v.number(),
     seasonId: v.number(),
-    episodeIds: v.array(v.number()),
+    episodesInfo: v.array(v.object({ episodeId: v.number(), runtime: v.optional(v.number()) })),
     isWatched: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -130,10 +133,11 @@ export const bulkToggleSeasonEpisodes = mutation({
       .collect();
     const existingMap = new Map(existing.map(e => [e.episodeId, e]));
 
-    for (const episodeId of args.episodeIds) {
-      const rec = existingMap.get(episodeId);
+    for (const ep of args.episodesInfo) {
+      const rec = existingMap.get(ep.episodeId);
       if (rec) {
         await ctx.db.patch(rec._id, {
+          runtime: ep.runtime ?? rec.runtime,
           isWatched: args.isWatched,
           watchedDate: args.isWatched ? now : undefined,
           updatedAt: now,
@@ -143,7 +147,8 @@ export const bulkToggleSeasonEpisodes = mutation({
           userId: identity.subject,
           tvSeriesId: args.tvSeriesId,
           seasonId: args.seasonId,
-          episodeId,
+          episodeId: ep.episodeId,
+          runtime: ep.runtime,
           isWatched: args.isWatched,
           watchedDate: args.isWatched ? now : undefined,
           createdAt: now,

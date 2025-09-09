@@ -57,6 +57,7 @@ export default function MovieDetailsPage() {
         await setStatus({
           movieId: numericId,
           status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
+          runtime: movie?.runtime ?? undefined,
         });
       } finally {
         setUpdating(false);
