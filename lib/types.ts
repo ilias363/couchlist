@@ -1,0 +1,73 @@
+export interface UserStats {
+  overview: {
+    totalMovies: number;
+    totalTvSeries: number;
+    totalWatchedMovies: number;
+    totalWatchedTvSeries: number;
+    totalWatchedEpisodes: number;
+    totalWatchedSeasons: number;
+    totalWatchTimeMinutes: number;
+    totalWatchTimeHours: number;
+  };
+  distributions: {
+    movies: { status: string; value: number }[];
+    tvSeries: { status: string; value: number }[];
+  };
+  weeklyActivity: {
+    label: string;
+    start: number;
+    end: number;
+    movies: number;
+    episodes: number;
+  }[];
+  dailyActivity: {
+    date: string;
+    movies: number;
+    episodes: number;
+    total: number;
+  }[];
+  weekdayDistribution: {
+    weekday: number;
+    movies: number;
+    episodes: number;
+    total: number;
+  }[];
+  watchTimeBreakdown: {
+    moviesMinutes: number;
+    episodesMinutes: number;
+    totalMinutes: number;
+  };
+  streaks: {
+    current: number;
+    longest: number;
+  };
+  completionRates: {
+    movies: number;
+    tvSeries: number;
+  };
+  movies: {
+    total: number;
+    watched: number;
+    wantToWatch: number;
+    onHold: number;
+    dropped: number;
+  };
+  tvSeries: {
+    total: number;
+    watched: number;
+    currentlyWatching: number;
+    wantToWatch: number;
+    onHold: number;
+    dropped: number;
+  };
+  episodes: {
+    totalWatchedEpisodes: number;
+    totalWatchedSeasons: number;
+  };
+  recentActivity: {
+    moviesWatched: number;
+    episodesWatched: number;
+    totalItems: number;
+  };
+  generatedAt: number;
+}
