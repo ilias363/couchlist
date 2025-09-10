@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { tmdbClient } from "@/lib/tmdb/client-api";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
-import { TMDBMovie } from "@/lib/tmdb/types";
+import { useBatchTMDBMovies } from "@/lib/tmdb/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,18 +30,7 @@ export default function MoviesPage() {
     { initialNumItems: 30 }
   );
 
-  const [detailsMap, setDetailsMap] = useState<Map<number, TMDBMovie | null>>(new Map());
-
-  useEffect(() => {
-    const missingIds = results.map(m => m.movieId).filter((id: number) => !detailsMap.has(id));
-
-    if (missingIds.length === 0) return;
-
-    (async () => {
-      const batch = await tmdbClient.batchGetMovieDetails(missingIds);
-      setDetailsMap(prev => new Map([...prev, ...batch]));
-    })();
-  }, [results, detailsMap]);
+  const { map: detailsMap } = useBatchTMDBMovies(results.map(r => r.movieId));
 
   const loading = paginationStatus === "LoadingFirstPage" || paginationStatus === "LoadingMore";
 
