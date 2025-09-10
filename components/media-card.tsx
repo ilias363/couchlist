@@ -25,7 +25,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
     <Link href={getItemLink(item)}>
       <div
         className={cn(
-          "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm hover:cursor-pointer",
+          "group relative h-full flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm hover:cursor-pointer",
           className
         )}
       >
