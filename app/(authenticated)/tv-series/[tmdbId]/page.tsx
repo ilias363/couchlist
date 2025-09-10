@@ -1,9 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { tmdbClient } from "@/lib/tmdb/client-api";
-import { TMDBTvSeries } from "@/lib/tmdb/types";
+import { useState, useCallback, useMemo } from "react";
 import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
@@ -12,40 +10,16 @@ import { api } from "@/convex/_generated/api";
 import { Tv, Users, Clapperboard, CalendarDays, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusSelector } from "@/components/status-selector";
+import { useTMDBTvSeries } from "@/lib/tmdb/react-query";
 
 export default function TvSeriesDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const seriesId = Number(tmdbId);
-  const [series, setSeries] = useState<TMDBTvSeries | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: series, isLoading: loading, error } = useTMDBTvSeries(seriesId);
   const [updating, setUpdating] = useState(false);
 
   const userSeries = useQuery(api.tv.getSeriesStatus, seriesId ? { tvSeriesId: seriesId } : "skip");
   const setSeriesStatus = useMutation(api.tv.setSeriesStatus);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!seriesId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const s = await tmdbClient.getTVSeriesDetails(seriesId);
-        if (cancelled) return;
-        setSeries(s);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load series");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [seriesId]);
 
   const currentStatus = userSeries?.status;
 
@@ -86,7 +60,9 @@ export default function TvSeriesDetailsPage() {
       </div>
       <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
         {loading && <TvSeriesSkeleton />}
-        {error && !loading && <div className="text-center text-sm text-destructive">{error}</div>}
+        {error && !loading && (
+          <div className="text-center text-sm text-destructive">{error.message}</div>
+        )}
         {!loading && series && (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 md:flex-row">

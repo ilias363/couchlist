@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
-import { tmdbClient } from "@/lib/tmdb/client-api";
-import { TMDBMovie } from "@/lib/tmdb/types";
 import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "convex/react";
+import { useTMDBMovie } from "@/lib/tmdb/react-query";
 import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
 import { MovieMetaCards } from "@/components/movie/movie-meta-cards";
@@ -15,36 +14,11 @@ import { Film } from "lucide-react";
 export default function MovieDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const numericId = Number(tmdbId);
-  const [movie, setMovie] = useState<TMDBMovie | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: movie, isLoading: loading, error } = useTMDBMovie(numericId);
   const [updating, setUpdating] = useState(false);
 
   const userMovie = useQuery(api.movie.getMovieStatus, numericId ? { movieId: numericId } : "skip");
   const setStatus = useMutation(api.movie.setMovieStatus);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!numericId) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const m = await tmdbClient.getMovieDetails(numericId);
-        if (cancelled) return;
-        setMovie(m);
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load movie");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [numericId]);
 
   const currentStatus = userMovie?.status;
 
@@ -78,7 +52,9 @@ export default function MovieDetailsPage() {
 
       <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
         {loading && <MovieSkeleton />}
-        {error && !loading && <div className="text-center text-sm text-destructive">{error}</div>}
+        {error && !loading && (
+          <div className="text-center text-sm text-destructive">{error.message}</div>
+        )}
         {!loading && movie && (
           <div className="space-y-10">
             <div className="flex flex-col gap-6 md:flex-row">

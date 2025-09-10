@@ -1,9 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { tmdbClient } from "@/lib/tmdb/client-api";
-import { SeasonEpisode, TMDBSeason } from "@/lib/tmdb/types";
+import { useState, useMemo, useCallback } from "react";
+import { SeasonEpisode } from "@/lib/tmdb/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
@@ -13,38 +12,16 @@ import { Progress } from "@/components/ui/progress";
 import { EpisodeFilters } from "@/components/season/episode-filters";
 import { ProgressSummary } from "@/components/season/progress-summary";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
+import { useTMDBSeason } from "@/lib/tmdb/react-query";
 
 export default function SeasonDetailsPage() {
   const { tmdbId, seasonNumber } = useParams<{ tmdbId: string; seasonNumber: string }>();
   const seriesId = Number(tmdbId);
   const seasonNum = Number(seasonNumber);
 
-  const [season, setSeason] = useState<TMDBSeason | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: season, isLoading: loading, error } = useTMDBSeason(seriesId, seasonNum);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [filter, setFilter] = useState<"all" | "watched" | "unwatched">("all");
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!seriesId || !seasonNum) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const s = await tmdbClient.getSeasonDetails(seriesId, seasonNum);
-        if (!cancelled) setSeason(s);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load season");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [seriesId, seasonNum]);
 
   const episodeStatuses = useQuery(
     api.tv.getSeasonEpisodesStatus,
@@ -119,7 +96,7 @@ export default function SeasonDetailsPage() {
         </div>
       )}
       {loading && <SeasonSkeleton />}
-      {error && !loading && <div className="text-sm text-destructive">{error}</div>}
+      {error && !loading && <div className="text-sm text-destructive">{error.message}</div>}
       {!loading && season && (
         <div className="space-y-12">
           <SeasonHeader
