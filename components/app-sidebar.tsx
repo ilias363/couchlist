@@ -22,7 +22,7 @@ const NAV_ITEMS: Array<{
   icon: LucideIcon;
   isActive: (pathname: string) => boolean;
 }> = [
-  { label: "Dashboard", href: "/dashboard", icon: Home, isActive: path => path === "/dashboard" },
+  { label: "Home", href: "/home", icon: Home, isActive: path => path === "/home" },
   { label: "Search", href: "/search", icon: Search, isActive: path => path.startsWith("/search") },
   {
     label: "Movies",
