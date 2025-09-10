@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { tmdbClient } from "@/lib/tmdb/client-api";
+import { useEffect, useRef } from "react";
 import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
+import { useTMDBCategoryFeed } from "@/lib/tmdb/react-query";
 
 interface CategorySectionProps {
   title: string;
@@ -11,7 +11,6 @@ interface CategorySectionProps {
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today";
   allMovieStatuses?: Record<number, { status: WatchStatus }>;
   allTvStatuses?: Record<number, { status: WatchStatus }>;
-  initialPage?: number;
 }
 
 export function CategorySection({
@@ -20,77 +19,30 @@ export function CategorySection({
   category,
   allMovieStatuses,
   allTvStatuses,
-  initialPage = 1,
 }: CategorySectionProps) {
-  const [page, setPage] = useState(initialPage);
-  const [items, setItems] = useState<TMDBSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const { data, isFetching, fetchNextPage, hasNextPage, isLoading } = useTMDBCategoryFeed(
+    type,
+    category
+  );
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchPage(p: number) {
-      setLoading(true);
-      try {
-        let resp;
-        if (category === "trending") {
-          resp =
-            type === "movie"
-              ? await tmdbClient.getTrendingMovies(p)
-              : await tmdbClient.getTrendingTv(p);
-        } else if (category === "popular") {
-          resp =
-            type === "movie"
-              ? await tmdbClient.getPopularMovies(p)
-              : await tmdbClient.getPopularTv(p);
-        } else if (category === "top_rated") {
-          resp =
-            type === "movie"
-              ? await tmdbClient.getTopRatedMovies(p)
-              : await tmdbClient.getTopRatedTv(p);
-        } else if (category === "now_playing" && type === "movie") {
-          resp = await tmdbClient.getNowPlayingMovies(p);
-        } else if (category === "airing_today" && type === "tv") {
-          resp = await tmdbClient.getAiringTodayTv(p);
-        } else {
-          resp = { results: [], total_pages: p, page: p };
-        }
-        if (!cancelled) {
-          setItems(prev => [...prev, ...resp.results]);
-          if (resp.total_pages && p >= resp.total_pages) setHasMore(false);
-          if (!resp.results || resp.results.length === 0) setHasMore(false);
-        }
-      } catch (e) {
-        console.error("Category fetch failed", e);
-        if (!cancelled) setHasMore(false);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    fetchPage(page);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [page, category, type]);
-
-  // Observer for infinite scroll
-  useEffect(() => {
-    if (!hasMore || loading) return;
     const node = endRef.current;
     if (!node) return;
+    if (!hasNextPage) return;
     const observer = new IntersectionObserver(
       entries => {
-        if (entries[0].isIntersecting) setPage(p => p + 1);
+        if (entries[0].isIntersecting && hasNextPage && !isFetching) {
+          fetchNextPage();
+        }
       },
       { root: null, rootMargin: "200px", threshold: 0 }
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, loading]);
+  }, [hasNextPage, isFetching, fetchNextPage]);
+
+  const items = data?.pages.flatMap(page => page.results) || [];
 
   const getStatus = (item: TMDBSearchResult) => {
     if (item.media_type === "movie") return allMovieStatuses?.[item.id]?.status;
@@ -104,7 +56,7 @@ export function CategorySection({
       <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
       <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
         {items.length === 0 &&
-          loading &&
+          isLoading &&
           Array.from({ length: placeholderCount }).map((_, i) => (
             <div key={i} className="w-36 sm:w-40 lg:w-44 flex-shrink-0">
               <MediaCardSkeleton />
@@ -118,7 +70,7 @@ export function CategorySection({
             <MediaCard item={it} status={getStatus(it)} />
           </div>
         ))}
-        {hasMore && (
+        {hasNextPage && (
           <div ref={endRef} className="flex-shrink-0 flex items-center justify-center w-24">
             <div className="text-xs text-muted-foreground animate-pulse">Loading…</div>
           </div>
