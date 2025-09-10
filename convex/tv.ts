@@ -191,3 +191,24 @@ export const listUserTvSeries = query({
     return page;
   }
 });
+
+export const listAllTvStatuses = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return {} as Record<number, { status: string }>;
+
+    const userSeries = await ctx.db
+      .query("userTvSeries")
+      .withIndex("by_user", q => q.eq("userId", identity.subject))
+      .collect();
+
+    const result: Record<number, { status: string }> = {};
+
+    for (const tv of userSeries) {
+      result[tv.tvSeriesId] = { status: tv.status };
+    }
+
+    return result;
+  }
+});
