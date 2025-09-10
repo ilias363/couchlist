@@ -1,5 +1,5 @@
 import { tmdbClient } from "./client-api";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueries } from "@tanstack/react-query";
 import { TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
 
 export const tmdbKeys = {
@@ -33,6 +33,44 @@ export function useTMDBSeason(seriesId: number, seasonNumber: number) {
     queryKey: tmdbKeys.season(seriesId, seasonNumber),
     queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
   });
+}
+
+export function useBatchTMDBMovies(ids: number[]) {
+  const queries = useQueries({
+    queries: ids.map(id => ({
+      queryKey: tmdbKeys.movie(id),
+      queryFn: () => tmdbClient.getMovieDetails(id),
+    })),
+  });
+
+  const map = new Map<number, TMDBMovie | null>();
+  queries.forEach((q, i) => {
+    const id = ids[i];
+    if (id) map.set(id, q.data || null);
+  });
+
+  const isLoading = queries.some(q => q.isLoading);
+  const isFetching = queries.some(q => q.isFetching);
+  return { map, queries, isLoading, isFetching };
+}
+
+export function useBatchTMDBTvSeries(ids: number[]) {
+  const queries = useQueries({
+    queries: ids.map(id => ({
+      queryKey: tmdbKeys.tv(id),
+      queryFn: () => tmdbClient.getTVSeriesDetails(id),
+    })),
+  });
+
+  const map = new Map<number, TMDBTvSeries | null>();
+  queries.forEach((q, i) => {
+    const id = ids[i];
+    if (id) map.set(id, q.data || null);
+  });
+
+  const isLoading = queries.some(q => q.isLoading);
+  const isFetching = queries.some(q => q.isFetching);
+  return { map, queries, isLoading, isFetching };
 }
 
 export type SearchMode = "movie" | "tv" | "multi";
