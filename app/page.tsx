@@ -40,20 +40,20 @@ export default function Home() {
                 statistics all in one place.
               </p>
               <div className="flex flex-col items-center justify-center">
-                <SignInButton>
+                <SignUpButton>
                   <Button
                     size="lg"
                     className="bg-white text-purple-600 hover:bg-gray-100 hover:cursor-pointer"
                   >
-                    Get Started - Sign In
+                    Get Started - Sign Up
                   </Button>
-                </SignInButton>
-
-                <SignUpButton>
-                  <span className="underline text-sm text-muted-foreground hover:opacity-80 hover:cursor-pointer mt-2">
-                    Already have an account? Sign Up
-                  </span>
                 </SignUpButton>
+
+                <SignInButton>
+                  <span className="underline text-sm text-muted-foreground hover:opacity-80 hover:cursor-pointer mt-2">
+                    Already have an account? Sign In
+                  </span>
+                </SignInButton>
               </div>
             </div>
 
