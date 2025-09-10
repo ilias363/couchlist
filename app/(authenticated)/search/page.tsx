@@ -8,7 +8,7 @@ import { Film, Tv, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
 import { Pagination } from "@/components/pagination";
-import { SearchMode, useTMDBSearch } from "@/lib/hooks/use-tmdb-search";
+import { SearchMode, useTMDBSearchQuery } from "@/lib/tmdb/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function SearchPage() {
@@ -64,11 +64,10 @@ function SearchView() {
     [debouncedUpdate]
   );
 
-  const { results, totalPages, totalResults, loading, error } = useTMDBSearch({
-    query: debouncedQuery,
-    page,
-    mode,
-  });
+  const { data, isLoading: loading, error } = useTMDBSearchQuery(debouncedQuery, page, mode);
+  const results = data?.results || [];
+  const totalPages = data?.total_pages || 0;
+  const totalResults = data?.total_results || 0;
 
   useEffect(() => {
     return () => debouncedUpdate.cancel();
@@ -165,7 +164,9 @@ function SearchView() {
             No results found.
           </p>
         )}
-        {error && <p className="col-span-full text-center text-sm text-destructive">{error}</p>}
+        {error && (
+          <p className="col-span-full text-center text-sm text-destructive">{error.message}</p>
+        )}
         {results.map(r => (
           <MediaCard key={`${r.media_type}-${r.id}`} item={r} />
         ))}
