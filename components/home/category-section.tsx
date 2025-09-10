@@ -2,15 +2,15 @@
 
 import { useEffect, useState, useRef } from "react";
 import { tmdbClient } from "@/lib/tmdb/client-api";
-import { TMDBSearchResult } from "@/lib/tmdb/types";
+import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
 
 interface CategorySectionProps {
   title: string;
   type: "movie" | "tv";
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today";
-  allMovieStatuses?: Record<number, { status: string }>;
-  allTvStatuses?: Record<number, { status: string }>;
+  allMovieStatuses?: Record<number, { status: WatchStatus }>;
+  allTvStatuses?: Record<number, { status: WatchStatus }>;
   initialPage?: number;
 }
 
@@ -34,7 +34,7 @@ export function CategorySection({
     async function fetchPage(p: number) {
       setLoading(true);
       try {
-        let resp: any;
+        let resp;
         if (category === "trending") {
           resp =
             type === "movie"
@@ -93,8 +93,7 @@ export function CategorySection({
   }, [hasMore, loading]);
 
   const getStatus = (item: TMDBSearchResult) => {
-    const isMovie = (item.media_type ?? (item.title ? "movie" : "tv")) === "movie";
-    if (isMovie) return allMovieStatuses?.[item.id]?.status;
+    if (item.media_type === "movie") return allMovieStatuses?.[item.id]?.status;
     return allTvStatuses?.[item.id]?.status;
   };
 
@@ -113,10 +112,7 @@ export function CategorySection({
           ))}
         {items.map(it => (
           <div key={`${type}-${category}-${it.id}`} className="w-36 sm:w-40 lg:w-44 flex-shrink-0">
-            <MediaCard
-              item={{ ...it, media_type: (it.media_type || (it.title ? "movie" : "tv")) as any }}
-              status={getStatus(it) as any}
-            />
+            <MediaCard item={it} status={getStatus(it)} />
           </div>
         ))}
         {hasMore && (

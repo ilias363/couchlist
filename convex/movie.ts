@@ -98,14 +98,14 @@ export const listAllMovieStatuses = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return {} as Record<number, { status: string }>;
+    if (!identity) return {};
 
     const userMovies = await ctx.db
       .query("userMovies")
       .withIndex("by_user", q => q.eq("userId", identity.subject))
       .collect();
 
-    const result: Record<number, { status: string }> = {};
+    const result: Record<number, { status: "want_to_watch" | "watched" | "on_hold" | "dropped" }> = {};
 
     for (const m of userMovies) {
       result[m.movieId] = { status: m.status };
