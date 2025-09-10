@@ -2,29 +2,13 @@ import { TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries 
 
 export class TMDBClient {
   private apiKey: string;
-  private cache: Map<string, { data: unknown; timestamp: number }>;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
-    this.cache = new Map();
-  }
-
-  private isValidCache(timestamp: number): boolean {
-    return Date.now() - timestamp < this.CACHE_DURATION;
   }
 
   private async makeRequest<T>(endpoint: string): Promise<T> {
-    // Check cache first
-    const cacheKey = endpoint;
-    const cached = this.cache.get(cacheKey);
-
-    if (cached && this.isValidCache(cached.timestamp)) {
-      return cached.data as T;
-    }
-
-    const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${this.apiKey
-      }`;
+    const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${this.apiKey}`;
 
     const response = await fetch(url);
 
@@ -37,11 +21,7 @@ export class TMDBClient {
       throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-
-    this.cache.set(cacheKey, { data, timestamp: Date.now() });
-
-    return data;
+    return await response.json();
   }
 
   // Search functions
