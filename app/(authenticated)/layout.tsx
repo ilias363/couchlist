@@ -25,7 +25,9 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             <UserButton />
           </div>
         </div>
-        <div className="p-2 md:p-4 space-y-4 md:space-y-6 mx-auto w-full">{children}</div>
+        <div className="p-2 md:p-4 space-y-4 md:space-y-6 mx-auto w-full overflow-x-hidden">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
