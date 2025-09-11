@@ -2,11 +2,13 @@
 
 import { CategorySection } from "@/components/home/category-section";
 import { api } from "@/convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useQueries } from "convex/react";
 
 export default function HomePage() {
-  const allMovieStatuses = useQuery(api.movie.listAllMovieStatuses, {});
-  const allTvStatuses = useQuery(api.tv.listAllTvStatuses, {});
+  const { allMovieStatuses, allTvStatuses } = useQueries({
+    allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
+    allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
+  });
   return (
     <div className="space-y-6">
       <div>
