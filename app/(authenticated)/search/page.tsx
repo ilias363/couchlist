@@ -10,6 +10,9 @@ import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
 import { Pagination } from "@/components/pagination";
 import { SearchMode, useTMDBSearchQuery } from "@/lib/tmdb/react-query";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQueries } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 
 export default function SearchPage() {
   return (
@@ -31,6 +34,11 @@ function SearchView() {
   const searchParams = useSearchParams();
 
   const isMobile = useIsMobile();
+
+  const { allMovieStatuses, allTvStatuses } = useQueries({
+    allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
+    allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
+  });
 
   useEffect(() => {
     if (initialized) return;
@@ -87,6 +95,12 @@ function SearchView() {
     setMode(next);
     setPage(1);
   }
+
+  const getStatus = (item: TMDBSearchResult) => {
+    if (item.media_type === "movie")
+      return allMovieStatuses?.[item.id]?.status as WatchStatus | undefined;
+    return allTvStatuses?.[item.id]?.status as WatchStatus | undefined;
+  };
 
   return (
     <div className="mx-auto">
@@ -168,7 +182,7 @@ function SearchView() {
           <p className="col-span-full text-center text-sm text-destructive">{error.message}</p>
         )}
         {results.map(r => (
-          <MediaCard key={`${r.media_type}-${r.id}`} item={r} />
+          <MediaCard key={`${r.media_type}-${r.id}`} item={r} status={getStatus(r)} />
         ))}
       </div>
 
