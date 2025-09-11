@@ -1,15 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { debounce } from "lodash";
 import { Film, Tv, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
-import { Pagination } from "@/components/pagination";
-import { SearchMode, useTMDBSearchQuery } from "@/lib/tmdb/react-query";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
 import { useQueries } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
@@ -26,14 +24,11 @@ function SearchView() {
   const [rawQuery, setRawQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("multi");
-  const [page, setPage] = useState(1);
   const [initialized, setInitialized] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const isMobile = useIsMobile();
 
   const { allMovieStatuses, allTvStatuses } = useQueries({
     allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
@@ -44,12 +39,9 @@ function SearchView() {
     if (initialized) return;
     const q = searchParams.get("q") || "";
     const m = searchParams.get("mode") as SearchMode | null;
-    const p = Number(searchParams.get("page") || 1);
-
     setRawQuery(q);
     setDebouncedQuery(q.trim());
     if (m === "movie" || m === "tv" || m === "multi") setMode(m);
-    if (!Number.isNaN(p) && p > 0) setPage(Math.floor(p));
     setInitialized(true);
   }, [initialized, searchParams]);
 
@@ -57,7 +49,6 @@ function SearchView() {
     () =>
       debounce((value: string) => {
         const trimmed = value.trim();
-        setPage(1);
         setDebouncedQuery(trimmed);
       }, 500),
     []
@@ -72,10 +63,16 @@ function SearchView() {
     [debouncedUpdate]
   );
 
-  const { data, isLoading: loading, error } = useTMDBSearchQuery(debouncedQuery, page, mode);
-  const results = data?.results || [];
-  const totalPages = data?.total_pages || 0;
-  const totalResults = data?.total_results || 0;
+  const {
+    data,
+    error,
+    isLoading: loading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useTMDBSearchFeed(debouncedQuery, mode);
+
+  const results = (data?.pages || []).flatMap(p => p.results);
 
   useEffect(() => {
     return () => debouncedUpdate.cancel();
@@ -86,21 +83,29 @@ function SearchView() {
     const sp = new URLSearchParams();
     if (debouncedQuery) sp.set("q", debouncedQuery);
     if (mode !== "multi") sp.set("mode", mode);
-    if (page > 1) sp.set("page", String(page));
     const qs = sp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [debouncedQuery, mode, page, initialized, pathname, router]);
-
-  function changeMode(next: SearchMode) {
-    setMode(next);
-    setPage(1);
-  }
+  }, [debouncedQuery, mode, initialized, pathname, router]);
 
   const getStatus = (item: TMDBSearchResult) => {
     if (item.media_type === "movie")
       return allMovieStatuses?.[item.id]?.status as WatchStatus | undefined;
     return allTvStatuses?.[item.id]?.status as WatchStatus | undefined;
   };
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    if (!hasNextPage) return;
+    const el = sentinelRef.current;
+    const io = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, debouncedQuery, mode]);
 
   return (
     <div className="mx-auto">
@@ -122,21 +127,21 @@ function SearchView() {
         <div className="flex items-center justify-between gap-2">
           <ModeButton
             active={mode === "movie"}
-            onClick={() => changeMode("movie")}
+            onClick={() => setMode("movie")}
             icon={<Film className="h-4 w-4" />}
           >
             Movies
           </ModeButton>
           <ModeButton
             active={mode === "tv"}
-            onClick={() => changeMode("tv")}
+            onClick={() => setMode("tv")}
             icon={<Tv className="h-4 w-4" />}
           >
             TV Series
           </ModeButton>
           <ModeButton
             active={mode === "multi"}
-            onClick={() => changeMode("multi")}
+            onClick={() => setMode("multi")}
             icon={
               <>
                 <Film className="h-4 w-4" />
@@ -151,22 +156,8 @@ function SearchView() {
 
       <div className="flex items-center justify-between gap-4 flex-wrap py-2">
         <div className="text-sm text-muted-foreground">
-          {debouncedQuery
-            ? loading
-              ? "Searching..."
-              : error
-              ? `Error: ${error}`
-              : `${totalResults.toLocaleString()} result${totalResults === 1 ? "" : "s"}`
-            : ""}
+          {debouncedQuery ? (loading ? "Searching..." : error ? `Error: ${error}` : "") : ""}
         </div>
-        {!isMobile && totalPages > 1 && (
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            loading={!!loading}
-            onPageChange={setPage}
-          />
-        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -186,14 +177,10 @@ function SearchView() {
         ))}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 pt-4">
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            loading={!!loading}
-            onPageChange={setPage}
-          />
+      <div ref={sentinelRef} />
+      {hasNextPage && isFetchingNextPage && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-muted-foreground animate-pulse">Loading…</div>
         </div>
       )}
     </div>

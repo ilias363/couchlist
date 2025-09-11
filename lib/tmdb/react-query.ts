@@ -4,8 +4,8 @@ import { TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types
 
 export const tmdbKeys = {
   all: ["tmdb"] as const,
-  search: (mode: string, query: string, page: number) =>
-    [...tmdbKeys.all, "search", mode, query, page] as const,
+  searchFeed: (mode: string, query: string) =>
+    [...tmdbKeys.all, "search", mode, query] as const,
   movie: (id: number) => [...tmdbKeys.all, "movie", id] as const,
   tv: (id: number) => [...tmdbKeys.all, "tv", id] as const,
   season: (seriesId: number, seasonNumber: number) =>
@@ -75,19 +75,29 @@ export function useBatchTMDBTvSeries(ids: number[]) {
 
 export type SearchMode = "movie" | "tv" | "multi";
 
-export function useTMDBSearchQuery(query: string, page: number, mode: SearchMode) {
-  query = query.trim();
-  return useQuery<TMDBSearchResponse>({
-    queryKey: tmdbKeys.search(mode, query, page),
-    enabled: !!query,
-    queryFn: () => {
-      if (mode === "movie") return tmdbClient.searchMovies(query, page);
-      if (mode === "tv") return tmdbClient.searchTVSeries(query, page);
-      return tmdbClient.searchMulti(query, page);
+export function useTMDBSearchFeed(query: string, mode: SearchMode) {
+  const q = query.trim();
+  return useInfiniteQuery<TMDBSearchResponse>({
+    initialPageParam: 1,
+    queryKey: tmdbKeys.searchFeed(mode, q),
+    enabled: !!q,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.results.length === 0) return undefined;
+      if (lastPage.page >= lastPage.total_pages) return undefined;
+      return lastPage.page + 1;
+    },
+    queryFn: ({ pageParam }) => {
+      const p = pageParam as number;
+      if (mode === "movie") return tmdbClient.searchMovies(q, p);
+      if (mode === "tv") return tmdbClient.searchTVSeries(q, p);
+      return tmdbClient.searchMulti(q, p);
     },
     select: data => ({
-      ...data,
-      results: data.results.filter(r => r.media_type !== "person"),
+      pageParams: data.pageParams,
+      pages: data.pages.map(page => ({
+        ...page,
+        results: page.results.filter(r => r.media_type !== "person"),
+      })),
     }),
   });
 }
@@ -96,16 +106,16 @@ export function useTMDBCategoryFeed(
   type: "movie" | "tv",
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today"
 ) {
-  return useInfiniteQuery({
+  return useInfiniteQuery<TMDBSearchResponse>({
     initialPageParam: 1,
     queryKey: tmdbKeys.category(type, category),
-    getNextPageParam: (lastPage: TMDBSearchResponse, _pages, lastPageParam) => {
+    getNextPageParam: (lastPage) => {
       if (lastPage.results.length === 0) return undefined;
-      if (lastPageParam >= lastPage.total_pages) return undefined;
-      return lastPageParam + 1;
+      if (lastPage.page >= lastPage.total_pages) return undefined;
+      return lastPage.page + 1;
     },
     queryFn: ({ pageParam }) => {
-      const p = pageParam;
+      const p = pageParam as number;
       if (category === "trending")
         return type === "movie" ? tmdbClient.getTrendingMovies(p) : tmdbClient.getTrendingTv(p);
       if (category === "popular")
