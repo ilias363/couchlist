@@ -1,16 +1,8 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { UserButton } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 
-export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const authObject = await auth();
-
-  if (!authObject.isAuthenticated) {
-    redirect("/");
-  }
-
+export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
