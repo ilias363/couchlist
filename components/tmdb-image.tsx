@@ -17,6 +17,7 @@ interface BaseProps {
   size: string;
   fallback?: React.ReactNode;
   sizesAttr?: string;
+  overlay?: React.ReactNode;
 }
 
 function BaseTMDBImage({
@@ -29,6 +30,7 @@ function BaseTMDBImage({
   size,
   fallback,
   sizesAttr,
+  overlay,
 }: BaseProps) {
   const [errored, setErrored] = useState(false);
   const url = getTMDBImgUrl(src, size);
@@ -61,6 +63,7 @@ function BaseTMDBImage({
         onError={() => setErrored(true)}
         priority={priority}
       />
+      {overlay}
     </div>
   );
 }
@@ -85,16 +88,29 @@ export function PosterImage({ size = "w500", fallbackType = "movie", ...rest }: 
 }
 
 export interface BackdropImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr"> {
+  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr" | "overlay"> {
   size?: BackdropSize;
+  gradient?: "none" | "top" | "bottom" | "both";
 }
-export function BackdropImage({ size = "w1280", ...rest }: BackdropImageProps) {
+export function BackdropImage({ size = "w1280", gradient = "none", ...rest }: BackdropImageProps) {
+  const overlay =
+    gradient === "none" ? undefined : (
+      <>
+        {(gradient === "top" || gradient === "both") && (
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/70 to-background/40" />
+        )}
+        {(gradient === "bottom" || gradient === "both") && (
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/40" />
+        )}
+      </>
+    );
   return (
     <BaseTMDBImage
       {...rest}
       size={size}
       aspect="aspect-[16/9]"
       sizesAttr="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      overlay={overlay}
     />
   );
 }
