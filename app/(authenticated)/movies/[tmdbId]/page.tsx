@@ -45,64 +45,72 @@ export default function MovieDetailsPage() {
 
   return (
     <div className="mx-auto">
-      <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
-        <BackdropImage src={movie?.backdrop_path} size="w1280" alt={movie?.title ?? ""} />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
-      </div>
+      <div className="relative w-full overflow-visible md:overflow-hidden">
+        <BackdropImage
+          src={movie?.backdrop_path}
+          size="w1280"
+          alt={movie?.title ?? ""}
+          gradient="bottom"
+        />
 
-      <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
-        {loading && <MovieSkeleton />}
-        {error && !loading && (
-          <div className="text-center text-sm text-destructive">{error.message}</div>
-        )}
-        {!loading && movie && (
-          <div className="space-y-10">
-            <div className="flex flex-col gap-6 md:flex-row">
-              <div className="w-40 sm:w-48 md:w-56 h-fit shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
-                <PosterImage
-                  src={movie.poster_path}
-                  size="w780"
-                  alt={movie.title}
-                  fallbackType="movie"
-                />
-              </div>
-              <div className="flex-1 space-y-4">
-                <div className="space-y-2">
-                  <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-center gap-2 flex-wrap">
-                    <Film className="h-7 w-7 md:mt-2" />
-                    {movie.title}
-                    {releaseYear && (
-                      <span className="text-primary/70 text-xl md:text-3xl font-medium">
-                        ({releaseYear})
-                      </span>
+        <div className="relative -mt-20 md:absolute md:inset-x-0 md:bottom-0">
+          <div className="px-4 md:px-8 py-4 md:py-6">
+            {loading && <MovieSkeleton />}
+            {error && !loading && (
+              <div className="text-center text-sm text-destructive">{error.message}</div>
+            )}
+            {!loading && movie && (
+              <div className="flex flex-col gap-4 md:gap-6 md:flex-row md:items-center md:translate-y-4">
+                <div className="w-40 sm:w-48 md:w-56 h-fit shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
+                  <PosterImage
+                    src={movie.poster_path}
+                    size="w780"
+                    alt={movie.title}
+                    fallbackType="movie"
+                  />
+                </div>
+                <div className="flex-1 space-y-3 md:space-y-4">
+                  <div className="space-y-2">
+                    <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-center gap-2 flex-wrap">
+                      <Film className="h-7 w-7 md:mt-2" />
+                      {movie.title}
+                      {releaseYear && (
+                        <span className="text-primary/70 text-xl md:text-3xl font-medium">
+                          ({releaseYear})
+                        </span>
+                      )}
+                    </h1>
+                    {movie.tagline && (
+                      <p className="italic text-sm md:text-base text-muted-foreground">
+                        {movie.tagline}
+                      </p>
                     )}
-                  </h1>
-                  {movie.tagline && (
-                    <p className="italic text-sm md:text-base text-muted-foreground">
-                      {movie.tagline}
+                    {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold tracking-wide uppercase">Overview</h2>
+                    <p className="text-sm md:text-base leading-relaxed max-w-prose">
+                      {movie.overview || "No overview available."}
                     </p>
-                  )}
-                  {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
+                  </div>
+                  <StatusSelector
+                    type="movie"
+                    currentStatus={currentStatus}
+                    onChange={onChangeStatus}
+                    disabled={updating}
+                  />
                 </div>
-                <div className="space-y-3">
-                  <h2 className="text-sm font-semibold tracking-wide uppercase">Overview</h2>
-                  <p className="text-sm md:text-base leading-relaxed max-w-prose">
-                    {movie.overview || "No overview available."}
-                  </p>
-                </div>
-                <StatusSelector
-                  type="movie"
-                  currentStatus={currentStatus}
-                  onChange={onChangeStatus}
-                  disabled={updating}
-                />
               </div>
-            </div>
-
-            <MovieMetaCards movie={movie} />
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {!loading && movie && (
+        <div className="px-4 md:px-8 mt-4 md:mt-10">
+          <MovieMetaCards movie={movie} />
+        </div>
+      )}
     </div>
   );
 }

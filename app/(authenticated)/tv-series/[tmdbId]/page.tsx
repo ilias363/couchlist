@@ -54,170 +54,176 @@ export default function TvSeriesDetailsPage() {
 
   return (
     <div className="mx-auto">
-      <div className="relative h-40 w-full md:h-60 lg:h-72 overflow-hidden">
-        <BackdropImage src={series?.backdrop_path} alt={series?.name ?? ""} size="w1280" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
-      </div>
-      <div className="relative -mt-10 md:-mt-16 lg:-mt-20 px-4 md:px-8 space-y-4">
-        {loading && <TvSeriesSkeleton />}
-        {error && !loading && (
-          <div className="text-center text-sm text-destructive">{error.message}</div>
-        )}
-        {!loading && series && (
-          <div className="space-y-10">
-            <div className="flex flex-col gap-6 md:flex-row">
-              <div className="w-40 sm:w-48 md:w-56 h-fit shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
-                <PosterImage
-                  src={series.poster_path}
-                  size="w780"
-                  alt={series.name}
-                  fallbackType="tv"
-                />
-              </div>
-              <div className="flex-1 space-y-4">
-                <div className="space-y-2">
-                  <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-start gap-2 flex-wrap">
-                    <Tv className="h-7 w-7 md:mt-2" /> {series.name}
-                  </h1>
-                  {series.tagline && (
-                    <p className="italic text-sm md:text-base text-muted-foreground">
-                      {series.tagline}
+      <div className="relative w-full overflow-visible md:overflow-hidden">
+        <BackdropImage
+          src={series?.backdrop_path}
+          alt={series?.name ?? ""}
+          size="w1280"
+          gradient="bottom"
+        />
+        <div className="relative -mt-20 md:absolute md:inset-x-0 md:bottom-0">
+          <div className="px-4 md:px-8 py-4 md:py-6">
+            {loading && <TvSeriesSkeleton />}
+            {error && !loading && (
+              <div className="text-center text-sm text-destructive">{error.message}</div>
+            )}
+            {!loading && series && (
+              <div className="flex flex-col gap-4 md:gap-6 md:flex-row md:items-center md:translate-y-4">
+                <div className="w-40 sm:w-48 md:w-56 h-fit shrink-0 mx-auto md:mx-0 rounded-lg shadow-lg ring-1 ring-border overflow-hidden">
+                  <PosterImage
+                    src={series.poster_path}
+                    size="w780"
+                    alt={series.name}
+                    fallbackType="tv"
+                  />
+                </div>
+                <div className="flex-1 space-y-3 md:space-y-4">
+                  <div className="space-y-2">
+                    <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-start gap-2 flex-wrap">
+                      <Tv className="h-7 w-7 md:mt-2" /> {series.name}
+                    </h1>
+                    {series.tagline && (
+                      <p className="italic text-sm md:text-base text-muted-foreground">
+                        {series.tagline}
+                      </p>
+                    )}
+                    {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {series.number_of_seasons} season{series.number_of_seasons === 1 ? "" : "s"} •{" "}
+                      {series.number_of_episodes} episodes
                     </p>
-                  )}
-                  {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
-                  <p className="text-xs text-muted-foreground">
-                    {series.number_of_seasons} season{series.number_of_seasons === 1 ? "" : "s"} •{" "}
-                    {series.number_of_episodes} episodes
-                  </p>
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold tracking-wide uppercase">Overview</h2>
+                    <p className="text-sm md:text-base leading-relaxed max-w-prose">
+                      {series.overview || "No overview available."}
+                    </p>
+                  </div>
+                  <StatusSelector
+                    type="tv"
+                    currentStatus={currentStatus}
+                    onChange={onChangeStatus}
+                    disabled={updating}
+                  />
                 </div>
-                <div className="space-y-3">
-                  <h2 className="text-sm font-semibold tracking-wide uppercase">Overview</h2>
-                  <p className="text-sm md:text-base leading-relaxed max-w-prose">
-                    {series.overview || "No overview available."}
-                  </p>
-                </div>
-                <StatusSelector
-                  type="tv"
-                  currentStatus={currentStatus}
-                  onChange={onChangeStatus}
-                  disabled={updating}
-                />
               </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {!loading && series && (
+        <div className="px-4 md:px-8 mt-4 md:mt-10">
+          <section className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-3">
+              <InfoCard title="Key Info">
+                <ul className="space-y-1 text-xs">
+                  {firstAir && (
+                    <li className="flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" /> First Air:{" "}
+                      {firstAir.toLocaleDateString()}
+                    </li>
+                  )}
+                  {lastAir && (
+                    <li className="flex items-center gap-1">
+                      <CalendarDays className="h-3 w-3" /> Last Air: {lastAir.toLocaleDateString()}
+                    </li>
+                  )}
+                  <li>
+                    <span className="text-muted-foreground">Status:</span> {series.status}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Type:</span> {series.type}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Runtime:</span>{" "}
+                    {series.episode_run_time?.[0] ? `${series.episode_run_time[0]} min` : "—"}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Origin:</span> {originCountries || "—"}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Languages:</span> {languages || "—"}
+                  </li>
+                </ul>
+              </InfoCard>
+              <InfoCard title="People">
+                <ul className="space-y-1 text-xs">
+                  <li className="flex gap-1">
+                    <Users className="h-3 w-3" /> Creators: {creators || "—"}
+                  </li>
+                  <li className="flex gap-1">
+                    <Clapperboard className="h-3 w-3" /> Networks: {networks || "—"}
+                  </li>
+                </ul>
+              </InfoCard>
+              <InfoCard title="Stats">
+                <ul className="space-y-1 text-xs">
+                  <li className="flex gap-1">
+                    <Star className="h-3 w-3" /> Rating:{" "}
+                    {typeof series.vote_average === "number"
+                      ? series.vote_average.toFixed(1)
+                      : "N/A"}{" "}
+                    / 10
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Votes:</span>{" "}
+                    {series.vote_count?.toLocaleString?.() || "—"}
+                  </li>
+                  <li>
+                    <span className="text-muted-foreground">Popularity:</span>{" "}
+                    {series.popularity ? Math.round(series.popularity) : "—"}
+                  </li>
+                </ul>
+              </InfoCard>
+              <InfoCard title="External" className="md:col-span-3">
+                <div className="flex flex-wrap gap-3 text-xs items-center">
+                  {series.homepage && (
+                    <Link
+                      href={series.homepage}
+                      target="_blank"
+                      className="underline text-primary"
+                      rel="noopener noreferrer"
+                    >
+                      Homepage
+                    </Link>
+                  )}
+                </div>
+              </InfoCard>
             </div>
 
-            <section className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-3">
-                <InfoCard title="Key Info">
-                  <ul className="space-y-1 text-xs">
-                    {firstAir && (
-                      <li className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" /> First Air:{" "}
-                        {firstAir.toLocaleDateString()}
-                      </li>
-                    )}
-                    {lastAir && (
-                      <li className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" /> Last Air:{" "}
-                        {lastAir.toLocaleDateString()}
-                      </li>
-                    )}
-                    <li>
-                      <span className="text-muted-foreground">Status:</span> {series.status}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Type:</span> {series.type}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Runtime:</span>{" "}
-                      {series.episode_run_time?.[0] ? `${series.episode_run_time[0]} min` : "—"}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Origin:</span>{" "}
-                      {originCountries || "—"}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Languages:</span> {languages || "—"}
-                    </li>
-                  </ul>
-                </InfoCard>
-                <InfoCard title="People">
-                  <ul className="space-y-1 text-xs">
-                    <li className="flex gap-1">
-                      <Users className="h-3 w-3" /> Creators: {creators || "—"}
-                    </li>
-                    <li className="flex gap-1">
-                      <Clapperboard className="h-3 w-3" /> Networks: {networks || "—"}
-                    </li>
-                  </ul>
-                </InfoCard>
-                <InfoCard title="Stats">
-                  <ul className="space-y-1 text-xs">
-                    <li className="flex gap-1">
-                      <Star className="h-3 w-3" /> Rating:{" "}
-                      {typeof series.vote_average === "number"
-                        ? series.vote_average.toFixed(1)
-                        : "N/A"}{" "}
-                      / 10
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Votes:</span>{" "}
-                      {series.vote_count?.toLocaleString?.() || "—"}
-                    </li>
-                    <li>
-                      <span className="text-muted-foreground">Popularity:</span>{" "}
-                      {series.popularity ? Math.round(series.popularity) : "—"}
-                    </li>
-                  </ul>
-                </InfoCard>
-                <InfoCard title="External" className="md:col-span-3">
-                  <div className="flex flex-wrap gap-3 text-xs items-center">
-                    {series.homepage && (
-                      <Link
-                        href={series.homepage}
-                        target="_blank"
-                        className="underline text-primary"
-                        rel="noopener noreferrer"
-                      >
-                        Homepage
-                      </Link>
-                    )}
-                  </div>
-                </InfoCard>
-              </div>
-
-              <div className="space-y-4">
-                <h2 className="text-lg font-semibold">Seasons</h2>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {filteredSeasons.map(s => (
-                    <Link
-                      key={s.id}
-                      href={`/tv-series/${seriesId}/season/${s.season_number}`}
-                      className="group rounded-lg border bg-card p-2 shadow-sm hover:ring-2 hover:ring-ring transition"
-                    >
-                      <div className="flex gap-4">
-                        <div className="w-16 shrink-0 rounded overflow-hidden">
-                          <PosterImage src={s.poster_path} alt={s.name} size="w154" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <h3 className="text-sm font-semibold leading-tight group-hover:text-primary">
-                            Season {s.season_number}
-                          </h3>
-                          <p className="text-[10px] text-muted-foreground/70">
-                            {s.air_date?.slice(0, 4) || "----"} • {s.episode_count} eps
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {s.overview || "No description."}
-                          </p>
-                        </div>
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold">Seasons</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredSeasons.map(s => (
+                  <Link
+                    key={s.id}
+                    href={`/tv-series/${seriesId}/season/${s.season_number}`}
+                    className="group rounded-lg border bg-card p-2 shadow-sm hover:ring-2 hover:ring-ring transition"
+                  >
+                    <div className="flex gap-4">
+                      <div className="w-16 shrink-0 rounded overflow-hidden">
+                        <PosterImage src={s.poster_path} alt={s.name} size="w154" />
                       </div>
-                    </Link>
-                  ))}
-                </div>
+                      <div className="flex-1 space-y-1">
+                        <h3 className="text-sm font-semibold leading-tight group-hover:text-primary">
+                          Season {s.season_number}
+                        </h3>
+                        <p className="text-[10px] text-muted-foreground/70">
+                          {s.air_date?.slice(0, 4) || "----"} • {s.episode_count} eps
+                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {s.overview || "No description."}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
-            </section>
-          </div>
-        )}
-      </div>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
