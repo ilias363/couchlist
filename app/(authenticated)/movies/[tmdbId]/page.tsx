@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
 import { MovieMetaCards } from "@/components/movie/movie-meta-cards";
 import { Film } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function MovieDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
@@ -40,7 +41,6 @@ export default function MovieDetailsPage() {
     [numericId, currentStatus, setStatus, movie?.runtime]
   );
 
-  const genres = movie?.genres?.map(g => g.name).join(" • ");
   const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : undefined;
 
   return (
@@ -85,7 +85,13 @@ export default function MovieDetailsPage() {
                         {movie.tagline}
                       </p>
                     )}
-                    {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
+                    <div className="flex flex-wrap gap-2">
+                      {movie.genres.map(g => (
+                        <Badge key={g.id} variant={"secondary"}>
+                          {g.name}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-3">
                     <h2 className="text-sm font-semibold tracking-wide uppercase">Overview</h2>

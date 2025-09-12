@@ -11,6 +11,7 @@ import { Tv, Users, Clapperboard, CalendarDays, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusSelector } from "@/components/status-selector";
 import { useTMDBTvSeries } from "@/lib/tmdb/react-query";
+import { Badge } from "@/components/ui/badge";
 
 export default function TvSeriesDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
@@ -44,7 +45,6 @@ export default function TvSeriesDetailsPage() {
     [series]
   );
 
-  const genres = series?.genres?.map(g => g.name).join(" • ");
   const creators = series?.created_by?.map(c => c.name).join(", ");
   const networks = series?.networks?.map(n => n.name).join(", ");
   const originCountries = series?.origin_country?.join(", ");
@@ -87,7 +87,13 @@ export default function TvSeriesDetailsPage() {
                         {series.tagline}
                       </p>
                     )}
-                    {genres && <p className="text-xs md:text-sm text-muted-foreground">{genres}</p>}
+                    <div className="flex flex-wrap gap-2">
+                      {series.genres.map(g => (
+                        <Badge key={g.id} variant={"secondary"}>
+                          {g.name}
+                        </Badge>
+                      ))}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {series.number_of_seasons} season{series.number_of_seasons === 1 ? "" : "s"} •{" "}
                       {series.number_of_episodes} episodes
