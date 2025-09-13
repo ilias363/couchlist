@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
-import { WatchStatus } from "@/lib/tmdb/types";
+import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
 import {
   DropdownMenu,
@@ -100,15 +100,8 @@ export default function TvSeriesPage() {
         )}
         {results.map(m => {
           const details = detailsMap.get(m.tvSeriesId);
-          const cardItem = {
-            id: m.tvSeriesId,
-            name: details?.name,
-            overview: details?.overview || "",
-            poster_path: details?.poster_path,
-            first_air_date: details?.first_air_date,
-            media_type: "tv" as const,
-          };
-          return <MediaCard key={`tv-${m.tvSeriesId}`} item={cardItem} status={m.status} />;
+          const item = { ...details, media_type: "tv" } as TMDBSearchResult;
+          return <MediaCard key={`tv-${m.tvSeriesId}`} item={item} status={m.status} />;
         })}
       </div>
       {paginationStatus === "CanLoadMore" && (

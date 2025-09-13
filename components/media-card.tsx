@@ -13,14 +13,17 @@ interface MediaCardProps {
 }
 
 export function MediaCard({ item, status, className }: MediaCardProps) {
-  const isMovie = (item.media_type ?? (item.title ? "movie" : "tv")) === "movie";
-  const title = item.title || item.name || "Untitled";
-  const date = item.release_date || item.first_air_date;
+  const isMovie = item.media_type === "movie";
+  const isTv = item.media_type === "tv";
+  if (!isMovie && !isTv) return null;
+
+  const title = isMovie ? item.title : item.name;
+  const date = isMovie ? item.release_date : item.first_air_date;
 
   const getItemLink = (item: TMDBSearchResult) => {
-    const type = item.media_type || (item.title ? "movie" : "tv");
-    return type === "movie" ? `/movies/${item.id}` : `/tv-series/${item.id}`;
+    return item.media_type === "movie" ? `/movies/${item.id}` : `/tv-series/${item.id}`;
   };
+
   return (
     <Link href={getItemLink(item)}>
       <div

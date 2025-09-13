@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { TMDBSearchResult } from "@/lib/tmdb/types";
 
 type MovieStatus = "want_to_watch" | "watched" | "on_hold" | "dropped" | undefined;
 
@@ -99,15 +100,8 @@ export default function MoviesPage() {
         )}
         {results.map(m => {
           const details = detailsMap.get(m.movieId);
-          const cardItem = {
-            id: m.movieId,
-            title: details?.title,
-            overview: details?.overview || "",
-            poster_path: details?.poster_path,
-            release_date: details?.release_date,
-            media_type: "movie" as const,
-          };
-          return <MediaCard key={`movie-${m.movieId}`} item={cardItem} status={m.status} />;
+          const item = { ...details, media_type: "movie" } as TMDBSearchResult;
+          return <MediaCard key={`movie-${m.movieId}`} item={item} status={m.status} />;
         })}
       </div>
 
