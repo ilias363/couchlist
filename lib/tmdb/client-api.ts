@@ -1,4 +1,4 @@
-import { TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
+import { ExtendedTMDBMovie, ExtendedTMDBTvSeries, TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
 
 export class TMDBClient {
   private apiKey: string;
@@ -40,8 +40,16 @@ export class TMDBClient {
     return this.makeRequest(`/movie/${movieId}`);
   }
 
+  async getExtendedMovieDetails(movieId: number): Promise<ExtendedTMDBMovie> {
+    return this.makeRequest(`/movie/${movieId}?append_to_response=external_ids,recommendations,similar`);
+  }
+
   async getTVSeriesDetails(seriesId: number): Promise<TMDBTvSeries> {
     return this.makeRequest(`/tv/${seriesId}`);
+  }
+
+  async getExtendedTVSeriesDetails(seriesId: number): Promise<ExtendedTMDBTvSeries> {
+    return this.makeRequest(`/tv/${seriesId}?append_to_response=external_ids,recommendations,similar`);
   }
 
   async getSeasonDetails(seriesId: number, seasonNumber: number): Promise<TMDBSeason> {

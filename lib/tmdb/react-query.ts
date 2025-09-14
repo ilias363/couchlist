@@ -1,13 +1,21 @@
 import { tmdbClient } from "./client-api";
 import { useInfiniteQuery, useQuery, useQueries } from "@tanstack/react-query";
-import { TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
+import {
+  ExtendedTMDBMovie,
+  ExtendedTMDBTvSeries,
+  TMDBMovie,
+  TMDBSearchResponse,
+  TMDBSeason,
+  TMDBTvSeries,
+} from "./types";
 
 export const tmdbKeys = {
   all: ["tmdb"] as const,
-  searchFeed: (mode: string, query: string) =>
-    [...tmdbKeys.all, "search", mode, query] as const,
+  searchFeed: (mode: string, query: string) => [...tmdbKeys.all, "search", mode, query] as const,
   movie: (id: number) => [...tmdbKeys.all, "movie", id] as const,
+  movieExtended: (id: number) => [...tmdbKeys.all, "movie", id, "extended"] as const,
   tv: (id: number) => [...tmdbKeys.all, "tv", id] as const,
+  tvExtended: (id: number) => [...tmdbKeys.all, "tv", id, "extended"] as const,
   season: (seriesId: number, seasonNumber: number) =>
     [...tmdbKeys.all, "season", seriesId, seasonNumber] as const,
   category: (type: "movie" | "tv", category: string) =>
@@ -21,10 +29,24 @@ export function useTMDBMovie(id: number) {
   });
 }
 
+export function useTMDBExtendedMovie(id: number) {
+  return useQuery<ExtendedTMDBMovie>({
+    queryKey: tmdbKeys.movieExtended(id),
+    queryFn: () => tmdbClient.getExtendedMovieDetails(id),
+  });
+}
+
 export function useTMDBTvSeries(id: number) {
   return useQuery<TMDBTvSeries>({
     queryKey: tmdbKeys.tv(id),
     queryFn: () => tmdbClient.getTVSeriesDetails(id),
+  });
+}
+
+export function useTMDBExtendedTvSeries(id: number) {
+  return useQuery<ExtendedTMDBTvSeries>({
+    queryKey: tmdbKeys.tvExtended(id),
+    queryFn: () => tmdbClient.getExtendedTVSeriesDetails(id),
   });
 }
 
@@ -81,7 +103,7 @@ export function useTMDBSearchFeed(query: string, mode: SearchMode) {
     initialPageParam: 1,
     queryKey: tmdbKeys.searchFeed(mode, q),
     enabled: !!q,
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: lastPage => {
       if (lastPage.results.length === 0) return undefined;
       if (lastPage.page >= lastPage.total_pages) return undefined;
       return lastPage.page + 1;
@@ -109,7 +131,7 @@ export function useTMDBCategoryFeed(
   return useInfiniteQuery<TMDBSearchResponse>({
     initialPageParam: 1,
     queryKey: tmdbKeys.category(type, category),
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: lastPage => {
       if (lastPage.results.length === 0) return undefined;
       if (lastPage.page >= lastPage.total_pages) return undefined;
       return lastPage.page + 1;
