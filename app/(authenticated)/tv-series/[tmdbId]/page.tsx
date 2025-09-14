@@ -2,21 +2,23 @@
 
 import { useParams } from "next/navigation";
 import { useState, useCallback, useMemo } from "react";
-import { BackdropImage, PosterImage } from "@/components/tmdb-image";
+import { BackdropImage, PosterImage, LogoImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Tv, Users, Clapperboard, CalendarDays, Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Globe, Landmark, Languages, Star, Tv } from "lucide-react";
 import { StatusSelector } from "@/components/status-selector";
-import { useTMDBTvSeries } from "@/lib/tmdb/react-query";
+import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
 import { Badge } from "@/components/ui/badge";
+import { InfoCard } from "@/components/info-card";
+import { MediaCarousel } from "@/components/media-carousel";
+import { formatReleaseDate, getExternalLinks } from "@/lib/tmdb/utils";
 
 export default function TvSeriesDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const seriesId = Number(tmdbId);
-  const { data: series, isLoading: loading, error } = useTMDBTvSeries(seriesId);
+  const { data: series, isLoading: loading, error } = useTMDBExtendedTvSeries(seriesId);
   const [updating, setUpdating] = useState(false);
 
   const userSeries = useQuery(api.tv.getSeriesStatus, seriesId ? { tvSeriesId: seriesId } : "skip");
@@ -45,12 +47,10 @@ export default function TvSeriesDetailsPage() {
     [series]
   );
 
-  const creators = series?.created_by?.map(c => c.name).join(", ");
-  const networks = series?.networks?.map(n => n.name).join(", ");
-  const originCountries = series?.origin_country?.join(", ");
-  const languages = series?.spoken_languages?.map(l => l.english_name).join(" • ");
-  const firstAir = series?.first_air_date ? new Date(series.first_air_date) : undefined;
-  const lastAir = series?.last_air_date ? new Date(series.last_air_date) : undefined;
+  const releaseYear = series?.first_air_date
+    ? new Date(series.first_air_date).getFullYear()
+    : undefined;
+  const formattedFirstAir = formatReleaseDate(series?.first_air_date);
 
   if (loading) {
     return <TvSeriesPageSkeleton />;
@@ -90,8 +90,14 @@ export default function TvSeriesDetailsPage() {
               </div>
               <div className="flex-1 space-y-3 md:space-y-4">
                 <div className="space-y-2">
-                  <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-start gap-2 flex-wrap">
-                    <Tv className="h-7 w-7 md:mt-2" /> {series.name}
+                  <h1 className="text-2xl md:text-4xl font-bold leading-tight flex items-center gap-2 flex-wrap">
+                    <Tv className="h-7 w-7 md:mt-2" />
+                    {series.name}
+                    {releaseYear && (
+                      <span className="text-primary/70 text-xl md:text-3xl font-medium">
+                        ({releaseYear})
+                      </span>
+                    )}
                   </h1>
                   {series.tagline && (
                     <p className="italic text-sm md:text-base text-muted-foreground">
@@ -106,8 +112,8 @@ export default function TvSeriesDetailsPage() {
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {series.number_of_seasons} season{series.number_of_seasons === 1 ? "" : "s"} •{" "}
-                    {series.number_of_episodes} episodes
+                    {formattedFirstAir || "----"}
+                    {series.original_language ? ` • ${series.original_language.toUpperCase()}` : ""}
                   </p>
                 </div>
                 <div className="space-y-3">
@@ -128,83 +134,146 @@ export default function TvSeriesDetailsPage() {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 mt-4 md:mt-10">
+      <div className="mt-4 space-y-4 md:mt-8 md:space-y-8">
         <section className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-3">
-            <InfoCard title="Key Info">
-              <ul className="space-y-1 text-xs">
-                {firstAir && (
-                  <li className="flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" /> First Air: {firstAir.toLocaleDateString()}
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">Details</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <InfoCard title="Facts">
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>
+                    <span className="font-medium text-foreground">First air date:</span>{" "}
+                    {formattedFirstAir || "—"}
                   </li>
-                )}
-                {lastAir && (
-                  <li className="flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" /> Last Air: {lastAir.toLocaleDateString()}
+                  <li>
+                    <span className="font-medium text-foreground">Status:</span>{" "}
+                    {series.status || "—"}
                   </li>
-                )}
-                <li>
-                  <span className="text-muted-foreground">Status:</span> {series.status}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Type:</span> {series.type}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Runtime:</span>{" "}
-                  {series.episode_run_time?.[0] ? `${series.episode_run_time[0]} min` : "—"}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Origin:</span> {originCountries || "—"}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Languages:</span> {languages || "—"}
-                </li>
-              </ul>
-            </InfoCard>
-            <InfoCard title="People">
-              <ul className="space-y-1 text-xs">
-                <li className="flex gap-1">
-                  <Users className="h-3 w-3" /> Creators: {creators || "—"}
-                </li>
-                <li className="flex gap-1">
-                  <Clapperboard className="h-3 w-3" /> Networks: {networks || "—"}
-                </li>
-              </ul>
-            </InfoCard>
-            <InfoCard title="Stats">
-              <ul className="space-y-1 text-xs">
-                <li className="flex gap-1">
-                  <Star className="h-3 w-3" /> Rating:{" "}
-                  {typeof series.vote_average === "number" ? series.vote_average.toFixed(1) : "N/A"}{" "}
-                  / 10
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Votes:</span>{" "}
-                  {series.vote_count?.toLocaleString?.() || "—"}
-                </li>
-                <li>
-                  <span className="text-muted-foreground">Popularity:</span>{" "}
-                  {series.popularity ? Math.round(series.popularity) : "—"}
-                </li>
-              </ul>
-            </InfoCard>
-            <InfoCard title="External" className="md:col-span-3">
-              <div className="flex flex-wrap gap-3 text-xs items-center">
-                {series.homepage && (
-                  <Link
-                    href={series.homepage}
-                    target="_blank"
-                    className="underline text-primary"
-                    rel="noopener noreferrer"
-                  >
-                    Homepage
-                  </Link>
-                )}
-              </div>
-            </InfoCard>
-          </div>
+                  <li>
+                    <span className="font-medium text-foreground">Seasons / Episodes:</span>{" "}
+                    {series.number_of_seasons} / {series.number_of_episodes}
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    <span className="font-medium text-foreground">Rating:</span>
+                    <span className="ml-1">
+                      {series.vote_average?.toFixed?.(1) ?? "—"} (
+                      {series.vote_count?.toLocaleString?.() ?? 0})
+                    </span>
+                  </li>
+                </ul>
+              </InfoCard>
 
-          <div className="space-y-4">
+              <InfoCard title="Production">
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-xs font-medium text-foreground mb-1 flex items-center gap-1">
+                      <Landmark className="h-4 w-4" /> Companies
+                    </div>
+                    {series.production_companies?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {series.production_companies.map(c => (
+                          <Badge key={c.id} variant="outline">
+                            {c.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-foreground mb-1 flex items-center gap-1">
+                      <Globe className="h-4 w-4" /> Countries
+                    </div>
+                    {series.production_countries?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {series.production_countries.map(c => (
+                          <Badge key={c.iso_3166_1} variant="secondary">
+                            {c.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                </div>
+              </InfoCard>
+
+              <InfoCard title="Languages">
+                {series.spoken_languages?.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {series.spoken_languages.map(l => (
+                      <Badge
+                        key={l.iso_639_1}
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        <Languages className="h-3 w-3" /> {l.english_name || l.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </InfoCard>
+
+              <InfoCard title="Networks">
+                {series.networks.length ? (
+                  <div className="grid grid-cols-2 items-center">
+                    {series.networks.map(n => (
+                      <div key={n.id} className="flex items-center gap-2">
+                        <LogoImage
+                          src={n.logo_path}
+                          alt={n.name}
+                          size="w154"
+                          className="rounded-none"
+                        />
+                        <span className="text-sm">{n.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </InfoCard>
+
+              <InfoCard title="Links">
+                <div className="text-sm space-y-2 grid grid-cols-2">
+                  {getExternalLinks({
+                    externalIds: series.external_ids,
+                    homepage: series.homepage,
+                    tmdbId: series.id,
+                    type: "tv",
+                  }).map(l => (
+                    <div key={l.key}>
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {l.label}
+                      </a>
+                    </div>
+                  ))}
+                  {getExternalLinks({
+                    externalIds: series.external_ids,
+                    homepage: series.homepage,
+                    tmdbId: series.id,
+                    type: "tv",
+                  }).length === 0 && (
+                    <span className="text-muted-foreground">No external links</span>
+                  )}
+                </div>
+              </InfoCard>
+            </div>
+          </div>
+        </section>
+
+        {filteredSeasons.length > 0 && (
+          <section className="space-y-4">
             <h2 className="text-lg font-semibold">Seasons</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredSeasons.map(s => (
@@ -232,28 +301,31 @@ export default function TvSeriesDetailsPage() {
                 </Link>
               ))}
             </div>
-          </div>
-        </section>
+          </section>
+        )}
+
+        {series.recommendations.results.length > 0 && (
+          <MediaCarousel
+            title="Recommended"
+            items={series.recommendations.results.map(it => {
+              return { ...it, media_type: "tv" } as any;
+            })}
+          />
+        )}
+
+        {series.similar.results.length > 0 && (
+          <MediaCarousel
+            title="Similar series"
+            items={series.similar.results.map(it => {
+              return { ...it, media_type: "tv" } as any;
+            })}
+          />
+        )}
       </div>
     </div>
   );
 }
-function InfoCard({
-  title,
-  children,
-  className,
-}: {
-  title: string;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("rounded-lg border bg-card p-4 shadow-sm", className)}>
-      <h3 className="text-sm font-semibold mb-2">{title}</h3>
-      {children}
-    </div>
-  );
-}
+
 function TvSeriesPageSkeleton() {
   return (
     <div className="mx-auto">

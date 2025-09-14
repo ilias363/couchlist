@@ -145,7 +145,7 @@ export function LogoImage({
     <BaseTMDBImage
       {...rest}
       size={size}
-      aspect="aspect-[3/1]"
+      aspect="aspect-[4/1]"
       className={cn(
         "flex items-center justify-center p-2",
         transparentBg ? "bg-transparent" : "bg-muted",
