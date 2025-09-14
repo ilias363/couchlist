@@ -10,9 +10,8 @@ import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
 import { Film, Globe, Landmark, Languages, PiggyBank, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { formatReleaseDate, formatRuntime, getExternalLinks } from "@/lib/tmdb/utils";
-import { MediaCardSkeleton } from "@/components/media-card";
 import { MediaCarousel } from "@/components/media-carousel";
 import { InfoCard } from "@/components/info-card";
 

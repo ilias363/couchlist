@@ -308,7 +308,7 @@ export default function TvSeriesDetailsPage() {
           <MediaCarousel
             title="Recommended"
             items={series.recommendations.results.map(it => {
-              return { ...it, media_type: "tv" } as any;
+              return { ...it, media_type: "tv" };
             })}
           />
         )}
@@ -317,7 +317,7 @@ export default function TvSeriesDetailsPage() {
           <MediaCarousel
             title="Similar series"
             items={series.similar.results.map(it => {
-              return { ...it, media_type: "tv" } as any;
+              return { ...it, media_type: "tv" };
             })}
           />
         )}
