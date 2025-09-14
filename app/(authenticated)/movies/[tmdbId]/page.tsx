@@ -5,17 +5,21 @@ import { useParams } from "next/navigation";
 import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery } from "convex/react";
-import { useTMDBMovie } from "@/lib/tmdb/react-query";
+import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
-import { MovieMetaCards } from "@/components/movie/movie-meta-cards";
-import { Film } from "lucide-react";
+import { Film, Globe, Landmark, Languages, PiggyBank, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn, formatCurrency } from "@/lib/utils";
+import { formatReleaseDate, formatRuntime, getExternalLinks } from "@/lib/tmdb/utils";
+import { MediaCardSkeleton } from "@/components/media-card";
+import { MediaCarousel } from "@/components/media-carousel";
+import { InfoCard } from "@/components/info-card";
 
 export default function MovieDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const numericId = Number(tmdbId);
-  const { data: movie, isLoading: loading, error } = useTMDBMovie(numericId);
+  const { data: movie, isLoading: loading, error } = useTMDBExtendedMovie(numericId);
   const [updating, setUpdating] = useState(false);
 
   const userMovie = useQuery(api.movie.getMovieStatus, numericId ? { movieId: numericId } : "skip");
@@ -42,6 +46,8 @@ export default function MovieDetailsPage() {
   );
 
   const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : undefined;
+  const formattedRelease = formatReleaseDate(movie?.release_date);
+  const runtimeText = formatRuntime(movie?.runtime);
 
   if (loading) {
     return <MoviePageSkeleton />;
@@ -105,6 +111,11 @@ export default function MovieDetailsPage() {
                     {movie.overview || "No overview available."}
                   </p>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  {formattedRelease || "----"}
+                  {runtimeText ? ` • ${runtimeText}` : ""}
+                  {movie.original_language ? ` • ${movie.original_language.toUpperCase()}` : ""}
+                </p>
                 <StatusSelector
                   type="movie"
                   currentStatus={currentStatus}
@@ -117,8 +128,158 @@ export default function MovieDetailsPage() {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 mt-4 md:mt-10">
-        <MovieMetaCards movie={movie} />
+      <div className="mt-4 space-y-4 md:mt-8 md:space-y-8">
+        <section className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold">Details</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <InfoCard title="Facts">
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li>
+                    <span className="font-medium text-foreground">Release date:</span>{" "}
+                    {formattedRelease || "—"}
+                  </li>
+                  <li>
+                    <span className="font-medium text-foreground">Status:</span>{" "}
+                    {movie.status || "—"}
+                  </li>
+                  <li>
+                    <span className="font-medium text-foreground">Runtime:</span>{" "}
+                    {runtimeText || "—"}
+                  </li>
+                  <li className="flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    <span className="font-medium text-foreground">Rating:</span>
+                    <span className="ml-1">
+                      {movie.vote_average?.toFixed?.(1) ?? "—"} (
+                      {movie.vote_count?.toLocaleString?.() ?? 0})
+                    </span>
+                  </li>
+                </ul>
+              </InfoCard>
+
+              <InfoCard title="Production">
+                <div className="space-y-2">
+                  <div>
+                    <div className="text-xs font-medium text-foreground mb-1 flex items-center gap-1">
+                      <Landmark className="h-4 w-4" /> Companies
+                    </div>
+                    {movie.production_companies?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {movie.production_companies.map(c => (
+                          <Badge key={c.id} variant="outline">
+                            {c.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-foreground mb-1 flex items-center gap-1">
+                      <Globe className="h-4 w-4" /> Countries
+                    </div>
+                    {movie.production_countries?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {movie.production_countries.map(c => (
+                          <Badge key={c.iso_3166_1} variant="secondary">
+                            {c.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">—</p>
+                    )}
+                  </div>
+                </div>
+              </InfoCard>
+
+              <InfoCard title="Languages">
+                {movie.spoken_languages?.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {movie.spoken_languages.map(l => (
+                      <Badge
+                        key={l.iso_639_1}
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        <Languages className="h-3 w-3" /> {l.english_name || l.name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </InfoCard>
+
+              <InfoCard title="Financials" className="lg:col-span-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="rounded-md border p-3">
+                    <div className="text-xs text-muted-foreground">Budget</div>
+                    <div className="text-base font-semibold flex items-center gap-2">
+                      <PiggyBank className="h-4 w-4" /> {formatCurrency(movie.budget)}
+                    </div>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <div className="text-xs text-muted-foreground">Revenue</div>
+                    <div className="text-base font-semibold flex items-center gap-2">
+                      <PiggyBank className="h-4 w-4" /> {formatCurrency(movie.revenue)}
+                    </div>
+                  </div>
+                </div>
+              </InfoCard>
+
+              <InfoCard title="Links">
+                <div className="text-sm space-y-2 grid grid-cols-2">
+                  {getExternalLinks({
+                    externalIds: movie.external_ids,
+                    homepage: movie.homepage,
+                    tmdbId: movie.id,
+                    type: "movie",
+                  }).map(l => (
+                    <div key={l.key}>
+                      <a
+                        href={l.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {l.label}
+                      </a>
+                    </div>
+                  ))}
+                  {getExternalLinks({
+                    externalIds: movie.external_ids,
+                    homepage: movie.homepage,
+                    tmdbId: movie.id,
+                    type: "movie",
+                  }).length === 0 && (
+                    <span className="text-muted-foreground">No external links</span>
+                  )}
+                </div>
+              </InfoCard>
+            </div>
+          </div>
+        </section>
+
+        {movie.recommendations.results.length > 0 && (
+          <MediaCarousel
+            title="Recommended"
+            items={movie.recommendations.results.map(it => {
+              return { ...it, media_type: "movie" };
+            })}
+          />
+        )}
+
+        {movie.similar.results.length > 0 && (
+          <MediaCarousel
+            title="Similar movies"
+            items={movie.similar.results.map(it => {
+              return { ...it, media_type: "movie" };
+            })}
+          />
+        )}
       </div>
     </div>
   );

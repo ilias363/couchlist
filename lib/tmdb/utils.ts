@@ -75,3 +75,25 @@ export function getExternalLinks(args: {
 
   return links;
 }
+
+export function formatRuntime(minutes?: number | null) {
+  if (!minutes || minutes <= 0) return undefined;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+export function formatReleaseDate(dateStr?: string | null) {
+  if (!dateStr) return undefined;
+  try {
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  } catch {
+    return dateStr;
+  }
+}
