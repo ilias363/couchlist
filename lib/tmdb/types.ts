@@ -255,5 +255,7 @@ export type StillSize = "w92" | "w185" | "w300" | "original";
 export type LogoSize = "w45" | "w92" | "w154" | "w185" | "w300" | "w500" | "original";
 export type ProfileSize = "w92" | "w185" | "w300" | "original";
 
+export type ExternalLink = { key: string; label: string; href: string };
+
 export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 export const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
