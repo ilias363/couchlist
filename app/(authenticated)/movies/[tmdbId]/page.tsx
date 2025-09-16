@@ -8,6 +8,8 @@ import { useMutation, useQuery } from "convex/react";
 import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
+import { Trash2 } from "lucide-react";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { Film, Globe, Landmark, Languages, PiggyBank, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
@@ -23,6 +25,7 @@ export default function MovieDetailsPage() {
 
   const userMovie = useQuery(api.movie.getMovieStatus, numericId ? { movieId: numericId } : "skip");
   const setStatus = useMutation(api.movie.setMovieStatus);
+  const deleteMovie = useMutation(api.movie.deleteMovie);
 
   const currentStatus = userMovie?.status;
 
@@ -43,6 +46,16 @@ export default function MovieDetailsPage() {
     },
     [numericId, currentStatus, setStatus, movie?.runtime]
   );
+
+  const onRemove = useCallback(async () => {
+    if (!numericId) return;
+    setUpdating(true);
+    try {
+      await deleteMovie({ movieId: numericId });
+    } finally {
+      setUpdating(false);
+    }
+  }, [numericId, deleteMovie]);
 
   const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : undefined;
   const formattedRelease = formatReleaseDate(movie?.release_date);
@@ -115,12 +128,15 @@ export default function MovieDetailsPage() {
                   {runtimeText ? ` • ${runtimeText}` : ""}
                   {movie.original_language ? ` • ${movie.original_language.toUpperCase()}` : ""}
                 </p>
-                <StatusSelector
-                  type="movie"
-                  currentStatus={currentStatus}
-                  onChange={onChangeStatus}
-                  disabled={updating}
-                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <StatusSelector
+                    type="movie"
+                    currentStatus={currentStatus}
+                    onChange={onChangeStatus}
+                    disabled={updating}
+                    onRemove={onRemove}
+                  />
+                </div>
               </div>
             </div>
           </div>

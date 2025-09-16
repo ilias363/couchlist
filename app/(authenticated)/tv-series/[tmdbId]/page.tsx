@@ -9,6 +9,8 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Globe, Landmark, Languages, Star, Tv } from "lucide-react";
 import { StatusSelector } from "@/components/status-selector";
+import { Trash2 } from "lucide-react";
+import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
 import { Badge } from "@/components/ui/badge";
 import { InfoCard } from "@/components/info-card";
@@ -23,6 +25,7 @@ export default function TvSeriesDetailsPage() {
 
   const userSeries = useQuery(api.tv.getSeriesStatus, seriesId ? { tvSeriesId: seriesId } : "skip");
   const setSeriesStatus = useMutation(api.tv.setSeriesStatus);
+  const deleteTvSeries = useMutation(api.tv.deleteTvSeries);
 
   const currentStatus = userSeries?.status;
 
@@ -41,6 +44,16 @@ export default function TvSeriesDetailsPage() {
     },
     [seriesId, currentStatus, setSeriesStatus]
   );
+
+  const onRemove = useCallback(async () => {
+    if (!seriesId) return;
+    setUpdating(true);
+    try {
+      await deleteTvSeries({ tvSeriesId: seriesId });
+    } finally {
+      setUpdating(false);
+    }
+  }, [seriesId, deleteTvSeries]);
 
   const filteredSeasons = useMemo(
     () => series?.seasons?.filter(s => s.season_number !== 0) || [],
@@ -122,12 +135,15 @@ export default function TvSeriesDetailsPage() {
                     {series.overview || "No overview available."}
                   </p>
                 </div>
-                <StatusSelector
-                  type="tv"
-                  currentStatus={currentStatus}
-                  onChange={onChangeStatus}
-                  disabled={updating}
-                />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <StatusSelector
+                    type="tv"
+                    currentStatus={currentStatus}
+                    onChange={onChangeStatus}
+                    disabled={updating}
+                    onRemove={onRemove}
+                  />
+                </div>
               </div>
             </div>
           </div>
