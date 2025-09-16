@@ -20,8 +20,6 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_movie", ["userId", "movieId"])
-    .index("by_user_status", ["userId", "status"])
-    .index("by_user_watched_date", ["userId", "watchedDate"])
     .index("by_user_updatedAt", ["userId", "updatedAt"])
     .index("by_user_status_updatedAt", ["userId", "status", "updatedAt"]),
 
@@ -43,8 +41,6 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_tv_series", ["userId", "tvSeriesId"])
-    .index("by_user_status", ["userId", "status"])
-    .index("by_user_watched_date", ["userId", "watchedDate"])
     .index("by_user_updatedAt", ["userId", "updatedAt"])
     .index("by_user_status_updatedAt", ["userId", "status", "updatedAt"]),
 
@@ -60,8 +56,6 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
-    .index("by_user_tv_series", ["userId", "tvSeriesId"])
     .index("by_user_season", ["userId", "seasonId"])
     .index("by_user_episode", ["userId", "episodeId"])
     .index("by_user_watched", ["userId", "isWatched"]),
