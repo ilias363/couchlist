@@ -28,7 +28,7 @@ export default function MovieDetailsPage() {
   const currentStatus = userMovie?.status;
 
   const onChangeStatus = useCallback(
-    async (status: string) => {
+    async (status: string, watchedAt?: number) => {
       if (!numericId) return;
       if (status === currentStatus) return;
       try {
@@ -37,6 +37,7 @@ export default function MovieDetailsPage() {
           movieId: numericId,
           status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
           runtime: movie?.runtime ?? undefined,
+          watchedAt,
         });
       } finally {
         setUpdating(false);

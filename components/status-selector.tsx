@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { ConfirmButton } from "./confirm-dialog";
 import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { WatchedDateDialog } from "@/components/watched-date-dialog";
 
 export interface StatusSelectorProps {
   type: "movie" | "tv";
   currentStatus?: string;
   disabled?: boolean;
-  onChange: (status: string) => void;
+  onChange: (status: string, watchedAt?: number) => void;
   onRemove?: () => Promise<void>;
 }
 
@@ -24,6 +26,28 @@ export function StatusSelector({
     type === "movie"
       ? WATCH_STATUSES.filter(s => s.value !== "currently_watching")
       : WATCH_STATUSES;
+
+  const [open, setOpen] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
+
+  const handleClick = (status: string) => {
+    if (status === "watched") {
+      setPendingStatus(status);
+      setDefaultMs(Date.now());
+      setOpen(true);
+    } else {
+      onChange(status);
+    }
+  };
+
+  const handleConfirm = (ms: number) => {
+    if (!pendingStatus) return;
+    onChange(pendingStatus, ms);
+    setOpen(false);
+    setPendingStatus(null);
+  };
+
   return (
     <div className="space-y-2">
       <h2 className="text-sm font-semibold">Select Status</h2>
@@ -36,7 +60,7 @@ export function StatusSelector({
               variant={active ? "default" : "outline"}
               size="sm"
               disabled={disabled}
-              onClick={() => onChange(s.value)}
+              onClick={() => handleClick(s.value)}
               className="text-xs"
             >
               {s.label}
@@ -61,6 +85,13 @@ export function StatusSelector({
           </ConfirmButton>
         )}
       </div>
+
+      <WatchedDateDialog
+        open={open}
+        onOpenChange={setOpen}
+        onConfirm={handleConfirm}
+        defaultValueMs={defaultMs}
+      />
     </div>
   );
 }

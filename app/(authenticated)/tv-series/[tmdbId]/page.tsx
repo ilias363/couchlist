@@ -28,13 +28,14 @@ export default function TvSeriesDetailsPage() {
   const currentStatus = userSeries?.status;
 
   const onChangeStatus = useCallback(
-    async (status: string) => {
+    async (status: string, watchedAt?: number) => {
       if (!seriesId || status === currentStatus) return;
       try {
         setUpdating(true);
         await setSeriesStatus({
           tvSeriesId: seriesId,
           status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
+          watchedAt,
         });
       } finally {
         setUpdating(false);
