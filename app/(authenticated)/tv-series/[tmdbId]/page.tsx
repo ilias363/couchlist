@@ -9,8 +9,6 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Globe, Landmark, Languages, Star, Tv } from "lucide-react";
 import { StatusSelector } from "@/components/status-selector";
-import { Trash2 } from "lucide-react";
-import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
 import { Badge } from "@/components/ui/badge";
 import { InfoCard } from "@/components/info-card";

@@ -8,8 +8,6 @@ import { useMutation, useQuery } from "convex/react";
 import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
-import { Trash2 } from "lucide-react";
-import { ConfirmButton } from "@/components/ui/confirm-dialog";
 import { Film, Globe, Landmark, Languages, PiggyBank, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";

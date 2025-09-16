@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
-import { ConfirmButton } from "./ui/confirm-dialog";
+import { ConfirmButton } from "./confirm-dialog";
 import { Trash2 } from "lucide-react";
 
 export interface StatusSelectorProps {
