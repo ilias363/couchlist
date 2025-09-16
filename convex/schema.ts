@@ -56,6 +56,7 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_user_tv", ["userId", "tvSeriesId"])
     .index("by_user_season", ["userId", "seasonId"])
     .index("by_user_episode", ["userId", "episodeId"])
     .index("by_user_watched", ["userId", "isWatched"]),

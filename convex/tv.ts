@@ -189,12 +189,12 @@ export const listUserTvSeries = query({
 
     const page = await ordered.paginate(args.paginationOpts);
     return page;
-  }
+  },
 });
 
 export const listAllTvStatuses = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return {};
 
@@ -203,12 +203,46 @@ export const listAllTvStatuses = query({
       .withIndex("by_user", q => q.eq("userId", identity.subject))
       .collect();
 
-    const result: Record<number, { status: "want_to_watch" | "watched" | "on_hold" | "dropped" | "currently_watching" }> = {};
+    const result: Record<
+      number,
+      { status: "want_to_watch" | "watched" | "on_hold" | "dropped" | "currently_watching" }
+    > = {};
 
     for (const tv of userSeries) {
       result[tv.tvSeriesId] = { status: tv.status };
     }
 
     return result;
-  }
+  },
+});
+
+export const deleteTvSeries = mutation({
+  args: { tvSeriesId: v.number() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const existing = await ctx.db
+      .query("userTvSeries")
+      .withIndex("by_user_tv_series", q =>
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+      )
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+
+    const episodes = await ctx.db
+      .query("userEpisodes")
+      .withIndex("by_user_tv", q =>
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+      )
+      .collect();
+    for (const ep of episodes) {
+      await ctx.db.delete(ep._id);
+    }
+
+    return { deletedSeries: !!existing, deletedEpisodes: episodes.length };
+  },
 });

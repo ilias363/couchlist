@@ -14,7 +14,7 @@ export const getMovieStatus = query({
       .unique();
 
     return record;
-  }
+  },
 });
 
 export const setMovieStatus = mutation({
@@ -26,7 +26,7 @@ export const setMovieStatus = mutation({
       v.literal("on_hold"),
       v.literal("dropped")
     ),
-    runtime: v.optional(v.number())
+    runtime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -44,7 +44,7 @@ export const setMovieStatus = mutation({
         status: args.status,
         runtime: args.runtime ?? existing.runtime,
         updatedAt: now,
-        watchedDate: args.status === "watched" ? now : existing.watchedDate
+        watchedDate: args.status === "watched" ? now : existing.watchedDate,
       });
       return { _id: existing._id, created: false, updated: true };
     }
@@ -56,10 +56,10 @@ export const setMovieStatus = mutation({
       runtime: args.runtime,
       createdAt: now,
       updatedAt: now,
-      watchedDate: args.status === "watched" ? now : undefined
+      watchedDate: args.status === "watched" ? now : undefined,
     });
     return { _id, created: true, updated: false };
-  }
+  },
 });
 
 export const listUserMovies = query({
@@ -91,12 +91,12 @@ export const listUserMovies = query({
 
     const page = await ordered.paginate(args.paginationOpts);
     return page;
-  }
+  },
 });
 
 export const listAllMovieStatuses = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return {};
 
@@ -105,12 +105,32 @@ export const listAllMovieStatuses = query({
       .withIndex("by_user", q => q.eq("userId", identity.subject))
       .collect();
 
-    const result: Record<number, { status: "want_to_watch" | "watched" | "on_hold" | "dropped" }> = {};
+    const result: Record<number, { status: "want_to_watch" | "watched" | "on_hold" | "dropped" }> =
+      {};
 
     for (const m of userMovies) {
       result[m.movieId] = { status: m.status };
     }
 
     return result;
-  }
+  },
+});
+
+export const deleteMovie = mutation({
+  args: { movieId: v.number() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const existing = await ctx.db
+      .query("userMovies")
+      .withIndex("by_user_movie", q => q.eq("userId", identity.subject).eq("movieId", args.movieId))
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      return { deleted: true };
+    }
+    return { deleted: false };
+  },
 });
