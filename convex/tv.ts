@@ -26,6 +26,7 @@ export const setSeriesStatus = mutation({
       v.literal("on_hold"),
       v.literal("dropped")
     ),
+    watchedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -42,7 +43,7 @@ export const setSeriesStatus = mutation({
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        watchedDate: args.status === "watched" ? now : existing.watchedDate,
+        watchedDate: args.status === "watched" ? args.watchedAt ?? now : existing.watchedDate,
       });
     } else {
       await ctx.db.insert("userTvSeries", {
@@ -50,7 +51,7 @@ export const setSeriesStatus = mutation({
         tvSeriesId: args.tvSeriesId,
         status: args.status,
         startedDate: args.status === "currently_watching" ? now : undefined,
-        watchedDate: args.status === "watched" ? now : undefined,
+        watchedDate: args.status === "watched" ? args.watchedAt ?? now : undefined,
         createdAt: now,
         updatedAt: now,
       });
@@ -79,6 +80,7 @@ export const toggleEpisodeWatched = mutation({
     episodeId: v.number(),
     runtime: v.optional(v.number()),
     isWatched: v.boolean(),
+    watchedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -94,7 +96,7 @@ export const toggleEpisodeWatched = mutation({
       await ctx.db.patch(existing._id, {
         runtime: args.runtime ?? existing.runtime,
         isWatched: args.isWatched,
-        watchedDate: args.isWatched ? now : undefined,
+        watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
         updatedAt: now,
       });
     } else {
@@ -105,7 +107,7 @@ export const toggleEpisodeWatched = mutation({
         episodeId: args.episodeId,
         runtime: args.runtime,
         isWatched: args.isWatched,
-        watchedDate: args.isWatched ? now : undefined,
+        watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
         createdAt: now,
         updatedAt: now,
       });
@@ -119,6 +121,7 @@ export const bulkToggleSeasonEpisodes = mutation({
     seasonId: v.number(),
     episodesInfo: v.array(v.object({ episodeId: v.number(), runtime: v.optional(v.number()) })),
     isWatched: v.boolean(),
+    watchedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -139,7 +142,7 @@ export const bulkToggleSeasonEpisodes = mutation({
         await ctx.db.patch(rec._id, {
           runtime: ep.runtime ?? rec.runtime,
           isWatched: args.isWatched,
-          watchedDate: args.isWatched ? now : undefined,
+          watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
           updatedAt: now,
         });
       } else {
@@ -150,7 +153,7 @@ export const bulkToggleSeasonEpisodes = mutation({
           episodeId: ep.episodeId,
           runtime: ep.runtime,
           isWatched: args.isWatched,
-          watchedDate: args.isWatched ? now : undefined,
+          watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
           createdAt: now,
           updatedAt: now,
         });
