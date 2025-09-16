@@ -1,9 +1,12 @@
 "use client";
+
+import { useState } from "react";
 import { SeasonEpisode } from "@/lib/tmdb/types";
 import { StillImage } from "@/components/tmdb-image";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WatchedDateDialog } from "@/components/watched-date-dialog";
 
 export function SeasonEpisodes({
   episodes,
@@ -12,8 +15,28 @@ export function SeasonEpisodes({
 }: {
   episodes: SeasonEpisode[];
   statusMap: Map<number, boolean>;
-  onToggle: (ep: SeasonEpisode) => void;
+  onToggle: (ep: SeasonEpisode, watchedAt?: number) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<SeasonEpisode | null>(null);
+  const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
+
+  const handleClick = (ep: SeasonEpisode, watched: boolean) => {
+    if (!watched) {
+      setPending(ep);
+      setDefaultMs(Date.now());
+      setOpen(true);
+    } else {
+      onToggle(ep);
+    }
+  };
+
+  const handleConfirm = (ms: number) => {
+    if (!pending) return;
+    onToggle(pending, ms);
+    setPending(null);
+    setOpen(false);
+  };
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Episodes</h2>
@@ -39,7 +62,7 @@ export function SeasonEpisodes({
                   <Button
                     size="icon"
                     variant={watched ? "secondary" : "ghost"}
-                    onClick={() => onToggle(ep)}
+                    onClick={() => handleClick(ep, watched)}
                     className="h-7 w-7 shrink-0"
                   >
                     {watched ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -58,6 +81,13 @@ export function SeasonEpisodes({
           );
         })}
       </div>
+
+      <WatchedDateDialog
+        open={open}
+        onOpenChange={setOpen}
+        onConfirm={handleConfirm}
+        defaultValueMs={defaultMs}
+      />
     </div>
   );
 }

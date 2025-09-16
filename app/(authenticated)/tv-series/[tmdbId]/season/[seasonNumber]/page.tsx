@@ -50,23 +50,27 @@ export default function SeasonDetailsPage() {
   );
   const allWatched = episodesInfo.length > 0 && watchedCount === episodesInfo.length;
 
-  const handleBulkToggle = useCallback(async () => {
-    if (!season) return;
-    try {
-      setBulkUpdating(true);
-      await bulkToggle({
-        tvSeriesId: seriesId,
-        seasonId: season.id,
-        episodesInfo: episodesInfo,
-        isWatched: !allWatched,
-      });
-    } finally {
-      setBulkUpdating(false);
-    }
-  }, [season, seriesId, episodesInfo, allWatched, bulkToggle]);
+  const handleBulkToggle = useCallback(
+    async (watchedAt?: number) => {
+      if (!season) return;
+      try {
+        setBulkUpdating(true);
+        await bulkToggle({
+          tvSeriesId: seriesId,
+          seasonId: season.id,
+          episodesInfo: episodesInfo,
+          isWatched: !allWatched,
+          watchedAt,
+        });
+      } finally {
+        setBulkUpdating(false);
+      }
+    },
+    [season, seriesId, episodesInfo, allWatched, bulkToggle]
+  );
 
   const handleToggleEpisode = useCallback(
-    async (ep: SeasonEpisode) => {
+    async (ep: SeasonEpisode, watchedAt?: number) => {
       if (!season) return;
       await toggleEpisode({
         tvSeriesId: seriesId,
@@ -74,6 +78,7 @@ export default function SeasonDetailsPage() {
         episodeId: ep.id,
         runtime: ep.runtime ?? undefined,
         isWatched: !statusMap.get(ep.id),
+        watchedAt,
       });
     },
     [season, seriesId, statusMap, toggleEpisode]

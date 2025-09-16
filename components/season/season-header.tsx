@@ -3,7 +3,8 @@
 import { TMDBSeason } from "@/lib/tmdb/types";
 import { PosterImage } from "@/components/tmdb-image";
 import { Button } from "@/components/ui/button";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import { WatchedDateDialog } from "@/components/watched-date-dialog";
 
 export function SeasonHeader({
   season,
@@ -15,9 +16,25 @@ export function SeasonHeader({
   season: TMDBSeason;
   allWatched: boolean;
   bulkUpdating: boolean;
-  onBulkToggle: () => void;
+  onBulkToggle: (watchedAt?: number) => void;
   extra?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
+
+  const handleBulkClick = () => {
+    if (!allWatched) {
+      setDefaultMs(Date.now());
+      setOpen(true);
+    } else {
+      onBulkToggle();
+    }
+  };
+
+  const handleConfirm = (ms: number) => {
+    onBulkToggle(ms);
+    setOpen(false);
+  };
   return (
     <div className="flex flex-col items-center justify-center md:flex-row gap-6">
       <div className="w-32 sm:w-40 md:w-48 rounded-md border overflow-hidden">
@@ -43,13 +60,21 @@ export function SeasonHeader({
             size="sm"
             variant={allWatched ? "outline" : "default"}
             disabled={bulkUpdating || season.episodes.length === 0}
-            onClick={onBulkToggle}
+            onClick={handleBulkClick}
           >
             {bulkUpdating ? "Updating..." : allWatched ? "Mark All Unwatched" : "Mark All Watched"}
           </Button>
           {extra}
         </div>
       </div>
+
+      <WatchedDateDialog
+        open={open}
+        onOpenChange={setOpen}
+        onConfirm={handleConfirm}
+        defaultValueMs={defaultMs}
+        title="Watched date for all episodes"
+      />
     </div>
   );
 }
