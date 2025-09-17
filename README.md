@@ -1,6 +1,6 @@
 ## CouchList
 
-Track what you watch across movies and TV series. Browse trending/popular titles from TMDB, search, set per-item watch status, mark episodes watched, and view rich personal stats.
+Track what you watch across movies and TV series. Browse trending/popular titles from TMDB, search, set per-item watch status, mark episodes watched, view rich personal stats, and back up or restore your tracking data.
 
 ### Highlights
 - Authenticated app with Clerk; public landing page at `/`
@@ -9,6 +9,7 @@ Track what you watch across movies and TV series. Browse trending/popular titles
 - Home feed: Trending, Popular, Top Rated, Now Playing/Airing Today
 - Search (movie, TV, or both) with infinite scrolling
 - Stats dashboard: distributions, daily/weekly activity, streaks, and watch-time breakdown
+- Backup & restore: export/import your tracked data from Settings
 - Built with Next.js App Router, Convex, and TanStack Query
 
 ## Tech Stack
