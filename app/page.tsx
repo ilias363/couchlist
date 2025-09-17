@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { Film, Tv, BarChart3, Search } from "lucide-react";
+import { Film, Tv, BarChart3, Search, Download } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 
 export default async function Welcome() {
@@ -58,7 +58,7 @@ function WelcomePageContent() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -123,6 +123,22 @@ function WelcomePageContent() {
               <CardDescription>
                 Get insights into your viewing habits, see statistics, and track your entertainment
                 journey.
+              </CardDescription>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Download className="size-6 text-primary" />
+                </div>
+                <CardTitle>Backup & Restore</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>
+                Export your library as a JSON file and restore it later from the Settings page.
               </CardDescription>
             </CardContent>
           </Card>
