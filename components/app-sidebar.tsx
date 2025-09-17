@@ -10,7 +10,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Home, Search, Clapperboard, Tv, BarChart3, Film, LucideIcon } from "lucide-react";
+import {
+  Home,
+  Search,
+  Clapperboard,
+  Tv,
+  BarChart3,
+  Film,
+  LucideIcon,
+  Settings,
+} from "lucide-react";
 import { ThemeToggle } from "./theme/theme-toggle";
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
@@ -22,6 +31,7 @@ const NAV_ITEMS: Array<{ label: string; href: string; icon: LucideIcon }> = [
   { label: "Movies", href: "/movies", icon: Clapperboard },
   { label: "TV Series", href: "/tv-series", icon: Tv },
   { label: "Statistics", href: "/stats", icon: BarChart3 },
+  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

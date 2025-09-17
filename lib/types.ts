@@ -71,3 +71,24 @@ export interface UserStats {
   };
   generatedAt: number;
 }
+
+export type ImportMode = "merge" | "replace";
+
+export interface ImportedDataResult {
+  mode: ImportMode;
+  movies: {
+    inserted: number;
+    updated: number;
+    total: number;
+  };
+  tvSeries: {
+    inserted: number;
+    updated: number;
+    total: number;
+  };
+  episodes: {
+    inserted: number;
+    updated: number;
+    total: number;
+  };
+}
