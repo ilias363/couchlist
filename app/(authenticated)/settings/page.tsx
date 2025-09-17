@@ -42,8 +42,8 @@ export default function SettingsPage() {
       a.download = `couchlist-backup-${ts}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setExporting(false);
     }
@@ -75,8 +75,8 @@ export default function SettingsPage() {
       }
       const res = await importData({ payload: parsed, mode: replace ? "replace" : mode });
       setResult(res);
-    } catch (e: any) {
-      setError(e?.message ?? String(e));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
