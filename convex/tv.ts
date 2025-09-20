@@ -267,3 +267,31 @@ export const deleteTvSeries = mutation({
     return { deletedSeries: !!existing, deletedEpisodes: episodes.length };
   },
 });
+
+export const clearAllTvData = mutation({
+  args: {},
+  handler: async ctx => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const [series, episodes] = await Promise.all([
+      ctx.db
+        .query("userTvSeries")
+        .withIndex("by_user", q => q.eq("userId", identity.subject))
+        .collect(),
+      ctx.db
+        .query("userEpisodes")
+        .withIndex("by_user_tv", q => q.eq("userId", identity.subject))
+        .collect(),
+    ]);
+
+    for (const s of series) {
+      await ctx.db.delete(s._id);
+    }
+    for (const e of episodes) {
+      await ctx.db.delete(e._id);
+    }
+
+    return { deletedSeries: series.length, deletedEpisodes: episodes.length };
+  },
+});

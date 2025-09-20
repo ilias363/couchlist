@@ -135,3 +135,22 @@ export const deleteMovie = mutation({
     return { deleted: false };
   },
 });
+
+export const clearAllMovies = mutation({
+  args: {},
+  handler: async ctx => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const all = await ctx.db
+      .query("userMovies")
+      .withIndex("by_user", q => q.eq("userId", identity.subject))
+      .collect();
+
+    for (const m of all) {
+      await ctx.db.delete(m._id);
+    }
+
+    return { deleted: all.length };
+  },
+});
