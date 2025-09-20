@@ -92,11 +92,19 @@ export const toggleEpisodeWatched = mutation({
       )
       .unique();
     const now = Date.now();
+
+    if (!args.isWatched) {
+      if (existing) {
+        await ctx.db.delete(existing._id);
+      }
+      return;
+    }
+
     if (existing) {
       await ctx.db.patch(existing._id, {
         runtime: args.runtime ?? existing.runtime,
-        isWatched: args.isWatched,
-        watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
+        isWatched: true,
+        watchedDate: args.watchedAt ?? now,
         updatedAt: now,
       });
     } else {
@@ -106,8 +114,8 @@ export const toggleEpisodeWatched = mutation({
         seasonId: args.seasonId,
         episodeId: args.episodeId,
         runtime: args.runtime,
-        isWatched: args.isWatched,
-        watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
+        isWatched: true,
+        watchedDate: args.watchedAt ?? now,
         createdAt: now,
         updatedAt: now,
       });
@@ -136,13 +144,23 @@ export const bulkToggleSeasonEpisodes = mutation({
       .collect();
     const existingMap = new Map(existing.map(e => [e.episodeId, e]));
 
+    if (!args.isWatched) {
+      for (const ep of args.episodesInfo) {
+        const rec = existingMap.get(ep.episodeId);
+        if (rec) {
+          await ctx.db.delete(rec._id);
+        }
+      }
+      return;
+    }
+
     for (const ep of args.episodesInfo) {
       const rec = existingMap.get(ep.episodeId);
       if (rec) {
         await ctx.db.patch(rec._id, {
           runtime: ep.runtime ?? rec.runtime,
-          isWatched: args.isWatched,
-          watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
+          isWatched: true,
+          watchedDate: args.watchedAt ?? now,
           updatedAt: now,
         });
       } else {
@@ -152,8 +170,8 @@ export const bulkToggleSeasonEpisodes = mutation({
           seasonId: args.seasonId,
           episodeId: ep.episodeId,
           runtime: ep.runtime,
-          isWatched: args.isWatched,
-          watchedDate: args.isWatched ? args.watchedAt ?? now : undefined,
+          isWatched: true,
+          watchedDate: args.watchedAt ?? now,
           createdAt: now,
           updatedAt: now,
         });
