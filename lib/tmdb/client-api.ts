@@ -1,4 +1,13 @@
-import { BaseTMDBMovie, BaseTMDBTvSeries, ExtendedTMDBMovie, ExtendedTMDBTvSeries, TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSearchResult, TMDBSeason, TMDBTvSeries } from "./types";
+import {
+  ExtendedTMDBMovie,
+  ExtendedTMDBTvSeries,
+  TMDB_BASE_URL,
+  TMDBMovie,
+  TMDBSearchResponse,
+  TMDBSearchResult,
+  TMDBSeason,
+  TMDBTvSeries,
+} from "./types";
 
 export class TMDBClient {
   private apiKey: string;
@@ -29,19 +38,23 @@ export class TMDBClient {
   }
 
   async searchMovies(query: string, page: number = 1): Promise<TMDBSearchResponse> {
-    const resp: TMDBSearchResponse = await this.makeRequest(`/search/movie?query=${encodeURIComponent(query)}&page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(
+      `/search/movie?query=${encodeURIComponent(query)}&page=${page}`
+    );
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "movie"),
-    }
+    };
   }
 
   async searchTVSeries(query: string, page: number = 1): Promise<TMDBSearchResponse> {
-    const resp: TMDBSearchResponse = await this.makeRequest(`/search/tv?query=${encodeURIComponent(query)}&page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(
+      `/search/tv?query=${encodeURIComponent(query)}&page=${page}`
+    );
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "tv"),
-    }
+    };
   }
 
   async searchMulti(query: string, page: number = 1): Promise<TMDBSearchResponse> {
@@ -53,7 +66,9 @@ export class TMDBClient {
   }
 
   async getExtendedMovieDetails(movieId: number): Promise<ExtendedTMDBMovie> {
-    return this.makeRequest(`/movie/${movieId}?append_to_response=external_ids,recommendations,similar`);
+    return this.makeRequest(
+      `/movie/${movieId}?append_to_response=external_ids,recommendations,similar`
+    );
   }
 
   async getTVSeriesDetails(seriesId: number): Promise<TMDBTvSeries> {
@@ -61,7 +76,9 @@ export class TMDBClient {
   }
 
   async getExtendedTVSeriesDetails(seriesId: number): Promise<ExtendedTMDBTvSeries> {
-    return this.makeRequest(`/tv/${seriesId}?append_to_response=external_ids,recommendations,similar`);
+    return this.makeRequest(
+      `/tv/${seriesId}?append_to_response=external_ids,recommendations,similar`
+    );
   }
 
   async getSeasonDetails(seriesId: number, seasonNumber: number): Promise<TMDBSeason> {
@@ -81,7 +98,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "movie"),
-    }
+    };
   }
 
   async getPopularTv(page: number = 1): Promise<TMDBSearchResponse> {
@@ -89,7 +106,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "tv"),
-    }
+    };
   }
 
   async getTopRatedMovies(page: number = 1): Promise<TMDBSearchResponse> {
@@ -97,7 +114,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "movie"),
-    }
+    };
   }
 
   async getTopRatedTv(page: number = 1): Promise<TMDBSearchResponse> {
@@ -105,7 +122,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "tv"),
-    }
+    };
   }
 
   async getNowPlayingMovies(page: number = 1): Promise<TMDBSearchResponse> {
@@ -113,7 +130,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "movie"),
-    }
+    };
   }
 
   async getAiringTodayTv(page: number = 1): Promise<TMDBSearchResponse> {
@@ -121,7 +138,7 @@ export class TMDBClient {
     return {
       ...resp,
       results: this.addMediaTypeToResults(resp.results, "tv"),
-    }
+    };
   }
 }
 

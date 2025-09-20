@@ -72,7 +72,8 @@ export function ConfirmButton({
         {confirmPhrase ? (
           <div className="space-y-2">
             <p className="text-sm">
-              Type <span className="font-mono font-semibold">"{confirmPhrase}"</span> to confirm.
+              Type <span className="font-mono font-semibold">{`"${confirmPhrase}"`}</span> to
+              confirm.
             </p>
             <input
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"

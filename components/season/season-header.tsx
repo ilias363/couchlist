@@ -3,7 +3,7 @@
 import { TMDBSeason } from "@/lib/tmdb/types";
 import { PosterImage } from "@/components/tmdb-image";
 import { Button } from "@/components/ui/button";
-import { ReactNode, useState } from "react";
+import { useState } from "react";
 import { WatchedDateDialog } from "@/components/watched-date-dialog";
 
 export function SeasonHeader({
