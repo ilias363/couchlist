@@ -49,8 +49,9 @@ export default function SeasonDetailsPage() {
     [episodesInfo, statusMap]
   );
   const allWatched = episodesInfo.length > 0 && watchedCount === episodesInfo.length;
+  const anyWatched = watchedCount > 0;
 
-  const handleBulkToggle = useCallback(
+  const handleMarkAllWatched = useCallback(
     async (watchedAt?: number) => {
       if (!season) return;
       try {
@@ -59,15 +60,30 @@ export default function SeasonDetailsPage() {
           tvSeriesId: seriesId,
           seasonId: season.id,
           episodesInfo: episodesInfo,
-          isWatched: !allWatched,
+          isWatched: true,
           watchedAt,
         });
       } finally {
         setBulkUpdating(false);
       }
     },
-    [season, seriesId, episodesInfo, allWatched, bulkToggle]
+    [season, seriesId, episodesInfo, bulkToggle]
   );
+
+  const handleMarkAllUnwatched = useCallback(async () => {
+    if (!season) return;
+    try {
+      setBulkUpdating(true);
+      await bulkToggle({
+        tvSeriesId: seriesId,
+        seasonId: season.id,
+        episodesInfo: episodesInfo,
+        isWatched: false,
+      });
+    } finally {
+      setBulkUpdating(false);
+    }
+  }, [season, seriesId, episodesInfo, bulkToggle]);
 
   const handleToggleEpisode = useCallback(
     async (ep: SeasonEpisode, watchedAt?: number) => {
@@ -107,9 +123,10 @@ export default function SeasonDetailsPage() {
           <SeasonHeader
             season={season}
             allWatched={allWatched}
+            anyWatched={anyWatched}
             bulkUpdating={bulkUpdating}
-            onBulkToggle={handleBulkToggle}
-            extra={null}
+            onMarkAllWatched={handleMarkAllWatched}
+            onMarkAllUnwatched={handleMarkAllUnwatched}
           />
 
           <EpisodeFilters filter={filter} setFilter={setFilter} />

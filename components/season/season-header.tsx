@@ -9,30 +9,28 @@ import { WatchedDateDialog } from "@/components/watched-date-dialog";
 export function SeasonHeader({
   season,
   allWatched,
+  anyWatched,
   bulkUpdating,
-  onBulkToggle,
-  extra,
+  onMarkAllWatched,
+  onMarkAllUnwatched,
 }: {
   season: TMDBSeason;
   allWatched: boolean;
+  anyWatched: boolean;
   bulkUpdating: boolean;
-  onBulkToggle: (watchedAt?: number) => void;
-  extra?: ReactNode;
+  onMarkAllWatched: (watchedAt?: number) => void;
+  onMarkAllUnwatched: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
 
-  const handleBulkClick = () => {
-    if (!allWatched) {
-      setDefaultMs(Date.now());
-      setOpen(true);
-    } else {
-      onBulkToggle();
-    }
+  const handleMarkAllWatchedClick = () => {
+    setDefaultMs(Date.now());
+    setOpen(true);
   };
 
   const handleConfirm = (ms: number) => {
-    onBulkToggle(ms);
+    onMarkAllWatched(ms);
     setOpen(false);
   };
   return (
@@ -56,15 +54,56 @@ export function SeasonHeader({
           <p className="text-sm max-w-prose leading-relaxed">{season.overview}</p>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <Button
-            size="sm"
-            variant={allWatched ? "outline" : "default"}
-            disabled={bulkUpdating || season.episodes.length === 0}
-            onClick={handleBulkClick}
-          >
-            {bulkUpdating ? "Updating..." : allWatched ? "Mark All Unwatched" : "Mark All Watched"}
-          </Button>
-          {extra}
+          {bulkUpdating ? (
+            <Button size="sm" disabled>
+              Updating...
+            </Button>
+          ) : (
+            <>
+              {!anyWatched && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={season.episodes.length === 0}
+                  onClick={handleMarkAllWatchedClick}
+                >
+                  Mark All Watched
+                </Button>
+              )}
+
+              {allWatched && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={season.episodes.length === 0}
+                  onClick={onMarkAllUnwatched}
+                >
+                  Mark All Unwatched
+                </Button>
+              )}
+
+              {anyWatched && !allWatched && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="default"
+                    disabled={season.episodes.length === 0}
+                    onClick={handleMarkAllWatchedClick}
+                  >
+                    Mark All Watched
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={season.episodes.length === 0}
+                    onClick={onMarkAllUnwatched}
+                  >
+                    Mark All Unwatched
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
 
