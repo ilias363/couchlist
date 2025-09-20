@@ -1,4 +1,4 @@
-import { ExtendedTMDBMovie, ExtendedTMDBTvSeries, TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSeason, TMDBTvSeries } from "./types";
+import { BaseTMDBMovie, BaseTMDBTvSeries, ExtendedTMDBMovie, ExtendedTMDBTvSeries, TMDB_BASE_URL, TMDBMovie, TMDBSearchResponse, TMDBSearchResult, TMDBSeason, TMDBTvSeries } from "./types";
 
 export class TMDBClient {
   private apiKey: string;
@@ -24,12 +24,24 @@ export class TMDBClient {
     return await response.json();
   }
 
+  private addMediaTypeToResults(results: TMDBSearchResult[], mediaType: "movie" | "tv") {
+    return results.map(r => ({ ...r, media_type: mediaType })) as TMDBSearchResult[];
+  }
+
   async searchMovies(query: string, page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/search/movie?query=${encodeURIComponent(query)}&page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/search/movie?query=${encodeURIComponent(query)}&page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "movie"),
+    }
   }
 
   async searchTVSeries(query: string, page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/search/tv?query=${encodeURIComponent(query)}&page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/search/tv?query=${encodeURIComponent(query)}&page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "tv"),
+    }
   }
 
   async searchMulti(query: string, page: number = 1): Promise<TMDBSearchResponse> {
@@ -65,27 +77,51 @@ export class TMDBClient {
   }
 
   async getPopularMovies(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/movie/popular?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/movie/popular?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "movie"),
+    }
   }
 
   async getPopularTv(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/tv/popular?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/tv/popular?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "tv"),
+    }
   }
 
   async getTopRatedMovies(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/movie/top_rated?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/movie/top_rated?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "movie"),
+    }
   }
 
   async getTopRatedTv(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/tv/top_rated?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/tv/top_rated?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "tv"),
+    }
   }
 
   async getNowPlayingMovies(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/movie/now_playing?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/movie/now_playing?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "movie"),
+    }
   }
 
   async getAiringTodayTv(page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/tv/airing_today?page=${page}`);
+    const resp: TMDBSearchResponse = await this.makeRequest(`/tv/airing_today?page=${page}`);
+    return {
+      ...resp,
+      results: this.addMediaTypeToResults(resp.results, "tv"),
+    }
   }
 }
 
