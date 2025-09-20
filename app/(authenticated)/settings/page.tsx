@@ -14,6 +14,8 @@ import { ImportedDataResult, ImportMode } from "@/lib/types";
 export default function SettingsPage() {
   const convex = useConvex();
   const importData = useMutation(api.importExport.importData);
+  const clearMovies = useMutation(api.movie.clearAllMovies);
+  const clearTv = useMutation(api.tv.clearAllTvData);
 
   const [mode, setMode] = useState<ImportMode>("merge");
   const [selectedFileName, setSelectedFileName] = useState<string>("");
@@ -190,6 +192,47 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold">Clear Tracked Data</h2>
+          <p className="text-sm text-muted-foreground">
+            Permanently delete tracked data from your account. This cannot be undone.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-3">
+            <ConfirmButton
+              title="Clear ALL tracked movies?"
+              description="This will delete all your tracked movies permanently."
+              confirmText="Delete movies"
+              confirmPhrase="delete movies"
+              variant="destructive"
+              onConfirm={async () => {
+                await clearMovies({});
+              }}
+            >
+              Clear all tracked movies
+            </ConfirmButton>
+          </div>
+          <div className="flex items-center gap-3">
+            <ConfirmButton
+              title="Clear ALL tracked TV data?"
+              description="This will delete all your tracked TV series and episodes permanently."
+              confirmText="Delete TV data"
+              confirmPhrase="delete tv"
+              variant="destructive"
+              onConfirm={async () => {
+                await clearTv({});
+              }}
+            >
+              Clear all tracked TV data
+            </ConfirmButton>
+          </div>
         </CardContent>
       </Card>
     </div>
