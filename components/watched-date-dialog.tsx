@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ interface WatchedDateDialogProps {
   defaultValueMs?: number;
   confirmText?: string;
   cancelText?: string;
+  children?: ReactNode;
 }
 
 export function WatchedDateDialog({
@@ -40,6 +41,7 @@ export function WatchedDateDialog({
   defaultValueMs,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  children,
 }: WatchedDateDialogProps) {
   const [value, setValue] = useState(formatDateTimeLocal(new Date()));
 
@@ -69,6 +71,7 @@ export function WatchedDateDialog({
             onChange={e => setValue(e.target.value)}
           />
         </div>
+        {children ? <div className="mt-2">{children}</div> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {cancelText}

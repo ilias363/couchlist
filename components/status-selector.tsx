@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { ConfirmButton } from "./confirm-dialog";
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { WatchedDateDialog } from "@/components/watched-date-dialog";
 
 export interface StatusSelectorProps {
@@ -13,6 +13,7 @@ export interface StatusSelectorProps {
   disabled?: boolean;
   onChange: (status: string, watchedAt?: number) => void;
   onRemove?: () => Promise<void>;
+  children?: ReactNode;
 }
 
 export function StatusSelector({
@@ -21,6 +22,7 @@ export function StatusSelector({
   disabled,
   onChange,
   onRemove,
+  children,
 }: StatusSelectorProps) {
   const STATUSES =
     type === "movie"
@@ -32,6 +34,7 @@ export function StatusSelector({
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
 
   const handleClick = (status: string) => {
+    if (status === currentStatus) return;
     if (status === "watched") {
       setPendingStatus(status);
       setDefaultMs(Date.now());
@@ -91,7 +94,9 @@ export function StatusSelector({
         onOpenChange={setOpen}
         onConfirm={handleConfirm}
         defaultValueMs={defaultMs}
-      />
+      >
+        {children}
+      </WatchedDateDialog>
     </div>
   );
 }

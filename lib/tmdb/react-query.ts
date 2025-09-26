@@ -95,6 +95,25 @@ export function useBatchTMDBTvSeries(ids: number[]) {
   return { map, queries, isLoading, isFetching };
 }
 
+export function useBatchTMDBSeasons(seriesId: number, seasonNumbers: number[]) {
+  const queries = useQueries({
+    queries: seasonNumbers.map(seasonNumber => ({
+      queryKey: tmdbKeys.season(seriesId, seasonNumber),
+      queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
+    })),
+  });
+
+  const map = new Map<number, TMDBSeason | null>();
+  queries.forEach((q, i) => {
+    const seasonNumber = seasonNumbers[i];
+    if (seasonNumber) map.set(seasonNumber, q.data || null);
+  });
+
+  const isLoading = queries.some(q => q.isLoading);
+  const isFetching = queries.some(q => q.isFetching);
+  return { map, queries, isLoading, isFetching };
+}
+
 export type SearchMode = "movie" | "tv" | "multi";
 
 export function useTMDBSearchFeed(query: string, mode: SearchMode) {
