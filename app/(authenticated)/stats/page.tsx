@@ -91,7 +91,7 @@ export default function StatsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="space-y-2">
+      <div>
         <h1 className="text-2xl font-bold tracking-tight">Your Insights</h1>
         <p className="text-muted-foreground max-w-prose">
           Visual breakdown of your viewing patterns & progress
