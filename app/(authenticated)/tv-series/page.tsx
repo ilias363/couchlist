@@ -106,7 +106,12 @@ export default function TvSeriesPage() {
       </div>
       {paginationStatus === "CanLoadMore" && (
         <div className="flex justify-center md:pt-2">
-          <Button variant="outline" disabled={loading} onClick={() => loadMore(60)}>
+          <Button
+            variant="link"
+            disabled={loading}
+            onClick={() => loadMore(60)}
+            className="hover:cursor-pointer"
+          >
             Load More
           </Button>
         </div>

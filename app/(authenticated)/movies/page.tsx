@@ -107,7 +107,12 @@ export default function MoviesPage() {
 
       {paginationStatus === "CanLoadMore" && (
         <div className="flex justify-center md:pt-2">
-          <Button variant="outline" disabled={loading} onClick={() => loadMore(30)}>
+          <Button
+            variant="link"
+            disabled={loading}
+            onClick={() => loadMore(30)}
+            className="hover:cursor-pointer"
+          >
             Load More
           </Button>
         </div>
