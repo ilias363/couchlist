@@ -36,6 +36,7 @@ export default function HomePage() {
           category="popular"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
         <CategorySection
           title="Popular TV"
@@ -43,6 +44,7 @@ export default function HomePage() {
           category="popular"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
         <CategorySection
           title="Top Rated Movies"
@@ -50,6 +52,7 @@ export default function HomePage() {
           category="top_rated"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
         <CategorySection
           title="Top Rated TV"
@@ -57,6 +60,7 @@ export default function HomePage() {
           category="top_rated"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
         <CategorySection
           title="Now Playing"
@@ -64,6 +68,7 @@ export default function HomePage() {
           category="now_playing"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
         <CategorySection
           title="Airing Today"
@@ -71,6 +76,7 @@ export default function HomePage() {
           category="airing_today"
           allMovieStatuses={allMovieStatuses}
           allTvStatuses={allTvStatuses}
+          defer
         />
       </div>
     </div>
