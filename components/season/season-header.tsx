@@ -1,10 +1,18 @@
 "use client";
 
-import { TMDBSeason } from "@/lib/tmdb/types";
+import Link from "next/link";
+import { ChevronDown } from "lucide-react";
+import { TMDBSeason, BaseTMDBSeason } from "@/lib/tmdb/types";
 import { PosterImage } from "@/components/tmdb-image";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { WatchedDateDialog } from "@/components/watched-date-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function SeasonHeader({
   season,
@@ -13,6 +21,8 @@ export function SeasonHeader({
   bulkUpdating,
   onMarkAllWatched,
   onMarkAllUnwatched,
+  seasons,
+  seriesId,
 }: {
   season: TMDBSeason;
   allWatched: boolean;
@@ -20,6 +30,8 @@ export function SeasonHeader({
   bulkUpdating: boolean;
   onMarkAllWatched: (watchedAt?: number) => void;
   onMarkAllUnwatched: () => void;
+  seasons?: BaseTMDBSeason[];
+  seriesId: number;
 }) {
   const [open, setOpen] = useState(false);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
@@ -29,7 +41,7 @@ export function SeasonHeader({
     setOpen(true);
   };
 
-  const handleConfirm = (ms: number) => {
+  const handleConfirm = (ms?: number) => {
     onMarkAllWatched(ms);
     setOpen(false);
   };
@@ -41,9 +53,16 @@ export function SeasonHeader({
       <div className="flex-1 space-y-3">
         <div>
           <h1 className="text-2xl font-bold leading-tight">{season.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            Season {season.season_number} • {season.episodes.length} episodes
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>
+              Season {season.season_number} • {season.episodes.length} episodes
+            </span>
+            <SeasonSwitcher
+              seriesId={seriesId}
+              seasons={seasons}
+              currentSeason={season.season_number}
+            />
+          </div>
           {season.air_date && (
             <p className="text-xs text-muted-foreground">
               Air Date: {new Date(season.air_date).toLocaleDateString()}
@@ -115,5 +134,48 @@ export function SeasonHeader({
         title="Watched date for all episodes"
       />
     </div>
+  );
+}
+
+function SeasonSwitcher({
+  seriesId,
+  seasons,
+  currentSeason,
+}: {
+  seriesId: number;
+  seasons?: BaseTMDBSeason[];
+  currentSeason: number;
+}) {
+  if (!seasons || seasons.length <= 1) return null;
+
+  const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs">
+          Other seasons
+          <ChevronDown className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {sorted.map(season => {
+          const isCurrent = season.season_number === currentSeason;
+          return (
+            <DropdownMenuItem key={season.id} asChild className="px-4">
+              <Link
+                href={`/tv-series/${seriesId}/season/${season.season_number}`}
+                className={`flex flex-col ${isCurrent ? "pointer-events-none opacity-60" : ""}`}
+              >
+                <span className="text-sm font-medium">Season {season.season_number}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {season.episode_count} episodes{isCurrent ? " • Current" : ""}
+                </span>
+              </Link>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

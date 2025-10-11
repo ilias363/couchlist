@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { EpisodeFilters } from "@/components/season/episode-filters";
 import { ProgressSummary } from "@/components/season/progress-summary";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
-import { useTMDBSeason } from "@/lib/tmdb/react-query";
+import { useTMDBSeason, useTMDBTvSeries } from "@/lib/tmdb/react-query";
 
 export default function SeasonDetailsPage() {
   const { tmdbId, seasonNumber } = useParams<{ tmdbId: string; seasonNumber: string }>();
@@ -20,6 +20,7 @@ export default function SeasonDetailsPage() {
   const seasonNum = Number(seasonNumber);
 
   const { data: season, isLoading: loading, error } = useTMDBSeason(seriesId, seasonNum);
+  const { data: series } = useTMDBTvSeries(seriesId);
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [filter, setFilter] = useState<"all" | "watched" | "unwatched">("all");
 
@@ -127,6 +128,8 @@ export default function SeasonDetailsPage() {
             bulkUpdating={bulkUpdating}
             onMarkAllWatched={handleMarkAllWatched}
             onMarkAllUnwatched={handleMarkAllUnwatched}
+            seasons={series?.seasons}
+            seriesId={seriesId}
           />
 
           <EpisodeFilters filter={filter} setFilter={setFilter} />
