@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useId, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 function formatDateTimeLocal(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -23,7 +24,7 @@ function formatDateTimeLocal(d: Date) {
 interface WatchedDateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (watchedAtMs: number) => void;
+  onConfirm: (watchedAtMs?: number) => void;
   title?: string;
   label?: string;
   defaultValueMs?: number;
@@ -44,13 +45,21 @@ export function WatchedDateDialog({
   children,
 }: WatchedDateDialogProps) {
   const [value, setValue] = useState(formatDateTimeLocal(new Date()));
+  const [isUnknown, setIsUnknown] = useState(false);
+  const checkboxId = useId();
 
   useEffect(() => {
     const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
     setValue(formatDateTimeLocal(date));
+    setIsUnknown(false);
   }, [defaultValueMs, open]);
 
   const handleConfirm = () => {
+    if (isUnknown) {
+      onConfirm(undefined);
+      return;
+    }
+
     const dt = new Date(value);
     const ms = isNaN(dt.getTime()) ? Date.now() : dt.getTime();
     onConfirm(ms);
@@ -69,7 +78,18 @@ export function WatchedDateDialog({
             className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={value}
             onChange={e => setValue(e.target.value)}
+            disabled={isUnknown}
           />
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id={checkboxId}
+              checked={isUnknown}
+              onCheckedChange={checked => setIsUnknown(checked === true)}
+            />
+            <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
+              Mark watched date as unknown
+            </label>
+          </div>
         </div>
         {children ? <div className="mt-2">{children}</div> : null}
         <DialogFooter>

@@ -44,7 +44,7 @@ export function StatusSelector({
     }
   };
 
-  const handleConfirm = (ms: number) => {
+  const handleConfirm = (ms?: number) => {
     if (!pendingStatus) return;
     onChange(pendingStatus, ms);
     setOpen(false);

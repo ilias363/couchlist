@@ -43,7 +43,7 @@ export const setSeriesStatus = mutation({
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        watchedDate: args.status === "watched" ? args.watchedAt ?? now : existing.watchedDate,
+        watchedDate: args.status === "watched" ? args.watchedAt : existing.watchedDate,
       });
     } else {
       await ctx.db.insert("userTvSeries", {
@@ -51,7 +51,7 @@ export const setSeriesStatus = mutation({
         tvSeriesId: args.tvSeriesId,
         status: args.status,
         startedDate: args.status === "currently_watching" ? now : undefined,
-        watchedDate: args.status === "watched" ? args.watchedAt ?? now : undefined,
+        watchedDate: args.status === "watched" ? args.watchedAt : undefined,
         createdAt: now,
         updatedAt: now,
       });
@@ -104,7 +104,7 @@ export const toggleEpisodeWatched = mutation({
       await ctx.db.patch(existing._id, {
         runtime: args.runtime ?? existing.runtime,
         isWatched: true,
-        watchedDate: args.watchedAt ?? now,
+        watchedDate: args.watchedAt,
         updatedAt: now,
       });
     } else {
@@ -115,7 +115,7 @@ export const toggleEpisodeWatched = mutation({
         episodeId: args.episodeId,
         runtime: args.runtime,
         isWatched: true,
-        watchedDate: args.watchedAt ?? now,
+        watchedDate: args.watchedAt,
         createdAt: now,
         updatedAt: now,
       });
@@ -160,7 +160,7 @@ export const bulkToggleSeasonEpisodes = mutation({
         await ctx.db.patch(rec._id, {
           runtime: ep.runtime ?? rec.runtime,
           isWatched: true,
-          watchedDate: args.watchedAt ?? now,
+          watchedDate: args.watchedAt,
           updatedAt: now,
         });
       } else {
@@ -171,7 +171,7 @@ export const bulkToggleSeasonEpisodes = mutation({
           episodeId: ep.episodeId,
           runtime: ep.runtime,
           isWatched: true,
-          watchedDate: args.watchedAt ?? now,
+          watchedDate: args.watchedAt,
           createdAt: now,
           updatedAt: now,
         });

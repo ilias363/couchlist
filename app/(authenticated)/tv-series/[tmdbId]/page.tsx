@@ -36,7 +36,7 @@ export default function TvSeriesDetailsPage() {
 
   const currentStatus = userSeries?.status;
 
-  const handleMarkEntireSeries = async (watchedAtMs: number) => {
+  const handleMarkEntireSeries = async (watchedAtMs?: number) => {
     try {
       const results = await Promise.all(
         seasonQueries.map(async q => q.data ?? (await q.refetch()).data)
@@ -69,7 +69,7 @@ export default function TvSeriesDetailsPage() {
       setUpdating(true);
 
       if (status === "watched" && markEntireSeries) {
-        await handleMarkEntireSeries(watchedAt ?? Date.now());
+        await handleMarkEntireSeries(watchedAt);
       }
 
       await setSeriesStatus({

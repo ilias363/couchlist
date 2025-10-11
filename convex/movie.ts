@@ -45,7 +45,7 @@ export const setMovieStatus = mutation({
         status: args.status,
         runtime: args.runtime ?? existing.runtime,
         updatedAt: now,
-        watchedDate: args.status === "watched" ? args.watchedAt ?? now : existing.watchedDate,
+        watchedDate: args.status === "watched" ? args.watchedAt : existing.watchedDate,
       });
       return { _id: existing._id, created: false, updated: true };
     }
@@ -57,7 +57,7 @@ export const setMovieStatus = mutation({
       runtime: args.runtime,
       createdAt: now,
       updatedAt: now,
-      watchedDate: args.status === "watched" ? args.watchedAt ?? now : undefined,
+      watchedDate: args.status === "watched" ? args.watchedAt : undefined,
     });
     return { _id, created: true, updated: false };
   },

@@ -31,7 +31,7 @@ export function SeasonEpisodes({
     }
   };
 
-  const handleConfirm = (ms: number) => {
+  const handleConfirm = (ms?: number) => {
     if (!pending) return;
     onToggle(pending, ms);
     setPending(null);
