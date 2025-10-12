@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useBatchTMDBSeasons } from "@/lib/tmdb/react-query";
 import { TMDBSeason, BaseTMDBSeason } from "@/lib/tmdb/types";
 
