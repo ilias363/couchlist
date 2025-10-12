@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { useParams } from "next/navigation";
 import { BackdropImage, PosterImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { api } from "@/convex/_generated/api";
 import { StatusSelector } from "@/components/status-selector";
@@ -14,47 +13,17 @@ import { formatCurrency } from "@/lib/utils";
 import { formatReleaseDate, formatRuntime, getExternalLinks } from "@/lib/tmdb/utils";
 import { MediaCarousel } from "@/components/media-carousel";
 import { InfoCard } from "@/components/info-card";
+import { useMovieStatus } from "@/hooks/use-movie-status";
 
 export default function MovieDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const numericId = Number(tmdbId);
   const { data: movie, isLoading: loading, error } = useTMDBExtendedMovie(numericId);
-  const [updating, setUpdating] = useState(false);
 
   const userMovie = useQuery(api.movie.getMovieStatus, numericId ? { movieId: numericId } : "skip");
-  const setStatus = useMutation(api.movie.setMovieStatus);
-  const deleteMovie = useMutation(api.movie.deleteMovie);
+  const movieStatus = useMovieStatus(numericId, movie?.runtime);
 
   const currentStatus = userMovie?.status;
-
-  const onChangeStatus = useCallback(
-    async (status: string, watchedAt?: number) => {
-      if (!numericId) return;
-      if (status === currentStatus) return;
-      try {
-        setUpdating(true);
-        await setStatus({
-          movieId: numericId,
-          status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
-          runtime: movie?.runtime ?? undefined,
-          watchedAt,
-        });
-      } finally {
-        setUpdating(false);
-      }
-    },
-    [numericId, currentStatus, setStatus, movie?.runtime]
-  );
-
-  const onRemove = useCallback(async () => {
-    if (!numericId) return;
-    setUpdating(true);
-    try {
-      await deleteMovie({ movieId: numericId });
-    } finally {
-      setUpdating(false);
-    }
-  }, [numericId, deleteMovie]);
 
   const releaseYear = movie?.release_date ? new Date(movie.release_date).getFullYear() : undefined;
   const formattedRelease = formatReleaseDate(movie?.release_date);
@@ -131,9 +100,9 @@ export default function MovieDetailsPage() {
                   <StatusSelector
                     type="movie"
                     currentStatus={currentStatus}
-                    onChange={onChangeStatus}
-                    disabled={updating}
-                    onRemove={onRemove}
+                    onChange={movieStatus.handleStatusChange}
+                    disabled={movieStatus.updating}
+                    onRemove={movieStatus.handleRemove}
                   />
                 </div>
               </div>

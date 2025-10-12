@@ -1,101 +1,39 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState, useCallback, useMemo } from "react";
 import { BackdropImage, PosterImage, LogoImage } from "@/components/tmdb-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Globe, Landmark, Languages, Star, Tv } from "lucide-react";
 import { StatusSelector } from "@/components/status-selector";
-import { useBatchTMDBSeasons, useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
+import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
 import { Badge } from "@/components/ui/badge";
 import { InfoCard } from "@/components/info-card";
 import { MediaCarousel } from "@/components/media-carousel";
 import { formatReleaseDate, getExternalLinks } from "@/lib/tmdb/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTvSeriesStatus } from "@/hooks/use-tv-status";
+import { useSeasonData } from "@/hooks/use-season-data";
 
 export default function TvSeriesDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
   const seriesId = Number(tmdbId);
 
   const { data: series, isLoading: loading, error } = useTMDBExtendedTvSeries(seriesId);
-  const { queries: seasonQueries } = useBatchTMDBSeasons(
-    seriesId,
-    series?.seasons?.map(s => s.season_number) || []
-  );
-
-  const [updating, setUpdating] = useState(false);
-  const [markEntireSeries, setMarkEntireSeries] = useState<boolean>(false);
+  const { filteredSeasons, fetchAllSeasons } = useSeasonData(seriesId, series?.seasons);
 
   const userSeries = useQuery(api.tv.getSeriesStatus, seriesId ? { tvSeriesId: seriesId } : "skip");
-  const setSeriesStatus = useMutation(api.tv.setSeriesStatus);
-  const deleteTvSeries = useMutation(api.tv.deleteTvSeries);
-  const bulkToggle = useMutation(api.tv.bulkToggleSeasonEpisodes);
+  const tvStatus = useTvSeriesStatus(seriesId);
 
   const currentStatus = userSeries?.status;
 
-  const handleMarkEntireSeries = async (watchedAtMs?: number) => {
-    try {
-      const results = await Promise.all(
-        seasonQueries.map(async q => q.data ?? (await q.refetch()).data)
-      );
-      const seasonsDetails = results.filter(s => !!s);
-
-      const mutations = seasonsDetails
-        .filter(s => s.episodes.length > 0)
-        .map(s =>
-          bulkToggle({
-            tvSeriesId: seriesId,
-            seasonId: s.id,
-            episodesInfo: s.episodes.map(e => ({
-              episodeId: e.id,
-              runtime: e.runtime ?? undefined,
-            })),
-            isWatched: true,
-            watchedAt: watchedAtMs,
-          })
-        );
-      await Promise.all(mutations);
-    } finally {
-      setMarkEntireSeries(false);
-    }
-  };
-
   const onChangeStatus = async (status: string, watchedAt?: number) => {
     if (!seriesId || status === currentStatus) return;
-    try {
-      setUpdating(true);
-
-      if (status === "watched" && markEntireSeries) {
-        await handleMarkEntireSeries(watchedAt);
-      }
-
-      await setSeriesStatus({
-        tvSeriesId: seriesId,
-        status: status as "want_to_watch" | "watched" | "on_hold" | "dropped",
-        watchedAt,
-      });
-    } finally {
-      setUpdating(false);
-    }
+    const seasons = await fetchAllSeasons();
+    await tvStatus.handleStatusChange(status, watchedAt, seasons);
   };
-
-  const onRemove = useCallback(async () => {
-    if (!seriesId) return;
-    setUpdating(true);
-    try {
-      await deleteTvSeries({ tvSeriesId: seriesId });
-    } finally {
-      setUpdating(false);
-    }
-  }, [seriesId, deleteTvSeries]);
-
-  const filteredSeasons = useMemo(
-    () => series?.seasons?.filter(s => s.season_number !== 0) || [],
-    [series]
-  );
 
   const releaseYear = series?.first_air_date
     ? new Date(series.first_air_date).getFullYear()
@@ -177,14 +115,14 @@ export default function TvSeriesDetailsPage() {
                     type="tv"
                     currentStatus={currentStatus}
                     onChange={onChangeStatus}
-                    disabled={updating}
-                    onRemove={onRemove}
+                    disabled={tvStatus.updating}
+                    onRemove={tvStatus.handleRemove}
                   >
                     <label className="flex items-center gap-2 text-sm">
                       <Checkbox
-                        checked={markEntireSeries}
-                        onCheckedChange={v => setMarkEntireSeries(Boolean(v))}
-                        disabled={updating || filteredSeasons.length === 0}
+                        checked={tvStatus.markEntireSeries}
+                        onCheckedChange={v => tvStatus.setMarkEntireSeries(Boolean(v))}
+                        disabled={tvStatus.updating || filteredSeasons.length === 0}
                       />
                       <span>Also mark all episodes in this series as watched</span>
                     </label>
