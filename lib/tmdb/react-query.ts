@@ -22,46 +22,56 @@ export const tmdbKeys = {
     [...tmdbKeys.all, "category", type, category] as const,
 };
 
-export function useTMDBMovie(id: number) {
+type QueryOptions = {
+  enabled?: boolean;
+};
+
+export function useTMDBMovie(id: number, options?: QueryOptions) {
   return useQuery<TMDBMovie>({
     queryKey: tmdbKeys.movie(id),
     queryFn: () => tmdbClient.getMovieDetails(id),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useTMDBExtendedMovie(id: number) {
+export function useTMDBExtendedMovie(id: number, options?: QueryOptions) {
   return useQuery<ExtendedTMDBMovie>({
     queryKey: tmdbKeys.movieExtended(id),
     queryFn: () => tmdbClient.getExtendedMovieDetails(id),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useTMDBTvSeries(id: number) {
+export function useTMDBTvSeries(id: number, options?: QueryOptions) {
   return useQuery<TMDBTvSeries>({
     queryKey: tmdbKeys.tv(id),
     queryFn: () => tmdbClient.getTVSeriesDetails(id),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useTMDBExtendedTvSeries(id: number) {
+export function useTMDBExtendedTvSeries(id: number, options?: QueryOptions) {
   return useQuery<ExtendedTMDBTvSeries>({
     queryKey: tmdbKeys.tvExtended(id),
     queryFn: () => tmdbClient.getExtendedTVSeriesDetails(id),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useTMDBSeason(seriesId: number, seasonNumber: number) {
+export function useTMDBSeason(seriesId: number, seasonNumber: number, options?: QueryOptions) {
   return useQuery<TMDBSeason>({
     queryKey: tmdbKeys.season(seriesId, seasonNumber),
     queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useBatchTMDBMovies(ids: number[]) {
+export function useBatchTMDBMovies(ids: number[], options?: QueryOptions) {
   const queries = useQueries({
     queries: ids.map(id => ({
       queryKey: tmdbKeys.movie(id),
       queryFn: () => tmdbClient.getMovieDetails(id),
+      enabled: options?.enabled ?? true,
     })),
   });
 
@@ -76,11 +86,12 @@ export function useBatchTMDBMovies(ids: number[]) {
   return { map, queries, isLoading, isFetching };
 }
 
-export function useBatchTMDBTvSeries(ids: number[]) {
+export function useBatchTMDBTvSeries(ids: number[], options?: QueryOptions) {
   const queries = useQueries({
     queries: ids.map(id => ({
       queryKey: tmdbKeys.tv(id),
       queryFn: () => tmdbClient.getTVSeriesDetails(id),
+      enabled: options?.enabled ?? true,
     })),
   });
 
@@ -95,11 +106,16 @@ export function useBatchTMDBTvSeries(ids: number[]) {
   return { map, queries, isLoading, isFetching };
 }
 
-export function useBatchTMDBSeasons(seriesId: number, seasonNumbers: number[]) {
+export function useBatchTMDBSeasons(
+  seriesId: number,
+  seasonNumbers: number[],
+  options?: QueryOptions
+) {
   const queries = useQueries({
     queries: seasonNumbers.map(seasonNumber => ({
       queryKey: tmdbKeys.season(seriesId, seasonNumber),
       queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
+      enabled: options?.enabled ?? true,
     })),
   });
 
@@ -116,12 +132,12 @@ export function useBatchTMDBSeasons(seriesId: number, seasonNumbers: number[]) {
 
 export type SearchMode = "movie" | "tv" | "multi";
 
-export function useTMDBSearchFeed(query: string, mode: SearchMode) {
+export function useTMDBSearchFeed(query: string, mode: SearchMode, options?: QueryOptions) {
   const q = query.trim();
   return useInfiniteQuery<TMDBSearchResponse>({
     initialPageParam: 1,
     queryKey: tmdbKeys.searchFeed(mode, q),
-    enabled: !!q,
+    enabled: options?.enabled ?? !!q,
     getNextPageParam: lastPage => {
       if (lastPage.results.length === 0) return undefined;
       if (lastPage.page >= lastPage.total_pages) return undefined;
@@ -145,11 +161,13 @@ export function useTMDBSearchFeed(query: string, mode: SearchMode) {
 
 export function useTMDBCategoryFeed(
   type: "movie" | "tv",
-  category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today"
+  category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today",
+  options?: QueryOptions
 ) {
   return useInfiniteQuery<TMDBSearchResponse>({
     initialPageParam: 1,
     queryKey: tmdbKeys.category(type, category),
+    enabled: options?.enabled ?? true,
     getNextPageParam: lastPage => {
       if (lastPage.results.length === 0) return undefined;
       if (lastPage.page >= lastPage.total_pages) return undefined;
