@@ -83,6 +83,12 @@ lib/
 
 Common statuses: want_to_watch | currently_watching (TV only) | watched | on_hold | dropped
 
+## Stats Caching
+Stats are cached in the `userStats` table to reduce compute usage.
+- **Default Behavior**: Stats are served from the cache if less than 24 hours old. Otherwise, they are calculated on-the-fly.
+- **Manual Refresh**: Users can manually refresh stats via the "Refresh Stats" button in the UI to update the cache.
+- **Automatic Refresh**: When stats are requested and the cache is older than 24 hours, fresh stats are calculated automatically.
+
 ## Deployment
 Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) and [Clerk deployment docs](https://clerk.com/docs/deployments/overview).
 

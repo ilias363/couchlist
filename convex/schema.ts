@@ -60,4 +60,11 @@ export default defineSchema({
     .index("by_user_season", ["userId", "seasonId"])
     .index("by_user_episode", ["userId", "episodeId"])
     .index("by_user_watched", ["userId", "isWatched"]),
+
+  // User Stats Caching - stores computed stats to reduce compute
+  userStats: defineTable({
+    userId: v.string(),
+    stats: v.any(), // Stores the full stats object
+    lastRefreshed: v.number(),
+  }).index("by_user", ["userId"]),
 });

@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   DoughnutChart,
   BarChart,
@@ -14,8 +15,8 @@ import {
 } from "@/components/stats/charts";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, BarChart3, Clock, Film, Tv, Rows3, Play, Star } from "lucide-react";
-import React from "react";
+import { Flame, BarChart3, Clock, Film, Tv, Rows3, Play, Star, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 import { UserStats } from "@/lib/types";
 import { MetricsGrid } from "@/components/stats/metrics-grid";
 import { Section } from "@/components/stats/section";
@@ -24,7 +25,15 @@ import { KeyValue } from "@/components/stats/key-value";
 import { Sparkline } from "@/components/stats/spark-line";
 
 export default function StatsPage() {
-  const data: UserStats | undefined = useQuery(api.stats.getUserStats, {});
+  const [data, setData] = useState<UserStats | undefined>(undefined);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const getStats = useMutation(api.stats.getUserStats);
+  const refreshStats = useMutation(api.stats.refreshStats);
+
+  useEffect(() => {
+    getStats().then(setData);
+  }, [getStats]);
+
   if (!data) return <LoadingState />;
   const {
     overview,
@@ -90,12 +99,37 @@ export default function StatsPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Your Insights</h1>
         <p className="text-muted-foreground max-w-prose">
           Visual breakdown of your viewing patterns & progress
         </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 bg-muted/50 rounded-lg border">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>Last updated: {new Date(generatedAt).toLocaleString()}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            setIsRefreshing(true);
+            try {
+              const newStats = await refreshStats();
+              setData(newStats);
+            } finally {
+              setIsRefreshing(false);
+            }
+          }}
+          disabled={isRefreshing}
+          className="gap-2 w-full sm:w-auto"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh Stats
+        </Button>
       </div>
 
       <MetricsGrid overview={overview} streaks={streaks} completionRates={completionRates} />
@@ -238,11 +272,6 @@ export default function StatsPage() {
           </Card>
         </div>
       </Section>
-      <footer className="pt-4">
-        <p className="text-xs text-muted-foreground">
-          Generated {new Date(generatedAt).toLocaleString()} • Data updates as you track items.
-        </p>
-      </footer>
     </div>
   );
 }
