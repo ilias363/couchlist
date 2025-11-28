@@ -16,7 +16,6 @@ import {
   Clapperboard,
   Tv,
   BarChart3,
-  Film,
   LucideIcon,
   Settings,
 } from "lucide-react";
@@ -24,6 +23,7 @@ import { ThemeToggle } from "./theme/theme-toggle";
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const NAV_ITEMS: Array<{ label: string; href: string; icon: LucideIcon }> = [
   { label: "Home", href: "/home", icon: Home },
@@ -48,8 +48,8 @@ export function AppSidebar() {
     <Sidebar variant="floating" collapsible="icon">
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 text-primary">
-            <Film className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+            <Image src="/logo.png" alt="CouchList Logo" width={64} height={64} className="w-6.5 h-6.5" />
           </div>
           <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold tracking-tight">CouchList</span>

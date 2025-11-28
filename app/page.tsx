@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Film, Tv, BarChart3, Search, Download } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
+import Image from "next/image";
 
 export default async function Welcome() {
   const authObject = await auth();
@@ -23,7 +24,7 @@ function WelcomePageContent() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <header className="flex items-center justify-between p-6">
         <div className="flex items-center gap-2">
-          <Film className="size-8 text-primary" />
+          <Image src="/logo.png" alt="CouchList Logo" width={128} height={128} className="size-9" />
           <h1 className="text-2xl font-bold">CouchList</h1>
         </div>
         <ThemeToggle />
