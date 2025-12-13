@@ -14,14 +14,14 @@ export function MetricsGrid({
   const metrics = [
     {
       label: "Movies",
-      value: overview.totalMovies,
+      value: overview.totalStartedMovies,
       sub: `${overview.totalWatchedMovies} watched`,
       icon: Film,
       color: "from-blue-500 to-indigo-600",
     },
     {
       label: "TV Series",
-      value: overview.totalTvSeries,
+      value: overview.totalStartedTvSeries,
       sub: `${overview.totalWatchedTvSeries} completed`,
       icon: Tv,
       color: "from-emerald-500 to-teal-600",

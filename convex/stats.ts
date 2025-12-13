@@ -3,39 +3,39 @@ import { mutation, MutationCtx } from "./_generated/server";
 async function calculateUserStats(db: MutationCtx["db"], userId: string) {
   const userMovies = await db
     .query("userMovies")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_user", q => q.eq("userId", userId))
     .collect();
 
   const userTvSeries = await db
     .query("userTvSeries")
-    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .withIndex("by_user", q => q.eq("userId", userId))
     .collect();
 
   const watchedEpisodes = await db
     .query("userEpisodes")
-    .withIndex("by_user_watched", (q) => q.eq("userId", userId).eq("isWatched", true))
+    .withIndex("by_user_watched", q => q.eq("userId", userId).eq("isWatched", true))
     .collect();
 
   const movieStats = {
     total: userMovies.length,
-    watched: userMovies.filter((m) => m.status === "watched").length,
-    wantToWatch: userMovies.filter((m) => m.status === "want_to_watch").length,
-    onHold: userMovies.filter((m) => m.status === "on_hold").length,
-    dropped: userMovies.filter((m) => m.status === "dropped").length,
+    watched: userMovies.filter(m => m.status === "watched").length,
+    wantToWatch: userMovies.filter(m => m.status === "want_to_watch").length,
+    onHold: userMovies.filter(m => m.status === "on_hold").length,
+    dropped: userMovies.filter(m => m.status === "dropped").length,
   };
 
   const tvStats = {
     total: userTvSeries.length,
-    watched: userTvSeries.filter((tv) => tv.status === "watched").length,
-    currentlyWatching: userTvSeries.filter((tv) => tv.status === "currently_watching").length,
-    wantToWatch: userTvSeries.filter((tv) => tv.status === "want_to_watch").length,
-    onHold: userTvSeries.filter((tv) => tv.status === "on_hold").length,
-    dropped: userTvSeries.filter((tv) => tv.status === "dropped").length,
+    watched: userTvSeries.filter(tv => tv.status === "watched").length,
+    currentlyWatching: userTvSeries.filter(tv => tv.status === "currently_watching").length,
+    wantToWatch: userTvSeries.filter(tv => tv.status === "want_to_watch").length,
+    onHold: userTvSeries.filter(tv => tv.status === "on_hold").length,
+    dropped: userTvSeries.filter(tv => tv.status === "dropped").length,
   };
 
   const episodeStats = {
     totalWatchedEpisodes: watchedEpisodes.length,
-    totalWatchedSeasons: new Set(watchedEpisodes.map((e) => e.seasonId)).size,
+    totalWatchedSeasons: new Set(watchedEpisodes.map(e => e.seasonId)).size,
   };
 
   const totalMovieWatchTime = userMovies.reduce(
@@ -52,10 +52,10 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
 
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-  const recentMovies = userMovies.filter((m) => m.watchedDate && m.watchedDate > thirtyDaysAgo);
+  const recentMovies = userMovies.filter(m => m.watchedDate && m.watchedDate > thirtyDaysAgo);
 
   const recentEpisodes = watchedEpisodes.filter(
-    (e) => e.watchedDate && e.watchedDate > thirtyDaysAgo
+    e => e.watchedDate && e.watchedDate > thirtyDaysAgo
   );
 
   const recentActivity = {
@@ -132,18 +132,24 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
 
   for (const m of userMovies) {
     if (m.watchedDate && m.status === "watched") {
-      const d = new Date(m.watchedDate); d.setHours(0, 0, 0, 0); allActivityDates.add(d.toISOString().slice(0, 10));
+      const d = new Date(m.watchedDate);
+      d.setHours(0, 0, 0, 0);
+      allActivityDates.add(d.toISOString().slice(0, 10));
     }
   }
 
   for (const e of watchedEpisodes) {
     if (e.watchedDate) {
-      const d = new Date(e.watchedDate); d.setHours(0, 0, 0, 0); allActivityDates.add(d.toISOString().slice(0, 10));
+      const d = new Date(e.watchedDate);
+      d.setHours(0, 0, 0, 0);
+      allActivityDates.add(d.toISOString().slice(0, 10));
     }
   }
 
   const sortedDates = Array.from(allActivityDates).sort();
-  let longestStreak = 0; let currentStreak = 0; let prevTime: number | null = null;
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let prevTime: number | null = null;
 
   for (const dateStr of sortedDates) {
     const t = new Date(dateStr).getTime();
@@ -157,21 +163,29 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
   }
 
   // Calculate current streak up to today (if last activity was today or yesterday contiguous)
-  // (already handled by loop). To ensure currentStreak refers to last sequence ending at most today- if gap since last date > 1 day, current streak should be 0
+  // (already handled by loop). To ensure currentStreak refers to last sequence ending at most
+  // today- if gap since last date > 1 day, current streak should be 0
   if (prevTime && today.getTime() - prevTime > dayMs) {
     currentStreak = 0;
   }
   const streaks = { current: currentStreak, longest: longestStreak };
 
   const completionRates = {
-    movies: movieStats.total ? movieStats.watched / movieStats.total : 0,
-    tvSeries: tvStats.total ? tvStats.watched / tvStats.total : 0,
+    movies:
+      movieStats.total - movieStats.wantToWatch
+        ? movieStats.watched / (movieStats.total - movieStats.wantToWatch)
+        : 100,
+    tvSeries:
+      tvStats.total - tvStats.wantToWatch
+        ? tvStats.watched / (tvStats.total - tvStats.wantToWatch)
+        : 100,
   };
 
   // Build weekly activity timeline (last 12 weeks)
   const now = Date.now();
   const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const weeks: { label: string; start: number; end: number; movies: number; episodes: number }[] = [];
+  const weeks: { label: string; start: number; end: number; movies: number; episodes: number }[] =
+    [];
 
   for (let i = 11; i >= 0; i--) {
     const end = now - i * weekMs;
@@ -218,8 +232,8 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
 
   return {
     overview: {
-      totalMovies: movieStats.total,
-      totalTvSeries: tvStats.total,
+      totalStartedMovies: movieStats.total - movieStats.wantToWatch,
+      totalStartedTvSeries: tvStats.total - tvStats.wantToWatch,
       totalWatchedMovies: movieStats.watched,
       totalWatchedTvSeries: tvStats.watched,
       totalWatchedEpisodes: episodeStats.totalWatchedEpisodes,
@@ -247,7 +261,7 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
 
 export const getUserStats = mutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthorized");
@@ -257,14 +271,14 @@ export const getUserStats = mutation({
     // Try to get cached stats
     const cached = await ctx.db
       .query("userStats")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
     const oneDayMs = 24 * 60 * 60 * 1000;
     const now = Date.now();
 
     // If cache exists and is less than 24 hours old, return it
-    if (cached && (now - cached.lastRefreshed) < oneDayMs) {
+    if (cached && now - cached.lastRefreshed < oneDayMs) {
       return cached.stats;
     }
 
@@ -284,7 +298,7 @@ export const getUserStats = mutation({
 
 export const refreshStats = mutation({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Unauthorized");
@@ -295,7 +309,7 @@ export const refreshStats = mutation({
 
     const existing = await ctx.db
       .query("userStats")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
     if (existing) {

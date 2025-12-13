@@ -1,7 +1,7 @@
 export interface UserStats {
   overview: {
-    totalMovies: number;
-    totalTvSeries: number;
+    totalStartedMovies: number;
+    totalStartedTvSeries: number;
     totalWatchedMovies: number;
     totalWatchedTvSeries: number;
     totalWatchedEpisodes: number;
