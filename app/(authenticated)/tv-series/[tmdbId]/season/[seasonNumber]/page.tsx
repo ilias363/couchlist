@@ -130,6 +130,7 @@ export default function SeasonDetailsPage() {
             onMarkAllUnwatched={handleMarkAllUnwatched}
             seasons={series?.seasons}
             seriesId={seriesId}
+            seriesName={series?.name}
           />
 
           <EpisodeFilters filter={filter} setFilter={setFilter} />

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowLeft } from "lucide-react";
 import { TMDBSeason, BaseTMDBSeason } from "@/lib/tmdb/types";
 import { PosterImage } from "@/components/tmdb-image";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ export function SeasonHeader({
   onMarkAllUnwatched,
   seasons,
   seriesId,
+  seriesName,
 }: {
   season: TMDBSeason;
   allWatched: boolean;
@@ -32,6 +33,7 @@ export function SeasonHeader({
   onMarkAllUnwatched: () => void;
   seasons?: BaseTMDBSeason[];
   seriesId: number;
+  seriesName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
@@ -47,6 +49,13 @@ export function SeasonHeader({
   };
   return (
     <div className="flex flex-col items-center justify-center md:flex-row gap-6">
+      <Link
+        href={`/tv-series/${seriesId}`}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+      >
+        <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+        <span className="sm:inline">Back to {seriesName || "Series"}</span>
+      </Link>
       <div className="w-32 sm:w-40 md:w-48 rounded-md border overflow-hidden">
         <PosterImage src={season.poster_path} alt={season.name} size="w342" />
       </div>
