@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { WatchStatus } from "@/lib/tmdb/types";
 import { useTMDBCategoryFeed } from "@/lib/tmdb/react-query";
 import { MediaCarousel } from "../media-carousel";
+import { LucideIcon } from "lucide-react";
 
 interface CategorySectionProps {
   title: string;
+  subtitle?: string;
+  icon?: LucideIcon;
   type: "movie" | "tv";
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today";
   allMovieStatuses?: Record<number, { status: WatchStatus }>;
@@ -15,7 +18,7 @@ interface CategorySectionProps {
 }
 
 export function CategorySection(props: CategorySectionProps) {
-  const { title, defer = false } = props;
+  const { title, subtitle, icon, defer = false } = props;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(!defer);
 
@@ -36,11 +39,11 @@ export function CategorySection(props: CategorySectionProps) {
   }, [defer, active]);
 
   return (
-    <div ref={containerRef} className="min-h-[10rem]">
+    <div ref={containerRef} className="min-h-[12rem]">
       {active ? (
         <CategorySectionContent {...props} />
       ) : (
-        <MediaCarousel title={title} items={[]} isLoading />
+        <MediaCarousel title={title} subtitle={subtitle} icon={icon} items={[]} isLoading />
       )}
     </div>
   );
@@ -48,6 +51,8 @@ export function CategorySection(props: CategorySectionProps) {
 
 function CategorySectionContent({
   title,
+  subtitle,
+  icon,
   type,
   category,
   allMovieStatuses,
@@ -80,6 +85,8 @@ function CategorySectionContent({
   return (
     <MediaCarousel
       title={title}
+      subtitle={subtitle}
+      icon={icon}
       items={items}
       allMovieStatuses={allMovieStatuses}
       allTvStatuses={allTvStatuses}
