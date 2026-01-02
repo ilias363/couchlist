@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import ConvexClientProvider from "@/components/convex-client-provider";
 import { RQProvider } from "@/components/query-client-provider";
@@ -7,19 +7,17 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { shadcn } from "@clerk/themes";
 
-const geistSans = Geist({
+const inter = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "CouchList",
-  description: "A simple app to keep track of your TV shows and movies.",
+  title: "CouchList - Track Your Movies & TV Shows",
+  description:
+    "Your personal entertainment tracker. Discover, track, and analyze your viewing journey with CouchList.",
+  keywords: ["movies", "tv shows", "tracking", "watchlist", "entertainment"],
 };
 
 export default function RootLayout({
@@ -29,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider>
           <ClerkProvider appearance={{ theme: shadcn }}>
             <ConvexClientProvider>
