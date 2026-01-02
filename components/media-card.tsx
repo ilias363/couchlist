@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PosterImage } from "./tmdb-image";
 import { Film, Tv } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { WatchedDateDialog } from "@/components/watched-date-dialog";
@@ -206,9 +207,9 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
             {isMovie ? "Movie" : "TV"}
           </span>
           {currentStatus ? (
-            <span className="absolute left-2 bottom-2 rounded-md bg-primary/80 px-2 py-1 text-[10px] font-medium text-primary-foreground backdrop-blur">
+            <Badge variant={currentStatus} className="absolute left-2 bottom-2 backdrop-blur">
               {statusLabel}
-            </span>
+            </Badge>
           ) : null}
         </div>
         <div className="flex flex-1 flex-col p-3">
