@@ -2,7 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   DoughnutChart,
@@ -13,16 +13,25 @@ import {
   weekdayLabel,
   barOptions,
 } from "@/components/stats/charts";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, BarChart3, Clock, Film, Tv, Rows3, Play, Star, RefreshCw } from "lucide-react";
+import {
+  Flame,
+  BarChart3,
+  Clock,
+  Film,
+  Tv,
+  Rows3,
+  RefreshCw,
+  Trophy,
+  TrendingUp,
+  Calendar,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { UserStats } from "@/lib/types";
-import { MetricsGrid } from "@/components/stats/metrics-grid";
 import { Section } from "@/components/stats/section";
 import { AccentHeader } from "@/components/stats/accent-header";
-import { KeyValue } from "@/components/stats/key-value";
 import { Sparkline } from "@/components/stats/spark-line";
+import { StatsCard } from "@/components/stats/stats-card";
 
 export default function StatsPage() {
   const [data, setData] = useState<UserStats | undefined>(undefined);
@@ -100,86 +109,118 @@ export default function StatsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Your Insights</h1>
-        <p className="text-muted-foreground max-w-prose">
-          Visual breakdown of your viewing patterns & progress
-        </p>
+      {/* Page Header with Refresh Button */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="rounded-lg bg-primary/10 p-3">
+            <BarChart3 className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Your Insights</h1>
+            <p className="text-muted-foreground">
+              Visual breakdown of your viewing patterns & progress
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Last updated: {new Date(generatedAt).toLocaleString()}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              setIsRefreshing(true);
+              try {
+                const newStats = await refreshStats();
+                setData(newStats);
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-2 bg-muted/50 rounded-lg border">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>Last updated: {new Date(generatedAt).toLocaleString()}</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={async () => {
-            setIsRefreshing(true);
-            try {
-              const newStats = await refreshStats();
-              setData(newStats);
-            } finally {
-              setIsRefreshing(false);
-            }
-          }}
-          disabled={isRefreshing}
-          className="gap-2 w-full sm:w-auto"
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh Stats
-        </Button>
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Movies Watched"
+          value={overview.totalWatchedMovies}
+          description={`${overview.totalStartedMovies} total in library`}
+          icon={<Film className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="TV Shows Watched"
+          value={overview.totalWatchedTvSeries}
+          description={`${overview.totalStartedTvSeries} total in library`}
+          icon={<Tv className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="Episodes Watched"
+          value={overview.totalWatchedEpisodes}
+          description={`${overview.totalWatchedSeasons} seasons completed`}
+          icon={<Calendar className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="Total Watch Time"
+          value={`${overview.totalWatchTimeHours}h`}
+          description={`${overview.totalWatchTimeMinutes} minutes`}
+          icon={<Clock className="h-5 w-5" />}
+        />
       </div>
 
-      <MetricsGrid overview={overview} streaks={streaks} completionRates={completionRates} />
+      {/* Streaks and Recent Activity */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Current Streak"
+          value={`${streaks.current} days`}
+          description="Keep it going!"
+          icon={<Flame className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="Longest Streak"
+          value={`${streaks.longest} days`}
+          description="Your personal best"
+          icon={<Trophy className="h-5 w-5" />}
+        />
+        <StatsCard
+          title="Last 30 Days"
+          value={recentActivity.totalItems}
+          description={`${recentActivity.moviesWatched} movies, ${recentActivity.episodesWatched} episodes`}
+          icon={<TrendingUp className="h-5 w-5" />}
+        />
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Daily Activity</p>
+              <Sparkline data={dailyActivity} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Section title="Recent Activity" description="Your viewing momentum and patterns">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="xl:col-span-2 overflow-hidden">
-            <AccentHeader icon={BarChart3} title="Weekly Activity" subtitle="Last 12 weeks" />
-            <CardContent className="pt-6">
-              <div className="relative h-72">
-                <LineChart
-                  data={weeklyChartData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: "index", intersect: false },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-                    plugins: { legend: { display: true } },
-                  }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="flex flex-col h-full">
-            <AccentHeader icon={Flame} title="Last 30 Days" subtitle="Recent momentum" />
-            <CardContent className="flex flex-col justify-between h-full gap-4">
-              <div className="space-y-4">
-                <KeyValue label="Movies watched" value={recentActivity.moviesWatched} icon={Film} />
-                <KeyValue
-                  label="Episodes watched"
-                  value={recentActivity.episodesWatched}
-                  icon={Play}
-                />
-                <Separator />
-                <KeyValue
-                  label="Total items"
-                  value={recentActivity.totalItems}
-                  emphasize
-                  icon={Star}
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Daily activity Trend
-                </p>
-                <Sparkline data={dailyActivity.map(d => d.total)} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      <Section title="Weekly Activity" description="Your viewing momentum over the last 12 weeks">
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <div className="relative h-72">
+              <LineChart
+                data={weeklyChartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  interaction: { mode: "index", intersect: false },
+                  scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                  plugins: { legend: { display: true } },
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
       </Section>
 
       <Section title="Collections" description="Status distribution across your tracked items">
@@ -247,6 +288,7 @@ export default function StatsPage() {
                         ],
                         backgroundColor: ["#6366F1", "#0EA5E9"],
                         borderWidth: 0,
+                        borderColor: "transparent",
                       },
                     ],
                   }}
@@ -272,6 +314,61 @@ export default function StatsPage() {
           </Card>
         </div>
       </Section>
+
+      {/* Completion Rates */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Movie Completion Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, completionRates.movies * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <span className="text-lg font-semibold">
+                {Math.round(completionRates.movies * 100)}%
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              {overview.totalWatchedMovies} of {overview.totalStartedMovies} started movies
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">TV Series Completion Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min(100, completionRates.tvSeries * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <span className="text-lg font-semibold">
+                {Math.round(completionRates.tvSeries * 100)}%
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              {overview.totalWatchedTvSeries} of {overview.totalStartedTvSeries} started series
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
