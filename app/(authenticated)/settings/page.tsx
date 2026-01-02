@@ -1,15 +1,15 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useConvex, useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImportedDataResult, ImportMode } from "@/lib/types";
+import { Settings, Download, Upload, Trash2, AlertTriangle, FileJson, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
   const convex = useConvex();
@@ -18,17 +18,19 @@ export default function SettingsPage() {
   const clearTv = useMutation(api.tv.clearAllTvData);
 
   const [mode, setMode] = useState<ImportMode>("merge");
-  const [selectedFileName, setSelectedFileName] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [result, setResult] = useState<ImportedDataResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fileInputId = `file-${Math.random().toString(36).slice(2)}`;
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleDownload = async () => {
-    setError(null);
     setExporting(true);
+    setError(null);
+    setSuccessMessage(null);
+    setResult(null);
     try {
       const data = await convex.query(api.importExport.exportData, {});
       if (!data) {
@@ -44,6 +46,7 @@ export default function SettingsPage() {
       a.download = `couchlist-backup-${ts}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      setSuccessMessage("Data exported successfully!");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -59,15 +62,18 @@ export default function SettingsPage() {
       fr.readAsText(file);
     });
 
-  const doImport = async (replace: boolean) => {
-    setError(null);
-    setResult(null);
-    const input = document.getElementById(fileInputId) as HTMLInputElement | null;
-    const file = input?.files?.[0];
-    if (!file) {
-      setError("Please choose a backup file first.");
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".json")) {
+      setError("Please select a valid JSON file");
       return;
     }
+
+    setError(null);
+    setResult(null);
+    setSuccessMessage(null);
     setBusy(true);
     try {
       const raw = await readFile(file);
@@ -75,166 +81,247 @@ export default function SettingsPage() {
       if (!parsed || parsed.schema !== "couchlist.export") {
         throw new Error("This file doesn't look like a CouchList backup.");
       }
-      const res = await importData({ payload: parsed, mode: replace ? "replace" : mode });
+      const res = await importData({ payload: parsed, mode });
       setResult(res);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Import or export your tracked data.</p>
+    <div className="max-w-3xl mx-auto">
+      {/* Page Header */}
+      <div className="flex items-center gap-4 mb-8">
+        <div className="rounded-lg bg-primary/10 p-3">
+          <Settings className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted-foreground">Manage your tracked data</p>
+        </div>
       </div>
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Export</h2>
-          <p className="text-sm text-muted-foreground">
-            Download a JSON backup of your movies, TV series, and episode progress.
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <Button onClick={handleDownload} disabled={exporting}>
-            {exporting ? "Preparing…" : "Download backup"}
-          </Button>
-        </CardContent>
-      </Card>
 
-      <Separator />
+      {/* Error Display */}
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Import</h2>
-          <p className="text-sm text-muted-foreground">
-            Restore from a CouchList backup file. Merge keeps your existing items; Replace clears
-            them first.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2">
-            <label htmlFor={fileInputId} className="text-sm font-medium">
-              Backup file
-            </label>
-            <div className="flex items-center gap-2">
-              <Input
-                id={fileInputId}
-                type="file"
-                accept="application/json,.json"
-                onChange={e => setSelectedFileName(e.target.files?.[0]?.name ?? "")}
-                disabled={busy}
-              />
-              {selectedFileName && (
-                <span
-                  className="text-xs text-muted-foreground truncate max-w-[220px]"
-                  title={selectedFileName}
-                >
-                  {selectedFileName}
-                </span>
+      <div className="space-y-6">
+        {/* Export Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Export Data
+            </CardTitle>
+            <CardDescription>
+              Download a backup of all your movies, TV shows, and episodes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Your backup includes all movies, TV series, and episode watch history. Use this
+                    to transfer your data or as a safety backup.
+                  </p>
+                </div>
+                <Button onClick={handleDownload} disabled={exporting} className="whitespace-nowrap">
+                  {exporting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileJson className="h-4 w-4 mr-2" />
+                  )}
+                  Export JSON
+                </Button>
+              </div>
+
+              {/* Export Success */}
+              {successMessage === "Data exported successfully!" && (
+                <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
+                  <p className="font-medium text-green-600 dark:text-green-400">Export Complete</p>
+                  <p className="text-muted-foreground">
+                    Your backup file has been downloaded successfully.
+                  </p>
+                </div>
               )}
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <RadioGroup
-            value={mode}
-            onValueChange={v => setMode(v as ImportMode)}
-            className="grid grid-cols-2 gap-4 max-w-xs"
-          >
-            <label className="flex items-center gap-2 text-sm">
-              <RadioGroupItem value="merge" disabled={busy} aria-label="Merge" />
-              Merge
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <RadioGroupItem value="replace" disabled={busy} aria-label="Replace" />
-              Replace
-            </label>
-          </RadioGroup>
+        {/* Import Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Import Data
+            </CardTitle>
+            <CardDescription>Restore from a previously exported backup file</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Import a CouchList backup file to restore your watch history. Choose to merge
+                    with existing data or replace it completely.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="import-file"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={busy}
+                    className="whitespace-nowrap"
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 mr-2" />
+                    )}
+                    Select File
+                  </Button>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2">
-            {mode === "replace" ? (
-              <ConfirmButton
-                title="Replace all your data?"
-                description="This will delete all your tracked movies, TV series, and episodes before importing."
-                confirmText="Yes, replace"
-                onConfirm={() => doImport(true)}
-                disabled={busy}
-              >
-                Import (Replace)
-              </ConfirmButton>
-            ) : (
-              <Button onClick={() => doImport(false)} disabled={busy}>
-                Import (Merge)
-              </Button>
-            )}
-            {busy && <span className="text-xs text-muted-foreground">Importing…</span>}
-          </div>
+              {/* Import Mode Selection */}
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <p className="text-sm font-medium mb-3">Import Mode</p>
+                <RadioGroup
+                  value={mode}
+                  onValueChange={v => setMode(v as ImportMode)}
+                  className="flex flex-col sm:flex-row gap-4"
+                >
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="merge" disabled={busy} />
+                    <div>
+                      <span className="font-medium">Merge</span>
+                      <p className="text-xs text-muted-foreground">
+                        Add new items, keep existing ones
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <RadioGroupItem value="replace" disabled={busy} />
+                    <div>
+                      <span className="font-medium">Replace</span>
+                      <p className="text-xs text-muted-foreground">
+                        Delete all existing data first
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
 
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          {result && (
-            <div className="text-sm text-muted-foreground">
-              <div>
-                Mode: <b>{result.mode}</b>
-              </div>
-              <div>
-                Movies: inserted {result.movies.inserted}, updated {result.movies.updated}, total{" "}
-                {result.movies.total}
-              </div>
-              <div>
-                TV: inserted {result.tvSeries.inserted}, updated {result.tvSeries.updated}, total{" "}
-                {result.tvSeries.total}
-              </div>
-              <div>
-                Episodes: inserted {result.episodes.inserted}, updated {result.episodes.updated},
-                total {result.episodes.total}
-              </div>
+              {/* Import Result */}
+              {result && (
+                <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
+                  <p className="font-medium mb-2">Import Complete</p>
+                  <div className="text-muted-foreground space-y-1">
+                    <p>
+                      Movies: {result.movies.inserted} added, {result.movies.updated} updated
+                    </p>
+                    <p>
+                      TV Series: {result.tvSeries.inserted} added, {result.tvSeries.updated} updated
+                    </p>
+                    <p>
+                      Episodes: {result.episodes.inserted} added, {result.episodes.updated} updated
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Separator />
+        {/* Danger Zone */}
+        <Card className="border-red-500/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-500">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Irreversible actions that will permanently delete your data
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+              <div>
+                <p className="font-medium">Clear All Movies</p>
+                <p className="text-sm text-muted-foreground">
+                  Remove all movies from your library. This cannot be undone.
+                </p>
+              </div>
+              <ConfirmButton
+                title="Clear ALL tracked movies?"
+                description="This will delete all your tracked movies permanently."
+                confirmText="Delete movies"
+                confirmPhrase="delete movies"
+                variant="destructive"
+                onConfirm={async () => {
+                  await clearMovies({});
+                  setError(null);
+                  setResult(null);
+                  setSuccessMessage("All movies have been cleared successfully.");
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Movies
+              </ConfirmButton>
+            </div>
 
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold">Clear Tracked Data</h2>
-          <p className="text-sm text-muted-foreground">
-            Permanently delete tracked data from your account. This cannot be undone.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <ConfirmButton
-              title="Clear ALL tracked movies?"
-              description="This will delete all your tracked movies permanently."
-              confirmText="Delete movies"
-              confirmPhrase="delete movies"
-              variant="destructive"
-              onConfirm={async () => {
-                await clearMovies({});
-              }}
-            >
-              Clear all tracked movies
-            </ConfirmButton>
-          </div>
-          <div className="flex items-center gap-3">
-            <ConfirmButton
-              title="Clear ALL tracked TV data?"
-              description="This will delete all your tracked TV series and episodes permanently."
-              confirmText="Delete TV data"
-              confirmPhrase="delete tv"
-              variant="destructive"
-              onConfirm={async () => {
-                await clearTv({});
-              }}
-            >
-              Clear all tracked TV data
-            </ConfirmButton>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+              <div>
+                <p className="font-medium">Clear All TV Data</p>
+                <p className="text-sm text-muted-foreground">
+                  Remove all TV series and episode history. This cannot be undone.
+                </p>
+              </div>
+              <ConfirmButton
+                title="Clear ALL tracked TV data?"
+                description="This will delete all your tracked TV series and episodes permanently."
+                confirmText="Delete TV data"
+                confirmPhrase="delete tv"
+                variant="destructive"
+                onConfirm={async () => {
+                  await clearTv({});
+                  setError(null);
+                  setResult(null);
+                  setSuccessMessage("All TV series and episodes have been cleared successfully.");
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear TV Data
+              </ConfirmButton>
+            </div>
+
+            {/* Clear Success */}
+            {successMessage && successMessage !== "Data exported successfully!" && (
+              <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
+                <p className="font-medium text-green-600 dark:text-green-400">Operation Complete</p>
+                <p className="text-muted-foreground">{successMessage}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
