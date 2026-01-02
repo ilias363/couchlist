@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Clapperboard } from "lucide-react";
 import { TMDBSearchResult } from "@/lib/tmdb/types";
 
 type MovieStatus = "want_to_watch" | "watched" | "on_hold" | "dropped" | undefined;
@@ -37,10 +37,16 @@ export default function MoviesPage() {
 
   return (
     <div className="mx-auto space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">My Movies</h1>
-          <p className="text-sm text-muted-foreground">Tracked movies ordered by recent updates.</p>
+      {/* Header */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Clapperboard className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Movies</h1>
+            <p className="text-muted-foreground">Tracked movies ordered by recent updates</p>
+          </div>
         </div>
       </div>
       <div className="hidden md:flex flex-wrap gap-2">

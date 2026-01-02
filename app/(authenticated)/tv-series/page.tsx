@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Tv } from "lucide-react";
 
 type TvStatus = WatchStatus | undefined;
 
@@ -37,10 +37,16 @@ export default function TvSeriesPage() {
 
   return (
     <div className="mx-auto space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">My TV Series</h1>
-          <p className="text-sm text-muted-foreground">Tracked series ordered by recent updates.</p>
+      {/* Header */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Tv className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My TV Series</h1>
+            <p className="text-muted-foreground">Tracked series ordered by recent updates</p>
+          </div>
         </div>
       </div>
       <div className="hidden md:flex flex-wrap gap-2">
