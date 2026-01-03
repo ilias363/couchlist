@@ -13,6 +13,9 @@ import { EpisodeFilters } from "@/components/season/episode-filters";
 import { ProgressSummary } from "@/components/season/progress-summary";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
 import { useTMDBSeason, useTMDBTvSeries } from "@/lib/tmdb/react-query";
+import { ArrowLeft, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function SeasonDetailsPage() {
   const { tmdbId, seasonNumber } = useParams<{ tmdbId: string; seasonNumber: string }>();
@@ -109,68 +112,120 @@ export default function SeasonDetailsPage() {
     );
   }, [season, filter, statusMap]);
 
+  if (loading) {
+    return <SeasonSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <div className="p-4 rounded-full bg-destructive/10 mb-4">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Error loading season</h2>
+        <p className="text-muted-foreground mb-4">{error.message}</p>
+        <Button asChild variant="outline">
+          <Link href={`/tv-series/${seriesId}`}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Series
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (!season) return null;
+
+  const progressPct = episodesInfo.length ? (watchedCount / episodesInfo.length) * 100 : 0;
+
   return (
-    <div className="mx-auto">
-      {season && (
-        <div className="flex items-center gap-2 mt-2 mb-4">
+    <div className="space-y-8 -mt-2">
+      {/* Progress Bar */}
+      <div className="p-2 rounded-xl bg-card border border-border/50 space-y-3">
+        <div className="flex items-center justify-between">
           <ProgressSummary watched={watchedCount} total={episodesInfo.length} />
-          <Progress value={episodesInfo.length ? (watchedCount / episodesInfo.length) * 100 : 0} />
+          <span className="text-xs text-muted-foreground">{Math.round(progressPct)}% complete</span>
         </div>
-      )}
-      {loading && <SeasonSkeleton />}
-      {error && !loading && <div className="text-sm text-destructive">{error.message}</div>}
-      {!loading && season && (
-        <div className="space-y-12">
-          <SeasonHeader
-            season={season}
-            allWatched={allWatched}
-            anyWatched={anyWatched}
-            bulkUpdating={bulkUpdating}
-            onMarkAllWatched={handleMarkAllWatched}
-            onMarkAllUnwatched={handleMarkAllUnwatched}
-            seasons={series?.seasons}
-            seriesId={seriesId}
-            seriesName={series?.name}
-          />
+        <Progress value={progressPct} className="h-2" />
+      </div>
 
-          <EpisodeFilters filter={filter} setFilter={setFilter} />
+      {/* Season Header */}
+      <SeasonHeader
+        season={season}
+        allWatched={allWatched}
+        anyWatched={anyWatched}
+        bulkUpdating={bulkUpdating}
+        onMarkAllWatched={handleMarkAllWatched}
+        onMarkAllUnwatched={handleMarkAllUnwatched}
+        seasons={series?.seasons}
+        seriesId={seriesId}
+        seriesName={series?.name}
+      />
 
-          <SeasonEpisodes
-            episodes={filteredEpisodes}
-            statusMap={statusMap}
-            onToggle={handleToggleEpisode}
-          />
+      {/* Episode Filters */}
+      <EpisodeFilters filter={filter} setFilter={setFilter} />
 
-          <CrewAndGuests season={season} />
-        </div>
-      )}
+      {/* Episodes List */}
+      <SeasonEpisodes
+        episodes={filteredEpisodes}
+        statusMap={statusMap}
+        onToggle={handleToggleEpisode}
+      />
+
+      {/* Crew and Guests */}
+      <CrewAndGuests season={season} />
     </div>
   );
 }
 
 function SeasonSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex gap-6">
-        <Skeleton className="w-32 h-48 rounded" />
-        <div className="flex-1 space-y-3">
-          <Skeleton className="h-8 w-1/2" />
+    <div className="space-y-8 -mt-2">
+      {/* Progress skeleton */}
+      <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <Skeleton className="h-2 w-full" />
+      </div>
+
+      {/* Header skeleton */}
+      <div className="flex flex-col md:flex-row gap-6">
+        <Skeleton className="w-40 md:w-48 aspect-[2/3] rounded-xl mx-auto md:mx-0" />
+        <div className="flex-1 space-y-4">
+          <Skeleton className="h-8 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-8 w-40" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+          </div>
         </div>
       </div>
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex gap-4">
-            <Skeleton className="w-24 aspect-video rounded" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+
+      {/* Filters skeleton */}
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-16 rounded-full" />
+        <Skeleton className="h-9 w-24 rounded-full" />
+        <Skeleton className="h-9 w-28 rounded-full" />
+      </div>
+
+      {/* Episodes skeleton */}
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-24" />
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4 p-3 rounded-xl border border-border/50">
+              <Skeleton className="w-28 aspect-video rounded-lg shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-12 w-full" />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

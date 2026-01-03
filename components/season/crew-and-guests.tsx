@@ -36,7 +36,7 @@ export function CrewAndGuests({ season }: { season: TMDBSeason }) {
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-4 w-4" /> Crew
           </h3>
-          <PeopleGrid people={crew} secondaryKey="job" />
+          <PeopleScroll people={crew} secondaryKey="job" />
         </div>
       )}
       {guests.length > 0 && (
@@ -44,14 +44,14 @@ export function CrewAndGuests({ season }: { season: TMDBSeason }) {
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Stars className="h-4 w-4" /> Guest Stars
           </h3>
-          <PeopleGrid people={guests} secondaryKey="character" />
+          <PeopleScroll people={guests} secondaryKey="character" />
         </div>
       )}
     </div>
   );
 }
 
-function PeopleGrid({
+function PeopleScroll({
   people,
   secondaryKey,
 }: {
@@ -65,23 +65,30 @@ function PeopleGrid({
   secondaryKey: string;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-      {people.map(p => (
-        <div
-          key={p.id}
-          className="flex gap-3 rounded-md border p-2 bg-card/50 hover:bg-card transition"
-        >
-          <div className="w-12 rounded overflow-hidden bg-muted flex items-center justify-center">
-            <ProfileImage src={p.profile_path} alt={p.name} className="w-full" rounded={false} />
+    <div className="overflow-x-auto pb-2 -mx-4 px-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+      <div className="flex gap-4">
+        {people.map(p => (
+          <div
+            key={p.id}
+            className="flex flex-col items-center gap-2 rounded-xl border border-border/50 p-3 bg-card/50 hover:bg-card transition w-32 shrink-0"
+          >
+            <div className="w-16 h-16 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+              <ProfileImage
+                src={p.profile_path}
+                alt={p.name}
+                className="w-full h-full"
+                rounded={false}
+              />
+            </div>
+            <div className="text-center min-w-0 w-full">
+              <p className="text-sm font-medium leading-tight truncate">{p.name}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {p[secondaryKey as keyof typeof p] || "—"}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium leading-tight truncate">{p.name}</p>
-            <p className="text-[11px] text-muted-foreground truncate">
-              {p[secondaryKey as keyof typeof p] || "—"}
-            </p>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
