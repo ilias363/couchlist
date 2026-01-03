@@ -130,10 +130,10 @@ export function StatusSelector({
               size="sm"
               disabled={disabled}
               data-active={isActive}
-              className={cn("transition-all duration-200", status.className)}
+              className={cn("transition-all duration-200", status.className, isActive && "ring-1")}
               onClick={() => handleClick(status.value)}
             >
-              <span className={cn(!isActive && status.iconColor)}>{status.icon}</span>
+              <span className={status.iconColor}>{status.icon}</span>
               <span className="ml-1.5 hidden sm:inline">{status.label}</span>
             </Button>
           );
