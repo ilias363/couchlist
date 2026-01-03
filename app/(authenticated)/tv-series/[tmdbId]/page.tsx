@@ -111,7 +111,7 @@ function TvSeriesPageSkeleton() {
   return (
     <div className="mx-auto">
       <div className="relative w-full overflow-hidden">
-        <Skeleton className="aspect-[16/9] w-full" />
+        <Skeleton className="aspect-[16/12] sm:aspect-[16/7] w-full" />
         <div className="relative -mt-20 md:absolute md:inset-x-0 md:bottom-0">
           <div className="px-4 md:px-8 py-4 md:py-6">
             <div className="flex flex-col gap-6 md:flex-row md:items-center md:translate-y-4">

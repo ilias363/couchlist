@@ -38,7 +38,7 @@ function BaseTMDBImage({
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-muted text-muted-foreground overflow-hidden rounded-md",
+          "flex items-center justify-center bg-muted text-muted-foreground overflow-hidden rounded-md w-full",
           aspect,
           className
         )}
@@ -49,7 +49,12 @@ function BaseTMDBImage({
   }
   return (
     <div
-      className={cn("relative overflow-hidden rounded-md", aspect, hoverZoom && "group", className)}
+      className={cn(
+        "relative overflow-hidden rounded-md w-full",
+        aspect,
+        hoverZoom && "group",
+        className
+      )}
     >
       <Image
         src={url}
@@ -97,10 +102,10 @@ export function BackdropImage({ size = "w1280", gradient = "none", ...rest }: Ba
     gradient === "none" ? undefined : (
       <>
         {(gradient === "top" || gradient === "both") && (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/70 to-background/40" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background/10" />
         )}
         {(gradient === "bottom" || gradient === "both") && (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/40" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
         )}
       </>
     );

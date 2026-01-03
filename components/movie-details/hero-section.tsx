@@ -63,11 +63,11 @@ export function MovieHeroSection({
           size="w1280"
           gradient="bottom"
           priority
-          className="min-h-[400px] sm:min-h-[550px]"
+          className="min-h-[300px]"
         />
       </div>
 
-      <div className="container px-4 pt-32 pb-8 sm:pt-64">
+      <div className="container px-4 pt-24 pb-8 sm:pt-64">
         <div className="flex flex-col gap-6 sm:flex-row sm:gap-8">
           {/* Poster */}
           <div className="flex-shrink-0 mx-auto sm:mx-0">
