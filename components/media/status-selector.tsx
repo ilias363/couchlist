@@ -7,7 +7,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ConfirmButton } from "./confirm-dialog";
+import { ConfirmButton } from "../common/confirm-dialog";
 import {
   Bookmark,
   CheckCircle2,
@@ -18,7 +18,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { useState, ReactNode } from "react";
-import { WatchedDateDialog } from "@/components/watched-date-dialog";
+import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 import type { WatchStatus } from "@/lib/tmdb/types";
 
 interface StatusOption {

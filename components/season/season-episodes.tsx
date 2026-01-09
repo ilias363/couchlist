@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { SeasonEpisode } from "@/lib/tmdb/types";
-import { StillImage } from "@/components/tmdb-image";
+import { StillImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Star, Clock, Calendar, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { WatchedDateDialog } from "@/components/watched-date-dialog";
+import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 
 export function SeasonEpisodes({
   episodes,

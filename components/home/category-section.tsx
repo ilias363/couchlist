@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { WatchStatus } from "@/lib/tmdb/types";
 import { useTMDBCategoryFeed } from "@/lib/tmdb/react-query";
-import { MediaCarousel } from "../media-carousel";
+import { MediaCarousel } from "../media/media-carousel";
 import { LucideIcon } from "lucide-react";
 
 interface CategorySectionProps {

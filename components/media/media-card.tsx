@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
-import { WatchedDateDialog } from "@/components/watched-date-dialog";
+import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMovieStatus } from "@/hooks/use-movie-status";
 import { useTvSeriesStatus } from "@/hooks/use-tv-status";

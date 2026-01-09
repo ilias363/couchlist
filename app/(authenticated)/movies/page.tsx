@@ -5,7 +5,7 @@ import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
-import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
+import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { useBatchTMDBMovies } from "@/lib/tmdb/react-query";
 import {
   DropdownMenu,

@@ -6,7 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { useConvex, useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmButton } from "@/components/confirm-dialog";
+import { ConfirmButton } from "@/components/common/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImportedDataResult, ImportMode } from "@/lib/types";
 import { Settings, Download, Upload, Trash2, AlertTriangle, FileJson, Loader2 } from "lucide-react";

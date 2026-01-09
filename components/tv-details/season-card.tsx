@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Calendar, Film } from "lucide-react";
-import { PosterImage } from "@/components/tmdb-image";
+import { PosterImage } from "@/components/media/tmdb-image";
 import { cn } from "@/lib/utils";
 
 interface SeasonCardProps {

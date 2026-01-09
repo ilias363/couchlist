@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
-import { MediaCarousel } from "@/components/media-carousel";
+import { MediaCarousel } from "@/components/media/media-carousel";
 import { useTvSeriesStatus } from "@/hooks/use-tv-status";
 import { useSeasonData } from "@/hooks/use-season-data";
 import { TvHeroSection } from "@/components/tv-details/hero-section";

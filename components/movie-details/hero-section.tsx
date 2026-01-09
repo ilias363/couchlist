@@ -3,8 +3,8 @@
 import * as React from "react";
 import { type WatchStatus, type Genre } from "@/lib/tmdb/types";
 import { Badge } from "@/components/ui/badge";
-import { StatusSelector } from "@/components/status-selector";
-import { BackdropImage, PosterImage } from "@/components/tmdb-image";
+import { StatusSelector } from "@/components/media/status-selector";
+import { BackdropImage, PosterImage } from "@/components/media/tmdb-image";
 import { cn } from "@/lib/utils";
 
 interface MovieHeroSectionProps {

@@ -5,7 +5,7 @@ import { Calendar, Star, Building2, Globe, Languages, Tv } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LinksCard } from "@/components/details-shared/links-card";
-import { LogoImage } from "@/components/tmdb-image";
+import { LogoImage } from "@/components/media/tmdb-image";
 import { cn } from "@/lib/utils";
 import type {
   ProductionCompany,

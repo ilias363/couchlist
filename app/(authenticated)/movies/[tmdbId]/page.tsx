@@ -7,7 +7,7 @@ import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { useMovieStatus } from "@/hooks/use-movie-status";
 import { MovieHeroSection } from "@/components/movie-details/hero-section";
 import { MovieDetailsGrid } from "@/components/movie-details/details-grid";
-import { MediaCarousel } from "@/components/media-carousel";
+import { MediaCarousel } from "@/components/media/media-carousel";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { WatchStatus } from "@/lib/tmdb/types";
 

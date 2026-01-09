@@ -1,5 +1,5 @@
 import { Stars, Users } from "lucide-react";
-import { ProfileImage } from "../tmdb-image";
+import { ProfileImage } from "../media/tmdb-image";
 import { TMDBSeason } from "@/lib/tmdb/types";
 
 export function CrewAndGuests({ season }: { season: TMDBSeason }) {

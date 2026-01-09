@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import ConvexClientProvider from "@/components/convex-client-provider";
-import { RQProvider } from "@/components/query-client-provider";
+import ConvexClientProvider from "@/components/providers/convex-client-provider";
+import { RQProvider } from "@/components/providers/query-client-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { shadcn } from "@clerk/themes";

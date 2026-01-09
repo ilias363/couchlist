@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { debounce } from "lodash";
 import { Film, Tv, Search, Sparkles, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MediaCard, MediaCardSkeleton } from "@/components/media-card";
+import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
 import { useQueries } from "convex/react";
 import { api } from "@/convex/_generated/api";

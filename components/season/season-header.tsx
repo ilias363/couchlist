@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { ChevronDown, ArrowLeft, Calendar, Play, Check, X } from "lucide-react";
 import { TMDBSeason, BaseTMDBSeason } from "@/lib/tmdb/types";
-import { PosterImage } from "@/components/tmdb-image";
+import { PosterImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { WatchedDateDialog } from "@/components/watched-date-dialog";
+import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
