@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useId, useState } from "react";
+import { ReactNode, useId, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -44,15 +44,24 @@ export function WatchedDateDialog({
   cancelText = "Cancel",
   children,
 }: WatchedDateDialogProps) {
-  const [value, setValue] = useState(formatDateTimeLocal(new Date()));
-  const [isUnknown, setIsUnknown] = useState(false);
   const checkboxId = useId();
 
-  useEffect(() => {
+  // Use a key based on open state and defaultValueMs to reset the component state
+  const resetKey = `${open}-${defaultValueMs}`;
+  const [value, setValue] = useState(() => {
+    const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
+    return formatDateTimeLocal(date);
+  });
+  const [isUnknown, setIsUnknown] = useState(false);
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+
+  // Reset state when dialog opens or defaultValueMs changes
+  if (resetKey !== lastResetKey) {
     const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
     setValue(formatDateTimeLocal(date));
     setIsUnknown(false);
-  }, [defaultValueMs, open]);
+    setLastResetKey(resetKey);
+  }
 
   const handleConfirm = () => {
     if (isUnknown) {

@@ -100,11 +100,11 @@ export function StatusSelector({
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
 
-  const handleClick = (status: string) => {
+  const handleClick = (status: string, timestamp: number) => {
     if (status === currentStatus) return;
     if (status === "watched") {
       setPendingStatus(status);
-      setDefaultMs(Date.now());
+      setDefaultMs(timestamp);
       setOpen(true);
     } else {
       onChange(status);
@@ -131,7 +131,7 @@ export function StatusSelector({
               disabled={disabled}
               data-active={isActive}
               className={cn("transition-all duration-200", status.className, isActive && "ring-1")}
-              onClick={() => handleClick(status.value)}
+              onClick={() => handleClick(status.value, Date.now())}
             >
               <span className={status.iconColor}>{status.icon}</span>
               <span className="ml-1.5 hidden sm:inline">{status.label}</span>

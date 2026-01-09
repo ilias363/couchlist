@@ -21,10 +21,10 @@ export function SeasonEpisodes({
   const [pending, setPending] = useState<SeasonEpisode | null>(null);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
 
-  const handleClick = (ep: SeasonEpisode, watched: boolean) => {
+  const handleClick = (ep: SeasonEpisode, watched: boolean, timestamp: number) => {
     if (!watched) {
       setPending(ep);
-      setDefaultMs(Date.now());
+      setDefaultMs(timestamp);
       setOpen(true);
     } else {
       onToggle(ep);
@@ -113,7 +113,7 @@ export function SeasonEpisodes({
                   <Button
                     size="sm"
                     variant={watched ? "outline" : "default"}
-                    onClick={() => handleClick(ep, watched)}
+                    onClick={() => handleClick(ep, watched, Date.now())}
                     className={cn("gap-1.5 shrink-0", watched && "text-muted-foreground")}
                   >
                     {watched ? (

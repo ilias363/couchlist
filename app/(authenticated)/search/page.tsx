@@ -21,29 +21,22 @@ export default function SearchPage() {
 }
 
 function SearchView() {
-  const [rawQuery, setRawQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [mode, setMode] = useState<SearchMode>("multi");
-  const [initialized, setInitialized] = useState(false);
+  const searchParams = useSearchParams();
+
+  const [rawQuery, setRawQuery] = useState(() => searchParams.get("q") || "");
+  const [debouncedQuery, setDebouncedQuery] = useState(() => (searchParams.get("q") || "").trim());
+  const [mode, setMode] = useState<SearchMode>(() => {
+    const m = searchParams.get("mode") as SearchMode | null;
+    return m === "movie" || m === "tv" || m === "multi" ? m : "multi";
+  });
 
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   const { allMovieStatuses, allTvStatuses } = useQueries({
     allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
     allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
   });
-
-  useEffect(() => {
-    if (initialized) return;
-    const q = searchParams.get("q") || "";
-    const m = searchParams.get("mode") as SearchMode | null;
-    setRawQuery(q);
-    setDebouncedQuery(q.trim());
-    if (m === "movie" || m === "tv" || m === "multi") setMode(m);
-    setInitialized(true);
-  }, [initialized, searchParams]);
 
   const debouncedUpdate = useMemo(
     () =>
@@ -78,14 +71,20 @@ function SearchView() {
     return () => debouncedUpdate.cancel();
   }, [debouncedUpdate]);
 
+  // Track if we've made any changes from initial URL state
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    if (!initialized) return;
+    // Skip the first render to avoid unnecessary URL update
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     const sp = new URLSearchParams();
     if (debouncedQuery) sp.set("q", debouncedQuery);
     if (mode !== "multi") sp.set("mode", mode);
     const qs = sp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [debouncedQuery, mode, initialized, pathname, router]);
+  }, [debouncedQuery, mode, pathname, router]);
 
   const getStatus = (item: TMDBSearchResult) => {
     if (item.media_type === "movie")
