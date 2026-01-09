@@ -14,9 +14,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Clapperboard } from "lucide-react";
-import { TMDBSearchResult } from "@/lib/tmdb/types";
-
-type MovieStatus = "want_to_watch" | "watched" | "on_hold" | "dropped" | undefined;
+import { TMDBSearchResult, MovieWatchStatus } from "@/lib/tmdb/types";
 
 export default function MoviesPage() {
   const [status, setStatus] = useState<string | undefined>(undefined);
@@ -27,7 +25,7 @@ export default function MoviesPage() {
     loadMore,
   } = usePaginatedQuery(
     api.movie.listUserMovies,
-    { status: status as MovieStatus },
+    { status: status as MovieWatchStatus | undefined },
     { initialNumItems: 30 }
   );
 
