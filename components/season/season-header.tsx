@@ -7,6 +7,7 @@ import { PosterImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
+import { ConfirmButton } from "@/components/common/confirm-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -120,15 +121,18 @@ export function SeasonHeader({
                   </Button>
                 )}
                 {anyWatched && (
-                  <Button
+                  <ConfirmButton
                     variant="outline"
                     disabled={season.episodes.length === 0}
-                    onClick={onMarkAllUnwatched}
+                    onConfirm={onMarkAllUnwatched}
+                    title="Unwatch all episodes?"
+                    description="This will remove all watched dates for this season."
+                    confirmText="Unwatch All"
                     className="gap-2"
                   >
                     <X className="h-4 w-4" />
                     Mark All Unwatched
-                  </Button>
+                  </ConfirmButton>
                 )}
               </>
             )}

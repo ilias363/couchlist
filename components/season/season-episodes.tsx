@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, Star, Clock, Calendar, Play, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
+import { ConfirmButton } from "@/components/common/confirm-dialog";
 
 export function SeasonEpisodes({
   episodes,
@@ -22,14 +23,10 @@ export function SeasonEpisodes({
   const [pending, setPending] = useState<SeasonEpisode | null>(null);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
 
-  const handleClick = (ep: SeasonEpisode, watched: boolean, timestamp: number) => {
-    if (!watched) {
-      setPending(ep);
-      setDefaultMs(timestamp);
-      setOpen(true);
-    } else {
-      onToggle(ep);
-    }
+  const handleWatchClick = (ep: SeasonEpisode, timestamp: number) => {
+    setPending(ep);
+    setDefaultMs(timestamp);
+    setOpen(true);
   };
 
   const handleConfirm = (ms?: number) => {
@@ -119,24 +116,30 @@ export function SeasonEpisodes({
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant={watched ? "outline" : "default"}
-                    onClick={() => handleClick(ep, watched, Date.now())}
-                    className={cn("gap-1.5 shrink-0", watched && "text-muted-foreground")}
-                  >
-                    {watched ? (
-                      <>
-                        <EyeOff className="h-4 w-4" />
-                        <span className="hidden sm:inline">Unwatch</span>
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="h-4 w-4" />
-                        <span className="hidden sm:inline">Watch</span>
-                      </>
-                    )}
-                  </Button>
+                  {watched ? (
+                    <ConfirmButton
+                      size="sm"
+                      variant="outline"
+                      title="Unwatch episode?"
+                      description="This will remove your watched date."
+                      confirmText="Unwatch"
+                      onConfirm={() => onToggle(ep)}
+                      className={cn("gap-1.5 shrink-0", "text-muted-foreground")}
+                    >
+                      <EyeOff className="h-4 w-4" />
+                      <span className="hidden sm:inline">Unwatch</span>
+                    </ConfirmButton>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleWatchClick(ep, Date.now())}
+                      className="gap-1.5 shrink-0"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span className="hidden sm:inline">Watch</span>
+                    </Button>
+                  )}
                 </div>
 
                 {ep.overview && (
