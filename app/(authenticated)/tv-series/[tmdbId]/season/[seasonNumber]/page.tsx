@@ -16,6 +16,7 @@ import { useTMDBSeason, useTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { EpisodeStatus } from "@/lib/types";
 
 export default function SeasonDetailsPage() {
   const { tmdbId, seasonNumber } = useParams<{ tmdbId: string; seasonNumber: string }>();
@@ -36,8 +37,12 @@ export default function SeasonDetailsPage() {
   const bulkToggle = useMutation(api.tv.bulkToggleSeasonEpisodes);
 
   const statusMap = useMemo(() => {
-    const m = new Map<number, boolean>();
-    if (episodeStatuses) for (const r of episodeStatuses) m.set(r.episodeId, r.isWatched);
+    const m = new Map<number, EpisodeStatus>();
+    if (episodeStatuses) {
+      for (const r of episodeStatuses) {
+        m.set(r.episodeId, { isWatched: r.isWatched, watchedDate: r.watchedDate });
+      }
+    }
     return m;
   }, [episodeStatuses]);
 
@@ -49,7 +54,7 @@ export default function SeasonDetailsPage() {
     [season]
   );
   const watchedCount = useMemo(
-    () => episodesInfo.filter(e => statusMap.get(e.episodeId)).length,
+    () => episodesInfo.filter(e => statusMap.get(e.episodeId)?.isWatched).length,
     [episodesInfo, statusMap]
   );
   const allWatched = episodesInfo.length > 0 && watchedCount === episodesInfo.length;

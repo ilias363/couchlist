@@ -51,6 +51,7 @@ export default function MovieDetailsPage() {
         runtime={movie.runtime}
         originalLanguage={movie.original_language}
         currentStatus={movieStatus?.status as WatchStatus | null}
+        watchedDate={movieStatus?.watchedDate}
         onStatusChange={handleStatusChange}
         onRemove={handleRemove}
         isUpdating={updating}

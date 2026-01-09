@@ -74,6 +74,11 @@ export interface UserStats {
 
 export type ImportMode = "merge" | "replace";
 
+export interface EpisodeStatus {
+  isWatched: boolean;
+  watchedDate?: number;
+}
+
 export interface ImportedDataResult {
   mode: ImportMode;
   movies: {

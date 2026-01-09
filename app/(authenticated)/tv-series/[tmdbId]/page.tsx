@@ -58,6 +58,8 @@ export default function TvSeriesDetailsPage() {
         firstAirDate={series.first_air_date}
         originalLanguage={series.original_language}
         currentStatus={currentStatus}
+        startedDate={userSeries?.startedDate}
+        watchedDate={userSeries?.watchedDate}
         onStatusChange={onChangeStatus}
         onRemove={tvStatus.handleRemove}
         isUpdating={tvStatus.updating}

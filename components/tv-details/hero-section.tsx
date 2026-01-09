@@ -1,11 +1,11 @@
 "use client";
 
-import * as React from "react";
 import { type WatchStatus, type Genre } from "@/lib/tmdb/types";
 import { Badge } from "@/components/ui/badge";
 import { StatusSelector } from "@/components/media/status-selector";
 import { BackdropImage, PosterImage } from "@/components/media/tmdb-image";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CalendarCheck, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TvHeroSectionProps {
@@ -18,6 +18,8 @@ interface TvHeroSectionProps {
   firstAirDate: string;
   originalLanguage: string;
   currentStatus?: WatchStatus | null;
+  startedDate?: number | null;
+  watchedDate?: number | null;
   onStatusChange: (status: string, watchedAt?: number) => void;
   onRemove: () => Promise<void>;
   isUpdating?: boolean;
@@ -37,6 +39,8 @@ export function TvHeroSection({
   firstAirDate,
   originalLanguage,
   currentStatus,
+  startedDate,
+  watchedDate,
   onStatusChange,
   onRemove,
   isUpdating = false,
@@ -106,7 +110,7 @@ export function TvHeroSection({
             </p>
 
             {/* Status Selector */}
-            <div className="mt-6 flex justify-center sm:justify-start">
+            <div className="mt-6 flex flex-col items-center gap-2 sm:items-start">
               <StatusSelector
                 type="tv"
                 currentStatus={currentStatus ?? undefined}
@@ -123,6 +127,37 @@ export function TvHeroSection({
                   <span>Also mark all episodes in this series as watched</span>
                 </label>
               </StatusSelector>
+              {/* Watch dates display */}
+              {(startedDate || watchedDate) && (
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  {startedDate && (
+                    <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                      <Play className="h-4 w-4" />
+                      <span>
+                        Started{" "}
+                        {new Date(startedDate).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {watchedDate && currentStatus === "watched" && (
+                    <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                      <CalendarCheck className="h-4 w-4" />
+                      <span>
+                        Finished{" "}
+                        {new Date(watchedDate).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

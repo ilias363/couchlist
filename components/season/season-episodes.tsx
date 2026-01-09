@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { SeasonEpisode } from "@/lib/tmdb/types";
+import { EpisodeStatus } from "@/lib/types";
 import { StillImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, Star, Clock, Calendar, Play } from "lucide-react";
+import { Eye, EyeOff, Star, Clock, Calendar, Play, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 
@@ -14,7 +15,7 @@ export function SeasonEpisodes({
   onToggle,
 }: {
   episodes: SeasonEpisode[];
-  statusMap: Map<number, boolean>;
+  statusMap: Map<number, EpisodeStatus>;
   onToggle: (ep: SeasonEpisode, watchedAt?: number) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -55,7 +56,9 @@ export function SeasonEpisodes({
       </h2>
       <div className="space-y-3">
         {episodes.map(ep => {
-          const watched = !!statusMap.get(ep.id);
+          const status = statusMap.get(ep.id);
+          const watched = status?.isWatched ?? false;
+          const watchedDate = status?.watchedDate;
           return (
             <div
               key={ep.id}
@@ -105,6 +108,12 @@ export function SeasonEpisodes({
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
                           {ep.vote_average.toFixed(1)}
+                        </div>
+                      )}
+                      {watched && watchedDate && (
+                        <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                          <CalendarCheck className="h-3 w-3" />
+                          Watched {new Date(watchedDate).toLocaleDateString()}
                         </div>
                       )}
                     </div>

@@ -1,10 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { type WatchStatus, type Genre } from "@/lib/tmdb/types";
 import { Badge } from "@/components/ui/badge";
 import { StatusSelector } from "@/components/media/status-selector";
 import { BackdropImage, PosterImage } from "@/components/media/tmdb-image";
+import { CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MovieHeroSectionProps {
@@ -18,6 +18,7 @@ interface MovieHeroSectionProps {
   runtime: number | null;
   originalLanguage: string;
   currentStatus?: WatchStatus | null;
+  watchedDate?: number | null;
   onStatusChange: (status: string, watchedAt?: number) => void;
   onRemove: () => Promise<void>;
   isUpdating?: boolean;
@@ -35,6 +36,7 @@ export function MovieHeroSection({
   runtime,
   originalLanguage,
   currentStatus,
+  watchedDate,
   onStatusChange,
   onRemove,
   isUpdating = false,
@@ -106,7 +108,7 @@ export function MovieHeroSection({
             </p>
 
             {/* Status Selector */}
-            <div className="mt-6 flex justify-center sm:justify-start">
+            <div className="mt-6 flex flex-col items-center gap-2 sm:items-start">
               <StatusSelector
                 type="movie"
                 currentStatus={currentStatus ?? undefined}
@@ -114,6 +116,19 @@ export function MovieHeroSection({
                 onRemove={onRemove}
                 disabled={isUpdating}
               />
+              {currentStatus === "watched" && watchedDate && (
+                <div className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                  <CalendarCheck className="h-4 w-4" />
+                  <span>
+                    Watched on{" "}
+                    {new Date(watchedDate).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
