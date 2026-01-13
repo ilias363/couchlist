@@ -123,7 +123,7 @@ export function StatusSelector({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {statuses.map(status => {
           const isActive = currentStatus === status.value;
           return (
