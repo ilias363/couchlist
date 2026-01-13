@@ -1,16 +1,9 @@
 "use client";
 
 import { CategorySection } from "@/components/home/category-section";
-import { api } from "@/convex/_generated/api";
-import { useQueries } from "convex/react";
 import { Sparkles, TrendingUp, Star, Play, Calendar } from "lucide-react";
 
 export default function HomePage() {
-  const { allMovieStatuses, allTvStatuses } = useQueries({
-    allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
-    allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
-  });
-
   return (
     <div className="space-y-10">
       {/* Page Header */}
@@ -34,8 +27,6 @@ export default function HomePage() {
           icon={TrendingUp}
           type="movie"
           category="trending"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
         />
         <CategorySection
           title="Trending TV Shows"
@@ -43,8 +34,6 @@ export default function HomePage() {
           icon={TrendingUp}
           type="tv"
           category="trending"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
         />
       </div>
 
@@ -56,8 +45,6 @@ export default function HomePage() {
           icon={Star}
           type="movie"
           category="popular"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
         <CategorySection
@@ -66,8 +53,6 @@ export default function HomePage() {
           icon={Star}
           type="tv"
           category="popular"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
       </div>
@@ -80,8 +65,6 @@ export default function HomePage() {
           icon={Star}
           type="movie"
           category="top_rated"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
         <CategorySection
@@ -90,8 +73,6 @@ export default function HomePage() {
           icon={Star}
           type="tv"
           category="top_rated"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
       </div>
@@ -104,8 +85,6 @@ export default function HomePage() {
           icon={Play}
           type="movie"
           category="now_playing"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
         <CategorySection
@@ -114,8 +93,6 @@ export default function HomePage() {
           icon={Calendar}
           type="tv"
           category="airing_today"
-          allMovieStatuses={allMovieStatuses}
-          allTvStatuses={allTvStatuses}
           defer
         />
       </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { WatchStatus } from "@/lib/tmdb/types";
 import { useTMDBCategoryFeed } from "@/lib/tmdb/react-query";
 import { MediaCarousel } from "../media/media-carousel";
 import { LucideIcon } from "lucide-react";
@@ -12,8 +11,6 @@ interface CategorySectionProps {
   icon?: LucideIcon;
   type: "movie" | "tv";
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today";
-  allMovieStatuses?: Record<number, { status: WatchStatus }>;
-  allTvStatuses?: Record<number, { status: WatchStatus }>;
   defer?: boolean;
 }
 
@@ -39,7 +36,7 @@ export function CategorySection(props: CategorySectionProps) {
   }, [defer, active]);
 
   return (
-    <div ref={containerRef} className="min-h-[12rem]">
+    <div ref={containerRef} className="min-h-48">
       {active ? (
         <CategorySectionContent {...props} />
       ) : (
@@ -55,8 +52,6 @@ function CategorySectionContent({
   icon,
   type,
   category,
-  allMovieStatuses,
-  allTvStatuses,
 }: Omit<CategorySectionProps, "defer">) {
   const endRef = useRef<HTMLDivElement | null>(null);
   const { data, isFetching, fetchNextPage, hasNextPage, isLoading } = useTMDBCategoryFeed(
@@ -88,8 +83,6 @@ function CategorySectionContent({
       subtitle={subtitle}
       icon={icon}
       items={items}
-      allMovieStatuses={allMovieStatuses}
-      allTvStatuses={allTvStatuses}
       isLoading={isLoading}
       hasNextPage={hasNextPage}
       endRef={endRef}

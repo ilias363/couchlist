@@ -8,9 +8,7 @@ import { Film, Tv, Search, Sparkles, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
-import { useQueries } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
+import { useUserStatuses } from "@/components/providers/user-status-provider";
 
 export default function SearchPage() {
   return (
@@ -33,10 +31,7 @@ function SearchView() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { allMovieStatuses, allTvStatuses } = useQueries({
-    allMovieStatuses: { query: api.movie.listAllMovieStatuses, args: {} },
-    allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
-  });
+  const { getStatus } = useUserStatuses();
 
   const debouncedUpdate = useMemo(
     () =>
@@ -85,12 +80,6 @@ function SearchView() {
     const qs = sp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }, [debouncedQuery, mode, pathname, router]);
-
-  const getStatus = (item: TMDBSearchResult) => {
-    if (item.media_type === "movie")
-      return allMovieStatuses?.[item.id]?.status as WatchStatus | undefined;
-    return allTvStatuses?.[item.id]?.status as WatchStatus | undefined;
-  };
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -199,7 +188,11 @@ function SearchView() {
               results.length === 0 &&
               Array.from({ length: 12 }).map((_, i) => <MediaCardSkeleton key={i} />)}
             {results.map(r => (
-              <MediaCard key={`${r.media_type}-${r.id}`} item={r} status={getStatus(r)} />
+              <MediaCard
+                key={`${r.media_type}-${r.id}`}
+                item={r}
+                status={getStatus(r.id, r.media_type as "movie" | "tv")}
+              />
             ))}
           </div>
 

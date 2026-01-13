@@ -1,14 +1,15 @@
-import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
+"use client";
+
+import { TMDBSearchResult } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "./media-card";
 import { LucideIcon } from "lucide-react";
+import { useUserStatuses } from "@/components/providers/user-status-provider";
 
 interface MediaCarouselProps {
   title: string;
   subtitle?: string;
   icon?: LucideIcon;
   items: TMDBSearchResult[];
-  allMovieStatuses?: Record<number, { status: WatchStatus }>;
-  allTvStatuses?: Record<number, { status: WatchStatus }>;
   isLoading?: boolean;
   hasNextPage?: boolean;
   endRef?: React.RefObject<HTMLDivElement | null>;
@@ -20,17 +21,13 @@ export function MediaCarousel({
   subtitle,
   icon: Icon,
   items,
-  allMovieStatuses,
-  allTvStatuses,
   isLoading = false,
   hasNextPage = false,
   endRef,
   placeholderCount = 10,
 }: MediaCarouselProps) {
-  const getStatus = (item: TMDBSearchResult) => {
-    if (item.media_type === "movie") return allMovieStatuses?.[item.id]?.status;
-    return allTvStatuses?.[item.id]?.status;
-  };
+  const { getStatus } = useUserStatuses();
+
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-3">
@@ -54,7 +51,7 @@ export function MediaCarousel({
           ))}
         {items.map(it => (
           <div key={it.id} className="w-40 sm:w-44 lg:w-52 shrink-0 snap-start">
-            <MediaCard item={it} status={getStatus(it)} />
+            <MediaCard item={it} status={getStatus(it.id, it.media_type as "movie" | "tv")} />
           </div>
         ))}
         {hasNextPage && (
