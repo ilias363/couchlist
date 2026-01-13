@@ -44,21 +44,21 @@ export function MediaCarousel({
           {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-2 px-2">
+      <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent -mx-2 px-2">
         {items.length === 0 &&
           isLoading &&
           Array.from({ length: placeholderCount }).map((_, i) => (
-            <div key={i} className="w-32 sm:w-36 lg:w-40 flex-shrink-0">
+            <div key={i} className="w-40 sm:w-44 lg:w-52 shrink-0">
               <MediaCardSkeleton />
             </div>
           ))}
         {items.map(it => (
-          <div key={it.id} className="w-32 sm:w-36 lg:w-40 flex-shrink-0 snap-start">
+          <div key={it.id} className="w-40 sm:w-44 lg:w-52 shrink-0 snap-start">
             <MediaCard item={it} status={getStatus(it)} />
           </div>
         ))}
         {hasNextPage && (
-          <div ref={endRef} className="flex-shrink-0 flex items-center justify-center w-20">
+          <div ref={endRef} className="shrink-0 flex items-center justify-center w-20">
             <div className="text-xs text-muted-foreground animate-pulse">Loading…</div>
           </div>
         )}
