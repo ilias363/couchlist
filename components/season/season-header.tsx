@@ -5,8 +5,6 @@ import { ChevronDown, ArrowLeft, Calendar, Play, Check, X } from "lucide-react";
 import { TMDBSeason, BaseTMDBSeason } from "@/lib/tmdb/types";
 import { PosterImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 import { ConfirmButton } from "@/components/common/confirm-dialog";
 import {
   DropdownMenu,
@@ -36,19 +34,6 @@ export function SeasonHeader({
   seriesId: number;
   seriesName?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
-
-  const handleMarkAllWatchedClick = () => {
-    setDefaultMs(Date.now());
-    setOpen(true);
-  };
-
-  const handleConfirm = (ms?: number) => {
-    onMarkAllWatched(ms);
-    setOpen(false);
-  };
-
   return (
     <div className="space-y-6">
       {/* Back link */}
@@ -110,15 +95,18 @@ export function SeasonHeader({
             ) : (
               <>
                 {!allWatched && (
-                  <Button
+                  <ConfirmButton
                     variant="default"
                     disabled={season.episodes.length === 0}
-                    onClick={handleMarkAllWatchedClick}
+                    onConfirm={onMarkAllWatched}
+                    title="Mark All Episodes as Watched?"
+                    description="This will set the watched date for all episodes in this season to uknown."
+                    confirmText="Watch All"
                     className="gap-2"
                   >
-                    <Check className="h-4 w-4" />
+                    <X className="h-4 w-4" />
                     Mark All Watched
-                  </Button>
+                  </ConfirmButton>
                 )}
                 {anyWatched && (
                   <ConfirmButton
@@ -139,14 +127,6 @@ export function SeasonHeader({
           </div>
         </div>
       </div>
-
-      <WatchedDateDialog
-        open={open}
-        onOpenChange={setOpen}
-        onConfirm={handleConfirm}
-        defaultValueMs={defaultMs}
-        title="Watched date for all episodes"
-      />
     </div>
   );
 }

@@ -228,6 +228,8 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
         onOpenChange={handleDialogOpenChange}
         onConfirm={handleWatchedConfirm}
         defaultValueMs={watchedDialogDefaultMs}
+        hideDatePicker={isTv}
+        title={isTv ? "Mark as watched" : "Watched date"}
       >
         {watchedDialogChildren}
       </WatchedDateDialog>
