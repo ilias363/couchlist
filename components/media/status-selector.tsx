@@ -102,9 +102,10 @@ export function StatusSelector({
 
   const handleClick = (status: string, timestamp: number) => {
     if (status === currentStatus) return;
-    // For movies, show date dialog when marking as watched
-    // For TV series, dates are derived from episode watch dates, so skip the dialog
-    if (status === "watched" && type === "movie") {
+    // For both movies and TV, show dialog when marking as watched
+    // Movies: prompt for watched date
+    // TV: prompt for marking all episodes
+    if (status === "watched") {
       setPendingStatus(status);
       setDefaultMs(timestamp);
       setOpen(true);
@@ -194,6 +195,8 @@ export function StatusSelector({
         onOpenChange={setOpen}
         onConfirm={handleConfirm}
         defaultValueMs={defaultMs}
+        hideDatePicker={type === "tv"}
+        title={type === "tv" ? "Mark as watched" : "Watched date"}
       >
         {children}
       </WatchedDateDialog>

@@ -30,6 +30,7 @@ interface WatchedDateDialogProps {
   defaultValueMs?: number;
   confirmText?: string;
   cancelText?: string;
+  hideDatePicker?: boolean;
   children?: ReactNode;
 }
 
@@ -42,6 +43,7 @@ export function WatchedDateDialog({
   defaultValueMs,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  hideDatePicker = false,
   children,
 }: WatchedDateDialogProps) {
   const checkboxId = useId();
@@ -64,7 +66,8 @@ export function WatchedDateDialog({
   }
 
   const handleConfirm = () => {
-    if (isUnknown) {
+    // If date picker is hidden (TV series), always pass undefined
+    if (hideDatePicker || isUnknown) {
       onConfirm(undefined);
       return;
     }
@@ -80,26 +83,28 @@ export function WatchedDateDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">{label}</label>
-          <input
-            type="datetime-local"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            value={value}
-            onChange={e => setValue(e.target.value)}
-            disabled={isUnknown}
-          />
-          <div className="flex items-center gap-2 pt-1">
-            <Checkbox
-              id={checkboxId}
-              checked={isUnknown}
-              onCheckedChange={checked => setIsUnknown(checked === true)}
+        {!hideDatePicker && (
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">{label}</label>
+            <input
+              type="datetime-local"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              disabled={isUnknown}
             />
-            <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
-              Mark watched date as unknown
-            </label>
+            <div className="flex items-center gap-2 pt-1">
+              <Checkbox
+                id={checkboxId}
+                checked={isUnknown}
+                onCheckedChange={checked => setIsUnknown(checked === true)}
+              />
+              <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
+                Mark watched date as unknown
+              </label>
+            </div>
           </div>
-        </div>
+        )}
         {children ? <div className="mt-2">{children}</div> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
