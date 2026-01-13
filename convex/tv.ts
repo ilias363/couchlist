@@ -137,21 +137,10 @@ export const setSeriesStatus = mutation({
       .unique();
 
     if (existing) {
-      // Derive startedAt: prefer episode date, fallback to existing or now (for currently_watching)
-      let startedAt = existing.startedAt;
-      if (earliestEpisodeDate !== undefined) {
-        startedAt = earliestEpisodeDate;
-      } else if (args.status === "currently_watching" && !existing.startedAt) {
-        startedAt = now;
-      }
-
-      // Derive lastWatchedAt: prefer episode date, fallback to now (only when has episodes or setting watched)
-      let lastWatchedAt = existing.lastWatchedAt;
-      if (latestEpisodeDate !== undefined) {
-        lastWatchedAt = latestEpisodeDate;
-      } else if (args.status === "watched" && !existing.lastWatchedAt) {
-        lastWatchedAt = now;
-      }
+      // Derive startedAt: prefer episode date, fallback to existing
+      let startedAt = earliestEpisodeDate !== undefined ? earliestEpisodeDate : existing.startedAt;
+      // Derive lastWatchedAt: prefer episode date, fallback to existing
+      let lastWatchedAt = latestEpisodeDate !== undefined ? latestEpisodeDate : existing.lastWatchedAt;
 
       await ctx.db.patch(existing._id, {
         status: args.status,
@@ -160,18 +149,13 @@ export const setSeriesStatus = mutation({
         lastWatchedAt,
       });
     } else {
-      // New series: derive dates from episodes or use now as fallback
-      const startedAt =
-        earliestEpisodeDate ?? (args.status === "currently_watching" ? now : undefined);
-      const lastWatchedAt =
-        latestEpisodeDate ?? (args.status === "watched" ? now : undefined);
-
+      // New series: derive dates from episodes (could be undefined)
       await ctx.db.insert("userTvSeries", {
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        startedAt,
-        lastWatchedAt,
+        startedAt: earliestEpisodeDate,
+        lastWatchedAt: latestEpisodeDate,
         createdAt: now,
         updatedAt: now,
       });
