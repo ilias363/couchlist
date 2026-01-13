@@ -3,21 +3,23 @@ import {
   MovieExternalIDs,
   TMDB_IMAGE_BASE_URL,
   TvSeriesExternalIDs,
-  WatchStatus,
 } from "./types";
+import { StatusOption } from "@/lib/tmdb/types";
 
 export function getTMDBImgUrl(path: string | null | undefined, size: string): string | null {
   if (!path) return null;
   return `${TMDB_IMAGE_BASE_URL}/${size}${path}`;
 }
 
-export const WATCH_STATUSES: Array<{ value: WatchStatus; label: string }> = [
+export const WATCH_STATUSES: StatusOption[] = [
   { value: "want_to_watch", label: "Want to Watch" },
   { value: "currently_watching", label: "Currently Watching" },
   { value: "watched", label: "Watched" },
   { value: "on_hold", label: "On Hold" },
   { value: "dropped", label: "Dropped" },
 ];
+
+export const MOVIE_STATUSES = WATCH_STATUSES.filter(s => s.value !== "currently_watching");
 
 export function getExternalLinks(args: {
   externalIds?: (MovieExternalIDs | TvSeriesExternalIDs) | null;

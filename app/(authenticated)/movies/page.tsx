@@ -1,23 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { WATCH_STATUSES } from "@/lib/tmdb/utils";
+import { MOVIE_STATUSES, WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
+import { StatusFilter } from "@/components/media/status-filter";
 import { useBatchTMDBMovies } from "@/lib/tmdb/react-query";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Clapperboard } from "lucide-react";
+import { Clapperboard } from "lucide-react";
 import { TMDBSearchResult, MovieWatchStatus } from "@/lib/tmdb/types";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export default function MoviesPage() {
-  const [status, setStatus] = useState<string | undefined>(undefined);
+  return (
+    <Suspense>
+      <MoviesView />
+    </Suspense>
+  );
+}
+
+function MoviesView() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const statusParam = searchParams.get("status");
+  const status = MOVIE_STATUSES.some(s => s.value === statusParam) ? statusParam : undefined;
+
+  const setStatus = useCallback(
+    (newStatus: string | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (newStatus) {
+        params.set("status", newStatus);
+      } else {
+        params.delete("status");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
 
   const {
     results,
@@ -36,65 +58,19 @@ export default function MoviesPage() {
   return (
     <div className="mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <Clapperboard className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Movies</h1>
-            <p className="text-muted-foreground">Tracked movies ordered by recent updates</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/10">
+          <Clapperboard className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Movies</h1>
+          <p className="text-muted-foreground text-sm">Tracked movies ordered by recent updates</p>
         </div>
       </div>
-      <div className="hidden md:flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant={!status ? "default" : "outline"}
-          onClick={() => setStatus(undefined)}
-        >
-          All
-        </Button>
-        {WATCH_STATUSES.filter(s => s.value !== "currently_watching").map(s => (
-          <Button
-            key={s.value}
-            size="sm"
-            variant={status === s.value ? "default" : "outline"}
-            onClick={() => setStatus(s.value)}
-          >
-            {s.label}
-          </Button>
-        ))}
-      </div>
-      <div className="md:hidden flex flex-wrap gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              {status
-                ? WATCH_STATUSES.find(s => s.value === status)?.label || status
-                : "Filter by Status"}
-              <ChevronDown className="ml-1 h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-popover text-popover-foreground z-10 w-48 rounded-md border shadow-md">
-            <DropdownMenuItem
-              className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-              onSelect={() => setStatus(undefined)}
-            >
-              All
-            </DropdownMenuItem>
-            {WATCH_STATUSES.filter(s => s.value !== "currently_watching").map(s => (
-              <DropdownMenuItem
-                key={s.value}
-                className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                onSelect={() => setStatus(s.value)}
-              >
-                {s.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+
+      <StatusFilter options={MOVIE_STATUSES} value={status} onChange={setStatus} />
+
+      {/* Results Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {loading &&
           results.length === 0 &&

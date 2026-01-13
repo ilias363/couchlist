@@ -1,25 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
+import { StatusFilter } from "@/components/media/status-filter";
 import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown, Tv } from "lucide-react";
-
-type TvStatus = WatchStatus | undefined;
+import { Tv } from "lucide-react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 export default function TvSeriesPage() {
-  const [status, setStatus] = useState<string | undefined>(undefined);
+  return (
+    <Suspense>
+      <TvSeriesView />
+    </Suspense>
+  );
+}
+
+function TvSeriesView() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const statusParam = searchParams.get("status");
+  const status = WATCH_STATUSES.some(s => s.value === statusParam) ? statusParam : undefined;
+
+  const setStatus = useCallback(
+    (newStatus: string | undefined) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (newStatus) {
+        params.set("status", newStatus);
+      } else {
+        params.delete("status");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
 
   const {
     results,
@@ -27,7 +47,7 @@ export default function TvSeriesPage() {
     loadMore,
   } = usePaginatedQuery(
     api.tv.listUserTvSeries,
-    { status: status as TvStatus },
+    { status: status as WatchStatus | undefined },
     { initialNumItems: 30 }
   );
 
@@ -38,65 +58,19 @@ export default function TvSeriesPage() {
   return (
     <div className="mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <Tv className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My TV Series</h1>
-            <p className="text-muted-foreground">Tracked series ordered by recent updates</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/10">
+          <Tv className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My TV Series</h1>
+          <p className="text-muted-foreground text-sm">Tracked series ordered by recent updates</p>
         </div>
       </div>
-      <div className="hidden md:flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant={!status ? "default" : "outline"}
-          onClick={() => setStatus(undefined)}
-        >
-          All
-        </Button>
-        {WATCH_STATUSES.map(s => (
-          <Button
-            key={s.value}
-            size="sm"
-            variant={status === s.value ? "default" : "outline"}
-            onClick={() => setStatus(s.value)}
-          >
-            {s.label}
-          </Button>
-        ))}
-      </div>
-      <div className="md:hidden flex flex-wrap gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline">
-              {status
-                ? WATCH_STATUSES.find(s => s.value === status)?.label || status
-                : "Filter by Status"}
-              <ChevronDown className="ml-1 h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-popover text-popover-foreground z-10 w-48 rounded-md border shadow-md">
-            <DropdownMenuItem
-              className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-              onSelect={() => setStatus(undefined)}
-            >
-              All
-            </DropdownMenuItem>
-            {WATCH_STATUSES.map(s => (
-              <DropdownMenuItem
-                key={s.value}
-                className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                onSelect={() => setStatus(s.value)}
-              >
-                {s.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+
+      <StatusFilter options={WATCH_STATUSES} value={status} onChange={setStatus} />
+
+      {/* Results Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {loading &&
           results.length === 0 &&
@@ -110,6 +84,7 @@ export default function TvSeriesPage() {
           return <MediaCard key={`tv-${m.tvSeriesId}`} item={item} status={m.status} />;
         })}
       </div>
+
       {paginationStatus === "CanLoadMore" && (
         <div className="flex justify-center md:pt-2">
           <Button
