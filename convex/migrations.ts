@@ -66,3 +66,62 @@ export const replaceUserId = mutation({
     return result;
   },
 });
+
+// Migration to recalculate TV series startedDate and watchedDate from episode watch dates
+export const recalculateTvSeriesDates = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting TV series dates recalculation migration...");
+
+    // Get all TV series
+    const allSeries = await ctx.db.query("userTvSeries").collect();
+    console.log(`Found ${allSeries.length} TV series to process`);
+
+    let updated = 0;
+    let skipped = 0;
+    const now = Date.now();
+
+    for (const series of allSeries) {
+      // Get all episodes for this series and user
+      const episodes = await ctx.db
+        .query("userEpisodes")
+        .withIndex("by_user_tv", (q) =>
+          q.eq("userId", series.userId).eq("tvSeriesId", series.tvSeriesId)
+        )
+        .collect();
+
+      // Extract dates from episodes
+      const dates = episodes
+        .filter((ep) => ep.watchedDate !== undefined)
+        .map((ep) => ep.watchedDate!);
+
+      if (dates.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      const earliest = Math.min(...dates);
+      const latest = Math.max(...dates);
+
+      const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+        updatedAt: now,
+        startedDate: earliest,
+      };
+
+      updates.watchedDate = latest;
+
+      await ctx.db.patch(series._id, updates);
+      updated++;
+    }
+
+    const result = {
+      success: true,
+      totalProcessed: allSeries.length,
+      updated,
+      skipped,
+    };
+
+    console.log("Migration complete:", result);
+    return result;
+  },
+});

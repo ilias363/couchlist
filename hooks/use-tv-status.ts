@@ -50,7 +50,6 @@ export function useTvSeriesStatus(tvSeriesId: number) {
         await setSeriesStatus({
           tvSeriesId,
           status: newStatus as WatchStatus,
-          watchedAt,
         });
       } finally {
         setUpdating(false);

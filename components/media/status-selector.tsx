@@ -102,7 +102,9 @@ export function StatusSelector({
 
   const handleClick = (status: string, timestamp: number) => {
     if (status === currentStatus) return;
-    if (status === "watched") {
+    // For movies, show date dialog when marking as watched
+    // For TV series, dates are derived from episode watch dates, so skip the dialog
+    if (status === "watched" && type === "movie") {
       setPendingStatus(status);
       setDefaultMs(timestamp);
       setOpen(true);

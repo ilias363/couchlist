@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, MutationCtx } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
@@ -16,6 +16,90 @@ export const getSeriesStatus = query({
   },
 });
 
+// Helper to update TV series dates when a new episode is watched
+// Only fetches all episodes when unwatching (to recalculate bounds)
+// Creates the series record if it doesn't exist
+const updateSeriesDatesFromEpisodes = async (
+  ctx: MutationCtx,
+  userId: string,
+  tvSeriesId: number,
+  newEpisodeDate?: number // Pass the new episode's date when watching, undefined when unwatching
+): Promise<void> => {
+  const existing = await ctx.db
+    .query("userTvSeries")
+    .withIndex("by_user_tv_series", q =>
+      q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
+    )
+    .unique();
+
+  const now = Date.now();
+
+  // If series doesn't exist and we have a new episode date, create it as currently_watching
+  if (!existing && newEpisodeDate !== undefined) {
+    await ctx.db.insert("userTvSeries", {
+      userId,
+      tvSeriesId,
+      status: "currently_watching",
+      startedDate: newEpisodeDate,
+      watchedDate: newEpisodeDate,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  if (!existing) return;
+
+  // If we have a new episode date, just compare with existing dates (fast path)
+  if (newEpisodeDate !== undefined) {
+    const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+      updatedAt: now,
+    };
+
+    // Update startedDate if this episode is earlier than current
+    if (!existing.startedDate || newEpisodeDate < existing.startedDate) {
+      updates.startedDate = newEpisodeDate;
+    }
+
+    // Update watchedDate if this episode is later than current
+    if (!existing.watchedDate || newEpisodeDate > existing.watchedDate) {
+      updates.watchedDate = newEpisodeDate;
+    }
+
+    await ctx.db.patch(existing._id, updates);
+    return;
+  }
+
+  // Slow path: when unwatching, we need to recalculate from all episodes
+  const episodes = await ctx.db
+    .query("userEpisodes")
+    .withIndex("by_user_tv", q =>
+      q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
+    )
+    .collect();
+
+  const dates = episodes
+    .filter(ep => ep.watchedDate !== undefined)
+    .map(ep => ep.watchedDate!);
+
+  const earliest = dates.length > 0 ? Math.min(...dates) : undefined;
+  const latest = dates.length > 0 ? Math.max(...dates) : undefined;
+
+  const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+    updatedAt: now,
+  };
+
+  // Update startedDate to the earliest episode date (or clear if no episodes)
+  updates.startedDate = earliest;
+
+  // Update watchedDate to latest episode date if status is watched
+  if (existing.status === "watched") {
+    updates.watchedDate = latest;
+  }
+
+  await ctx.db.patch(existing._id, updates);
+};
+
 export const setSeriesStatus = mutation({
   args: {
     tvSeriesId: v.number(),
@@ -26,12 +110,27 @@ export const setSeriesStatus = mutation({
       v.literal("on_hold"),
       v.literal("dropped")
     ),
-    watchedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     const now = Date.now();
+
+    // Get episode dates to derive startedDate and watchedDate
+    const episodes = await ctx.db
+      .query("userEpisodes")
+      .withIndex("by_user_tv", q =>
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+      )
+      .collect();
+
+    const dates = episodes
+      .filter(ep => ep.watchedDate !== undefined)
+      .map(ep => ep.watchedDate!);
+
+    const earliestEpisodeDate = dates.length > 0 ? Math.min(...dates) : undefined;
+    const latestEpisodeDate = dates.length > 0 ? Math.max(...dates) : undefined;
+
     const existing = await ctx.db
       .query("userTvSeries")
       .withIndex("by_user_tv_series", q =>
@@ -40,18 +139,39 @@ export const setSeriesStatus = mutation({
       .unique();
 
     if (existing) {
+      // Derive startedDate: prefer episode date, fallback to existing or now (for currently_watching)
+      let startedDate = existing.startedDate;
+      if (earliestEpisodeDate !== undefined) {
+        startedDate = earliestEpisodeDate;
+      } else if (args.status === "currently_watching" && !existing.startedDate) {
+        startedDate = now;
+      }
+
+      // Derive watchedDate: prefer episode date, fallback to now (only for watched status)
+      let watchedDate = existing.watchedDate;
+      if (args.status === "watched") {
+        watchedDate = latestEpisodeDate ?? now;
+      }
+
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        watchedDate: args.status === "watched" ? args.watchedAt : existing.watchedDate,
+        startedDate,
+        watchedDate,
       });
     } else {
+      // New series: derive dates from episodes or use now as fallback
+      const startedDate =
+        earliestEpisodeDate ?? (args.status === "currently_watching" ? now : undefined);
+      const watchedDate =
+        args.status === "watched" ? (latestEpisodeDate ?? now) : undefined;
+
       await ctx.db.insert("userTvSeries", {
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        startedDate: args.status === "currently_watching" ? now : undefined,
-        watchedDate: args.status === "watched" ? args.watchedAt : undefined,
+        startedDate,
+        watchedDate,
         createdAt: now,
         updatedAt: now,
       });
@@ -96,6 +216,8 @@ export const toggleEpisodeWatched = mutation({
     if (!args.isWatched) {
       if (existing) {
         await ctx.db.delete(existing._id);
+        // Update the TV series dates after removing episode
+        await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId);
       }
       return;
     }
@@ -120,6 +242,9 @@ export const toggleEpisodeWatched = mutation({
         updatedAt: now,
       });
     }
+
+    // Update the TV series dates with the new episode date (fast path)
+    await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId, args.watchedAt);
   },
 });
 
@@ -151,6 +276,8 @@ export const bulkToggleSeasonEpisodes = mutation({
           await ctx.db.delete(rec._id);
         }
       }
+      // Update the TV series dates after removing episodes
+      await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId);
       return;
     }
 
@@ -177,6 +304,9 @@ export const bulkToggleSeasonEpisodes = mutation({
         });
       }
     }
+
+    // Update the TV series dates with the bulk watched date (fast path)
+    await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId, args.watchedAt);
   },
 });
 
