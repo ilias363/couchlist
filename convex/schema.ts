@@ -38,8 +38,8 @@ export default defineSchema({
     startedAt: v.optional(v.number()), // When started watching (earliest episode date)
     lastWatchedAt: v.optional(v.number()), // When last watched (latest episode date)
     // Old field names (to be removed after migration)
-    startedDate: v.optional(v.number()), // @deprecated - use startedAt
-    watchedDate: v.optional(v.number()), // @deprecated - use lastWatchedAt
+    // startedDate: v.optional(v.number()), // @deprecated - use startedAt
+    // watchedDate: v.optional(v.number()), // @deprecated - use lastWatchedAt
     createdAt: v.number(),
     updatedAt: v.number(),
   })
