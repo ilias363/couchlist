@@ -39,8 +39,8 @@ export const exportData = query({
       tvSeries: tvSeries.map(t => ({
         tvSeriesId: t.tvSeriesId,
         status: t.status,
-        startedDate: t.startedDate,
-        watchedDate: t.watchedDate,
+        startedAt: t.startedAt,
+        lastWatchedAt: t.lastWatchedAt,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       })),
@@ -83,8 +83,8 @@ const TvItem = v.object({
     v.literal("on_hold"),
     v.literal("dropped")
   ),
-  startedDate: v.optional(v.number()),
-  watchedDate: v.optional(v.number()),
+  startedAt: v.optional(v.number()),
+  lastWatchedAt: v.optional(v.number()),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
 });
@@ -204,8 +204,8 @@ export const importData = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           status: t.status,
-          startedDate: t.startedDate ?? existing.startedDate,
-          watchedDate: t.watchedDate ?? existing.watchedDate,
+          startedAt: t.startedAt ?? existing.startedAt,
+          lastWatchedAt: t.lastWatchedAt ?? existing.lastWatchedAt,
           updatedAt: now,
         });
         tvUpdated++;
@@ -214,8 +214,8 @@ export const importData = mutation({
           userId,
           tvSeriesId: t.tvSeriesId,
           status: t.status,
-          startedDate: t.startedDate,
-          watchedDate: t.watchedDate,
+          startedAt: t.startedAt,
+          lastWatchedAt: t.lastWatchedAt,
           createdAt: t.createdAt ?? now,
           updatedAt: t.updatedAt ?? now,
         });

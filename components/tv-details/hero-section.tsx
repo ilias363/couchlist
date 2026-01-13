@@ -18,8 +18,8 @@ interface TvHeroSectionProps {
   firstAirDate: string;
   originalLanguage: string;
   currentStatus?: WatchStatus | null;
-  startedDate?: number | null;
-  watchedDate?: number | null;
+  startedAt?: number | null;
+  lastWatchedAt?: number | null;
   onStatusChange: (status: string, watchedAt?: number) => void;
   onRemove: () => Promise<void>;
   isUpdating?: boolean;
@@ -39,8 +39,8 @@ export function TvHeroSection({
   firstAirDate,
   originalLanguage,
   currentStatus,
-  startedDate,
-  watchedDate,
+  startedAt,
+  lastWatchedAt,
   onStatusChange,
   onRemove,
   isUpdating = false,
@@ -128,14 +128,14 @@ export function TvHeroSection({
                 </label>
               </StatusSelector>
               {/* Watch dates display */}
-              {(startedDate || watchedDate) && (
+              {(startedAt || lastWatchedAt) && (
                 <div className="flex flex-wrap items-center gap-3 text-sm">
-                  {startedDate && (
+                  {startedAt && (
                     <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
                       <Play className="h-4 w-4" />
                       <span>
                         Started{" "}
-                        {new Date(startedDate).toLocaleDateString(undefined, {
+                        {new Date(startedAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
                           day: "numeric",
@@ -143,12 +143,12 @@ export function TvHeroSection({
                       </span>
                     </div>
                   )}
-                  {watchedDate && currentStatus === "watched" && (
+                  {lastWatchedAt && (
                     <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
                       <CalendarCheck className="h-4 w-4" />
                       <span>
-                        Finished{" "}
-                        {new Date(watchedDate).toLocaleDateString(undefined, {
+                        {currentStatus === "watched" ? "Finished" : "Last watched"}{" "}
+                        {new Date(lastWatchedAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
                           day: "numeric",

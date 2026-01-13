@@ -78,7 +78,7 @@ lib/
 
 ## Data Model (Convex)
 - userMovies: { userId, movieId, status, runtime?, watchedDate?, createdAt, updatedAt }
-- userTvSeries: { userId, tvSeriesId, status, startedDate?, watchedDate?, createdAt, updatedAt }
+- userTvSeries: { userId, tvSeriesId, status, startedAt?, lastWatchedAt?, createdAt, updatedAt }
 - userEpisodes: { userId, tvSeriesId, seasonId, episodeId, isWatched, runtime?, watchedDate?, createdAt, updatedAt }
 
 Common statuses: want_to_watch | currently_watching (TV only) | watched | on_hold | dropped

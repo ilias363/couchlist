@@ -67,7 +67,7 @@ export const replaceUserId = mutation({
   },
 });
 
-// Migration to recalculate TV series startedDate and watchedDate from episode watch dates
+// Migration to recalculate TV series startedAt and lastWatchedAt from episode watch dates
 export const recalculateTvSeriesDates = mutation({
   args: {},
   handler: async (ctx) => {
@@ -103,12 +103,11 @@ export const recalculateTvSeriesDates = mutation({
       const earliest = Math.min(...dates);
       const latest = Math.max(...dates);
 
-      const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+      const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
         updatedAt: now,
-        startedDate: earliest,
+        startedAt: earliest,
+        lastWatchedAt: latest,
       };
-
-      updates.watchedDate = latest;
 
       await ctx.db.patch(series._id, updates);
       updated++;
@@ -119,6 +118,60 @@ export const recalculateTvSeriesDates = mutation({
       totalProcessed: allSeries.length,
       updated,
       skipped,
+    };
+
+    console.log("Migration complete:", result);
+    return result;
+  },
+});
+
+// Migration to rename TV series date fields from startedDate/watchedDate to startedAt/lastWatchedAt
+// Step 1: Deploy schema with both old and new fields
+// Step 2: Run this migration: npx convex run migrations:renameTvSeriesDateFields
+// Step 3: Deploy schema with only new fields (remove startedDate and watchedDate)
+export const renameTvSeriesDateFields = mutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Starting TV series date field rename migration...");
+
+    const allSeries = await ctx.db.query("userTvSeries").collect();
+    console.log(`Found ${allSeries.length} TV series to process`);
+
+    let migrated = 0;
+    let alreadyMigrated = 0;
+    const now = Date.now();
+
+    for (const series of allSeries) {
+      // With the transitional schema, we can access both old and new fields
+      const hasOldFields = series.startedDate !== undefined || series.watchedDate !== undefined;
+      const hasNewFields = series.startedAt !== undefined || series.lastWatchedAt !== undefined;
+
+      // Skip if already migrated (has new fields but no old fields)
+      if (hasNewFields && !hasOldFields) {
+        alreadyMigrated++;
+        continue;
+      }
+
+      // Copy old values to new fields and clear old fields
+      if (hasOldFields) {
+        await ctx.db.patch(series._id, {
+          // Copy to new fields (prefer new value if already exists)
+          startedAt: series.startedAt ?? series.startedDate,
+          lastWatchedAt: series.lastWatchedAt ?? series.watchedDate,
+          // Clear old fields
+          startedDate: undefined,
+          watchedDate: undefined,
+          updatedAt: now,
+        });
+        migrated++;
+      }
+    }
+
+    const result = {
+      success: true,
+      totalProcessed: allSeries.length,
+      migrated,
+      alreadyMigrated,
     };
 
     console.log("Migration complete:", result);

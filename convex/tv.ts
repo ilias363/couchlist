@@ -40,8 +40,8 @@ const updateSeriesDatesFromEpisodes = async (
       userId,
       tvSeriesId,
       status: "currently_watching",
-      startedDate: newEpisodeDate,
-      watchedDate: newEpisodeDate,
+      startedAt: newEpisodeDate,
+      lastWatchedAt: newEpisodeDate,
       createdAt: now,
       updatedAt: now,
     });
@@ -52,18 +52,18 @@ const updateSeriesDatesFromEpisodes = async (
 
   // If we have a new episode date, just compare with existing dates (fast path)
   if (newEpisodeDate !== undefined) {
-    const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+    const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
       updatedAt: now,
     };
 
-    // Update startedDate if this episode is earlier than current
-    if (!existing.startedDate || newEpisodeDate < existing.startedDate) {
-      updates.startedDate = newEpisodeDate;
+    // Update startedAt if this episode is earlier than current
+    if (!existing.startedAt || newEpisodeDate < existing.startedAt) {
+      updates.startedAt = newEpisodeDate;
     }
 
-    // Update watchedDate if this episode is later than current
-    if (!existing.watchedDate || newEpisodeDate > existing.watchedDate) {
-      updates.watchedDate = newEpisodeDate;
+    // Update lastWatchedAt if this episode is later than current
+    if (!existing.lastWatchedAt || newEpisodeDate > existing.lastWatchedAt) {
+      updates.lastWatchedAt = newEpisodeDate;
     }
 
     await ctx.db.patch(existing._id, updates);
@@ -85,17 +85,15 @@ const updateSeriesDatesFromEpisodes = async (
   const earliest = dates.length > 0 ? Math.min(...dates) : undefined;
   const latest = dates.length > 0 ? Math.max(...dates) : undefined;
 
-  const updates: { startedDate?: number; watchedDate?: number; updatedAt: number } = {
+  const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
     updatedAt: now,
   };
 
-  // Update startedDate to the earliest episode date (or clear if no episodes)
-  updates.startedDate = earliest;
+  // Update startedAt to the earliest episode date (or clear if no episodes)
+  updates.startedAt = earliest;
 
-  // Update watchedDate to latest episode date if status is watched
-  if (existing.status === "watched") {
-    updates.watchedDate = latest;
-  }
+  // Update lastWatchedAt to latest episode date
+  updates.lastWatchedAt = latest;
 
   await ctx.db.patch(existing._id, updates);
 };
@@ -116,7 +114,7 @@ export const setSeriesStatus = mutation({
     if (!identity) throw new Error("Unauthorized");
     const now = Date.now();
 
-    // Get episode dates to derive startedDate and watchedDate
+    // Get episode dates to derive startedAt and lastWatchedAt
     const episodes = await ctx.db
       .query("userEpisodes")
       .withIndex("by_user_tv", q =>
@@ -139,39 +137,41 @@ export const setSeriesStatus = mutation({
       .unique();
 
     if (existing) {
-      // Derive startedDate: prefer episode date, fallback to existing or now (for currently_watching)
-      let startedDate = existing.startedDate;
+      // Derive startedAt: prefer episode date, fallback to existing or now (for currently_watching)
+      let startedAt = existing.startedAt;
       if (earliestEpisodeDate !== undefined) {
-        startedDate = earliestEpisodeDate;
-      } else if (args.status === "currently_watching" && !existing.startedDate) {
-        startedDate = now;
+        startedAt = earliestEpisodeDate;
+      } else if (args.status === "currently_watching" && !existing.startedAt) {
+        startedAt = now;
       }
 
-      // Derive watchedDate: prefer episode date, fallback to now (only for watched status)
-      let watchedDate = existing.watchedDate;
-      if (args.status === "watched") {
-        watchedDate = latestEpisodeDate ?? now;
+      // Derive lastWatchedAt: prefer episode date, fallback to now (only when has episodes or setting watched)
+      let lastWatchedAt = existing.lastWatchedAt;
+      if (latestEpisodeDate !== undefined) {
+        lastWatchedAt = latestEpisodeDate;
+      } else if (args.status === "watched" && !existing.lastWatchedAt) {
+        lastWatchedAt = now;
       }
 
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        startedDate,
-        watchedDate,
+        startedAt,
+        lastWatchedAt,
       });
     } else {
       // New series: derive dates from episodes or use now as fallback
-      const startedDate =
+      const startedAt =
         earliestEpisodeDate ?? (args.status === "currently_watching" ? now : undefined);
-      const watchedDate =
-        args.status === "watched" ? (latestEpisodeDate ?? now) : undefined;
+      const lastWatchedAt =
+        latestEpisodeDate ?? (args.status === "watched" ? now : undefined);
 
       await ctx.db.insert("userTvSeries", {
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        startedDate,
-        watchedDate,
+        startedAt,
+        lastWatchedAt,
         createdAt: now,
         updatedAt: now,
       });
