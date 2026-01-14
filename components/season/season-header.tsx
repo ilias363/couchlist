@@ -36,14 +36,21 @@ export function SeasonHeader({
 }) {
   return (
     <div className="space-y-6">
-      {/* Back link */}
-      <Link
-        href={`/tv-series/${seriesId}`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-      >
-        <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-        <span>Back to {seriesName || "Series"}</span>
-      </Link>
+      {/* Back link and Season Switcher */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <Link
+          href={`/tv-series/${seriesId}`}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+          <span>Back to {seriesName || "Series"}</span>
+        </Link>
+        <SeasonSwitcher
+          seriesId={seriesId}
+          seasons={seasons}
+          currentSeason={season.season_number}
+        />
+      </div>
 
       {/* Main content */}
       <div className="flex flex-col md:flex-row gap-6 md:gap-8">
@@ -57,14 +64,9 @@ export function SeasonHeader({
         {/* Info */}
         <div className="flex-1 space-y-4 text-center md:text-left">
           <div className="space-y-2">
-            <div className="flex items-center justify-center md:justify-start gap-3 flex-wrap">
-              <h1 className="text-2xl md:text-3xl font-bold">{season.name}</h1>
-              <SeasonSwitcher
-                seriesId={seriesId}
-                seasons={seasons}
-                currentSeason={season.season_number}
-              />
-            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-center md:text-left">
+              {season.name}
+            </h1>
 
             <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
@@ -147,10 +149,10 @@ function SeasonSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-1.5 h-8 rounded-full">
-          Switch Season
-          <ChevronDown className="h-3.5 w-3.5" />
-        </Button>
+        <button className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronDown className="h-4 w-4" />
+          <span>Switch Season</span>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
         {sorted.map(season => {
