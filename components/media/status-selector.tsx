@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { STATUS_COLORS } from "@/lib/status-colors";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,8 +27,6 @@ interface StatusOption {
   value: WatchStatus;
   label: string;
   icon: React.ReactNode;
-  iconColor: string;
-  className: string;
   tvOnly?: boolean;
 }
 
@@ -36,51 +35,33 @@ const WATCH_STATUS_OPTIONS: StatusOption[] = [
     value: "want_to_watch",
     label: "Want to Watch",
     icon: <Bookmark className="h-4 w-4" />,
-    iconColor: "text-blue-500",
-    className:
-      "hover:bg-blue-500/20 hover:text-blue-600 dark:hover:text-blue-400 data-[active=true]:bg-blue-500/20 data-[active=true]:text-blue-600 dark:data-[active=true]:text-blue-400",
   },
   {
     value: "currently_watching",
     label: "Watching",
     icon: <Eye className="h-4 w-4" />,
-    iconColor: "text-amber-500",
-    className:
-      "hover:bg-amber-500/20 hover:text-amber-600 dark:hover:text-amber-400 data-[active=true]:bg-amber-500/20 data-[active=true]:text-amber-600 dark:data-[active=true]:text-amber-400",
     tvOnly: true,
   },
   {
     value: "watched",
     label: "Watched",
     icon: <CheckCircle2 className="h-4 w-4" />,
-    iconColor: "text-green-500",
-    className:
-      "hover:bg-green-500/20 hover:text-green-600 dark:hover:text-green-400 data-[active=true]:bg-green-500/20 data-[active=true]:text-green-600 dark:data-[active=true]:text-green-400",
   },
   {
     value: "up_to_date",
     label: "Up to Date",
     icon: <Clock className="h-4 w-4" />,
-    iconColor: "text-cyan-500",
-    className:
-      "hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 data-[active=true]:bg-cyan-500/20 data-[active=true]:text-cyan-600 dark:data-[active=true]:text-cyan-400",
     tvOnly: true,
   },
   {
     value: "on_hold",
     label: "On Hold",
     icon: <CirclePause className="h-4 w-4" />,
-    iconColor: "text-orange-500",
-    className:
-      "hover:bg-orange-500/20 hover:text-orange-600 dark:hover:text-orange-400 data-[active=true]:bg-orange-500/20 data-[active=true]:text-orange-600 dark:data-[active=true]:text-orange-400",
   },
   {
     value: "dropped",
     label: "Dropped",
     icon: <CircleX className="h-4 w-4" />,
-    iconColor: "text-red-500",
-    className:
-      "hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400 data-[active=true]:bg-red-500/20 data-[active=true]:text-red-600 dark:data-[active=true]:text-red-400",
   },
 ];
 
@@ -136,6 +117,7 @@ export function StatusSelector({
       <div className="flex flex-wrap items-center justify-center gap-2">
         {statuses.map(status => {
           const isActive = currentStatus === status.value;
+          const colors = STATUS_COLORS[status.value];
           return (
             <Button
               key={status.value}
@@ -143,10 +125,14 @@ export function StatusSelector({
               size="sm"
               disabled={disabled}
               data-active={isActive}
-              className={cn("transition-all duration-200", status.className, isActive && "ring-1")}
+              className={cn(
+                "transition-all duration-200",
+                colors.hoverActive,
+                isActive && "ring-1"
+              )}
               onClick={() => handleClick(status.value, Date.now())}
             >
-              <span className={status.iconColor}>{status.icon}</span>
+              <span className={colors.iconColor}>{status.icon}</span>
               <span className="ml-1.5 hidden sm:inline">{status.label}</span>
             </Button>
           );
@@ -185,7 +171,7 @@ export function StatusSelector({
             <div className="flex flex-col gap-1.5 p-2">
               {statuses.map(status => (
                 <div key={status.value} className="flex items-center gap-2">
-                  <span className={status.iconColor}>{status.icon}</span>
+                  <span className={STATUS_COLORS[status.value].iconColor}>{status.icon}</span>
                   <span className="text-sm">{status.label}</span>
                 </div>
               ))}

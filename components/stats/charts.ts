@@ -59,6 +59,9 @@ export function statusPalette(count: number): string[] {
   });
 }
 
+// Re-export from centralized status colors
+export { getDistributionColors as getStatusDistributionColors } from "@/lib/status-colors";
+
 export const doughnutOptions = {
   responsive: true,
   maintainAspectRatio: false,

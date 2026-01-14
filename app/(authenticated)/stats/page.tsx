@@ -8,7 +8,7 @@ import {
   DoughnutChart,
   BarChart,
   LineChart,
-  statusPalette,
+  getStatusDistributionColors,
   doughnutOptions,
   weekdayLabel,
   barOptions,
@@ -57,8 +57,8 @@ export default function StatsPage() {
     generatedAt,
   } = data;
 
-  const movieDistColors = statusPalette(distributions.movies.length);
-  const tvDistColors = statusPalette(distributions.tvSeries.length);
+  const movieDistColors = getStatusDistributionColors(distributions.movies.map(d => d.status));
+  const tvDistColors = getStatusDistributionColors(distributions.tvSeries.map(d => d.status));
 
   const movieDistData = {
     labels: distributions.movies.map(d => d.status),

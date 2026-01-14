@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
+import { getStatusClasses } from "@/lib/status-colors";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ChevronRight } from "lucide-react";
 import Link from "next/link";
@@ -194,23 +195,14 @@ export default function TvStatusPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            item.userStatus === "watched"
-                              ? "bg-green-500/20 text-green-600 dark:text-green-400"
-                              : item.userStatus === "currently_watching"
-                              ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                              : item.userStatus === "up_to_date"
-                              ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400"
-                              : item.userStatus === "want_to_watch"
-                              ? "bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                              : item.userStatus === "on_hold"
-                              ? "bg-orange-500/20 text-orange-600 dark:text-orange-400"
-                              : "bg-red-500/20 text-red-600 dark:text-red-400"
-                          }`}
-                        >
-                          {item.userStatusLabel}
-                        </span>
+                        {(() => {
+                          const { bg, text } = getStatusClasses(item.userStatus);
+                          return (
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${bg} ${text}`}>
+                              {item.userStatusLabel}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -218,10 +210,10 @@ export default function TvStatusPage() {
                             item.tmdbStatus === "Returning Series"
                               ? "bg-green-500/20 text-green-600 dark:text-green-400"
                               : item.tmdbStatus === "Ended"
-                              ? "bg-gray-500/20 text-gray-600 dark:text-gray-400"
-                              : item.tmdbStatus === "Canceled"
-                              ? "bg-red-500/20 text-red-600 dark:text-red-400"
-                              : "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                                ? "bg-gray-500/20 text-gray-600 dark:text-gray-400"
+                                : item.tmdbStatus === "Canceled"
+                                  ? "bg-red-500/20 text-red-600 dark:text-red-400"
+                                  : "bg-blue-500/20 text-blue-600 dark:text-blue-400"
                           }`}
                         >
                           {item.tmdbStatus}
@@ -265,32 +257,23 @@ export default function TvStatusPage() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        item.userStatus === "watched"
-                          ? "bg-green-500/20 text-green-600 dark:text-green-400"
-                          : item.userStatus === "currently_watching"
-                          ? "bg-amber-500/20 text-amber-600 dark:text-amber-400"
-                          : item.userStatus === "up_to_date"
-                          ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400"
-                          : item.userStatus === "want_to_watch"
-                          ? "bg-blue-500/20 text-blue-600 dark:text-blue-400"
-                          : item.userStatus === "on_hold"
-                          ? "bg-orange-500/20 text-orange-600 dark:text-orange-400"
-                          : "bg-red-500/20 text-red-600 dark:text-red-400"
-                      }`}
-                    >
-                      {item.userStatusLabel}
-                    </span>
+                    {(() => {
+                      const { bg, text } = getStatusClasses(item.userStatus);
+                      return (
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${bg} ${text}`}>
+                          {item.userStatusLabel}
+                        </span>
+                      );
+                    })()}
                     <span
                       className={`px-2 py-0.5 rounded text-xs font-medium ${
                         item.tmdbStatus === "Returning Series"
                           ? "bg-green-500/20 text-green-600 dark:text-green-400"
                           : item.tmdbStatus === "Ended"
-                          ? "bg-gray-500/20 text-gray-600 dark:text-gray-400"
-                          : item.tmdbStatus === "Canceled"
-                          ? "bg-red-500/20 text-red-600 dark:text-red-400"
-                          : "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                            ? "bg-gray-500/20 text-gray-600 dark:text-gray-400"
+                            : item.tmdbStatus === "Canceled"
+                              ? "bg-red-500/20 text-red-600 dark:text-red-400"
+                              : "bg-blue-500/20 text-blue-600 dark:text-blue-400"
                       }`}
                     >
                       {item.tmdbStatus}
