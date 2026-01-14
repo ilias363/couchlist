@@ -28,6 +28,7 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
     total: userTvSeries.length,
     watched: userTvSeries.filter(tv => tv.status === "watched").length,
     currentlyWatching: userTvSeries.filter(tv => tv.status === "currently_watching").length,
+    upToDate: userTvSeries.filter(tv => tv.status === "up_to_date").length,
     wantToWatch: userTvSeries.filter(tv => tv.status === "want_to_watch").length,
     onHold: userTvSeries.filter(tv => tv.status === "on_hold").length,
     dropped: userTvSeries.filter(tv => tv.status === "dropped").length,
@@ -177,7 +178,7 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
         : 100,
     tvSeries:
       tvStats.total - tvStats.wantToWatch
-        ? tvStats.watched / (tvStats.total - tvStats.wantToWatch)
+        ? (tvStats.watched + tvStats.upToDate) / (tvStats.total - tvStats.wantToWatch)
         : 100,
   };
 
@@ -225,6 +226,7 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
   const statusDistributionTv = [
     { status: "Watched", value: tvStats.watched },
     { status: "Currently Watching", value: tvStats.currentlyWatching },
+    { status: "Up to Date", value: tvStats.upToDate },
     { status: "Want to Watch", value: tvStats.wantToWatch },
     { status: "On Hold", value: tvStats.onHold },
     { status: "Dropped", value: tvStats.dropped },
@@ -235,7 +237,7 @@ async function calculateUserStats(db: MutationCtx["db"], userId: string) {
       totalStartedMovies: movieStats.total - movieStats.wantToWatch,
       totalStartedTvSeries: tvStats.total - tvStats.wantToWatch,
       totalWatchedMovies: movieStats.watched,
-      totalWatchedTvSeries: tvStats.watched,
+      totalWatchedTvSeries: tvStats.watched + tvStats.upToDate,
       totalWatchedEpisodes: episodeStats.totalWatchedEpisodes,
       totalWatchedSeasons: episodeStats.totalWatchedSeasons,
       totalWatchTimeMinutes: totalWatchTime,

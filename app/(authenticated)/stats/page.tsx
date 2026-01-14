@@ -163,7 +163,7 @@ export default function StatsPage() {
         <StatsCard
           title="Episodes Watched"
           value={overview.totalWatchedEpisodes}
-          description={`${overview.totalWatchedSeasons} seasons completed`}
+          description={`across ${overview.totalWatchedSeasons} seasons`}
           icon={<Calendar className="h-5 w-5" />}
         />
         <StatsCard

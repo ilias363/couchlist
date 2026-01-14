@@ -56,6 +56,7 @@ export interface UserStats {
     total: number;
     watched: number;
     currentlyWatching: number;
+    upToDate: number;
     wantToWatch: number;
     onHold: number;
     dropped: number;

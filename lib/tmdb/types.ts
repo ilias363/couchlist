@@ -246,10 +246,11 @@ export type WatchStatus =
   | "want_to_watch"
   | "currently_watching"
   | "watched"
+  | "up_to_date"
   | "on_hold"
   | "dropped";
 
-export type MovieWatchStatus = Exclude<WatchStatus, "currently_watching">;
+export type MovieWatchStatus = Exclude<WatchStatus, "currently_watching" | "up_to_date">;
 
 export interface StatusOption {
   value: string;

@@ -18,12 +18,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { WATCH_STATUSES } from "@/lib/tmdb/utils";
-import type { WatchStatus } from "@/lib/tmdb/types";
+import type { StatusOption, WatchStatus } from "@/lib/tmdb/types";
 import { cn } from "@/lib/utils";
 import { Check, Loader2, MoreVertical, Trash2 } from "lucide-react";
-
-type StatusOption = (typeof WATCH_STATUSES)[number];
 
 interface MediaCardMenuProps {
   menuOpen: boolean;

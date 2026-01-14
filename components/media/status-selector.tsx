@@ -16,6 +16,7 @@ import {
   CircleX,
   CirclePause,
   HelpCircle,
+  Clock,
 } from "lucide-react";
 import { useState, ReactNode } from "react";
 import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
@@ -55,6 +56,15 @@ const WATCH_STATUS_OPTIONS: StatusOption[] = [
     iconColor: "text-green-500",
     className:
       "hover:bg-green-500/20 hover:text-green-600 dark:hover:text-green-400 data-[active=true]:bg-green-500/20 data-[active=true]:text-green-600 dark:data-[active=true]:text-green-400",
+  },
+  {
+    value: "up_to_date",
+    label: "Up to Date",
+    icon: <Clock className="h-4 w-4" />,
+    iconColor: "text-cyan-500",
+    className:
+      "hover:bg-cyan-500/20 hover:text-cyan-600 dark:hover:text-cyan-400 data-[active=true]:bg-cyan-500/20 data-[active=true]:text-cyan-600 dark:data-[active=true]:text-cyan-400",
+    tvOnly: true,
   },
   {
     value: "on_hold",

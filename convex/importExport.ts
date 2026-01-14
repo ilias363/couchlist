@@ -80,6 +80,7 @@ const TvItem = v.object({
     v.literal("want_to_watch"),
     v.literal("currently_watching"),
     v.literal("watched"),
+    v.literal("up_to_date"),
     v.literal("on_hold"),
     v.literal("dropped")
   ),

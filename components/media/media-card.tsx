@@ -8,7 +8,7 @@ import { Film, Tv } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { WATCH_STATUSES } from "@/lib/tmdb/utils";
+import { MOVIE_STATUSES, WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { WatchedDateDialog } from "@/components/media/watched-date-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useMovieStatus } from "@/hooks/use-movie-status";
@@ -16,8 +16,6 @@ import { useTvSeriesStatus } from "@/hooks/use-tv-status";
 import { useSeasonData } from "@/hooks/use-season-data";
 import { useTMDBMovie, useTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { MediaCardMenu } from "./media-card-menu";
-
-const MOVIE_STATUS_OPTIONS = WATCH_STATUSES.filter(s => s.value !== "currently_watching");
 
 interface MediaCardProps {
   item: TMDBSearchResult;
@@ -44,7 +42,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
     setCurrentStatus(status ?? null);
   }, [status]);
 
-  const statusOptions = useMemo(() => (isMovie ? MOVIE_STATUS_OPTIONS : WATCH_STATUSES), [isMovie]);
+  const statusOptions = useMemo(() => (isMovie ? MOVIE_STATUSES : WATCH_STATUSES), [isMovie]);
 
   const { data: movieDetails } = useTMDBMovie(item.id, { enabled: isMovie && menuOpen });
   const { data: tvDetails } = useTMDBTvSeries(item.id, { enabled: isTv && menuOpen });
@@ -196,7 +194,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
             fallbackType={isMovie ? "movie" : "tv"}
             hoverZoom
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <span
             className={cn(
               "absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-xs font-medium backdrop-blur",
@@ -240,7 +238,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
 export function MediaCardSkeleton() {
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
-      <Skeleton className="aspect-[2/3] w-full" />
+      <Skeleton className="aspect-2/3 w-full" />
       <div className="p-3 space-y-2">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/4" />

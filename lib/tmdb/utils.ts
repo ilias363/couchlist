@@ -15,11 +15,14 @@ export const WATCH_STATUSES: StatusOption[] = [
   { value: "want_to_watch", label: "Want to Watch" },
   { value: "currently_watching", label: "Currently Watching" },
   { value: "watched", label: "Watched" },
+  { value: "up_to_date", label: "Up to Date" },
   { value: "on_hold", label: "On Hold" },
   { value: "dropped", label: "Dropped" },
 ];
 
-export const MOVIE_STATUSES = WATCH_STATUSES.filter(s => s.value !== "currently_watching");
+export const MOVIE_STATUSES = WATCH_STATUSES.filter(
+  s => s.value !== "currently_watching" && s.value !== "up_to_date"
+);
 
 export function getExternalLinks(args: {
   externalIds?: (MovieExternalIDs | TvSeriesExternalIDs) | null;

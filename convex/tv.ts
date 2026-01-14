@@ -105,6 +105,7 @@ export const setSeriesStatus = mutation({
       v.literal("want_to_watch"),
       v.literal("currently_watching"),
       v.literal("watched"),
+      v.literal("up_to_date"),
       v.literal("on_hold"),
       v.literal("dropped")
     ),
@@ -301,6 +302,7 @@ export const listUserTvSeries = query({
         v.literal("want_to_watch"),
         v.literal("currently_watching"),
         v.literal("watched"),
+        v.literal("up_to_date"),
         v.literal("on_hold"),
         v.literal("dropped")
       )
@@ -340,7 +342,15 @@ export const listAllTvStatuses = query({
 
     const result: Record<
       number,
-      { status: "want_to_watch" | "watched" | "on_hold" | "dropped" | "currently_watching" }
+      {
+        status:
+        | "want_to_watch"
+        | "watched"
+        | "on_hold"
+        | "dropped"
+        | "currently_watching"
+        | "up_to_date";
+      }
     > = {};
 
     for (const tv of userSeries) {

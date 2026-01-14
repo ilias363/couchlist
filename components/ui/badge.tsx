@@ -18,6 +18,7 @@ const badgeVariants = cva(
         want_to_watch: "border-transparent bg-blue-500/20 text-blue-600 dark:text-blue-400",
         currently_watching: "border-transparent bg-amber-500/20 text-amber-600 dark:text-amber-400",
         watched: "border-transparent bg-green-500/20 text-green-600 dark:text-green-400",
+        up_to_date: "border-transparent bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
         on_hold: "border-transparent bg-orange-500/20 text-orange-600 dark:text-orange-400",
         dropped: "border-transparent bg-red-500/20 text-red-600 dark:text-red-400",
       },
