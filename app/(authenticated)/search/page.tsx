@@ -39,7 +39,7 @@ function SearchView() {
         const trimmed = value.trim();
         setDebouncedQuery(trimmed);
       }, 500),
-    []
+    [],
   );
 
   const onChangeQuery = useCallback(
@@ -48,7 +48,7 @@ function SearchView() {
       setRawQuery(v);
       debouncedUpdate(v);
     },
-    [debouncedUpdate]
+    [debouncedUpdate],
   );
 
   const {
@@ -110,17 +110,17 @@ function SearchView() {
       <div className="p-4 rounded-xl bg-card border border-border/50 space-y-4">
         {/* Search Input */}
         <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
           <Input
             id="search-input"
             placeholder="Search for movies, TV series..."
             value={rawQuery}
             onChange={onChangeQuery}
-            className="pl-12 h-12 text-base rounded-xl bg-background"
+            className="pl-12 h-12 text-base rounded-xl"
             aria-label="Search movies or TV series"
           />
           {loading && debouncedQuery && (
-            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
+            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground z-10" />
           )}
         </div>
 

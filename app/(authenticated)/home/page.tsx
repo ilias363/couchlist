@@ -5,22 +5,30 @@ import { Sparkles, TrendingUp, Star, Play, Calendar } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="space-y-10">
+    <div className="space-y-12 relative">
+      {/* Ambient background effect */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/3 w-150 h-150 bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl opacity-60" />
+        <div className="absolute bottom-1/4 right-0 w-100 h-100 bg-gradient-radial from-primary/8 to-transparent rounded-full blur-3xl opacity-40" />
+      </div>
+
       {/* Page Header */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/10">
-            <Sparkles className="h-6 w-6 text-primary" />
+      <div className="space-y-3 animate-fade-up">
+        <div className="flex items-center gap-4">
+          <div className="p-3 rounded-2xl bg-primary/10 shadow-lg shadow-primary/10">
+            <Sparkles className="h-7 w-7 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Discover</h1>
-            <p className="text-muted-foreground">Explore trending and popular movies & TV series</p>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tighter">Discover</h1>
+            <p className="text-muted-foreground mt-0.5">
+              Explore trending and popular movies & TV series
+            </p>
           </div>
         </div>
       </div>
 
       {/* Trending Section */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         <CategorySection
           title="Trending Movies"
           subtitle="What everyone's watching this week"
@@ -38,7 +46,7 @@ export default function HomePage() {
       </div>
 
       {/* Popular Section */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         <CategorySection
           title="Popular Movies"
           subtitle="Fan favorites and crowd pleasers"
@@ -58,7 +66,7 @@ export default function HomePage() {
       </div>
 
       {/* Top Rated Section */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         <CategorySection
           title="Top Rated Movies"
           subtitle="Critically acclaimed masterpieces"
@@ -78,7 +86,7 @@ export default function HomePage() {
       </div>
 
       {/* Now Playing / Airing Section */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         <CategorySection
           title="Now Playing"
           subtitle="Currently in theaters"

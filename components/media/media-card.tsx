@@ -33,7 +33,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
   const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>(
-    undefined
+    undefined,
   );
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -49,13 +49,13 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
 
   const movieStatus = useMovieStatus(
     isMovie ? item.id : 0,
-    isMovie ? movieDetails?.runtime : undefined
+    isMovie ? movieDetails?.runtime : undefined,
   );
   const tvStatus = useTvSeriesStatus(isTv ? item.id : 0);
 
   const { filteredSeasons, fetchAllSeasons } = useSeasonData(
     isTv ? item.id : 0,
-    isTv ? tvDetails?.seasons : undefined
+    isTv ? tvDetails?.seasons : undefined,
   );
 
   const updating = isMovie ? movieStatus.updating : tvStatus.updating;
@@ -77,7 +77,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
         setWatchedDialogDefaultMs(undefined);
       }
     },
-    [isMovie, movieStatus, tvStatus]
+    [isMovie, movieStatus, tvStatus],
   );
 
   const handleStatusSelect = useCallback(
@@ -109,7 +109,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
         setMenuOpen(false);
       }
     },
-    [currentStatus, isMovie, movieStatus, tvStatus]
+    [currentStatus, isMovie, movieStatus, tvStatus],
   );
 
   const handleWatchedConfirm = useCallback(
@@ -127,7 +127,7 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
         setWatchedDialogDefaultMs(undefined);
       }
     },
-    [fetchAllSeasons, isMovie, movieStatus, tvStatus]
+    [fetchAllSeasons, isMovie, movieStatus, tvStatus],
   );
 
   const handleRemove = useCallback(async () => {
@@ -165,8 +165,8 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
   return (
     <div
       className={cn(
-        "group relative h-full flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm",
-        className
+        "group relative h-full flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500",
+        className,
       )}
     >
       <MediaCardMenu
@@ -185,37 +185,44 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
       />
 
       <Link href={itemLink} className="flex h-full flex-col" prefetch={false}>
-        <div className="relative">
+        <div className="relative overflow-hidden">
           <PosterImage
             src={item.poster_path}
             size="w780"
             alt={title}
-            className="w-full"
+            className="w-full transition-transform duration-500 group-hover:scale-105"
             fallbackType={isMovie ? "movie" : "tv"}
             hoverZoom
           />
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background/80 via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
           <span
             className={cn(
-              "absolute left-2 top-2 inline-flex items-center gap-1 rounded-md bg-background/80 px-2 py-1 text-xs font-medium backdrop-blur",
-              isMovie ? "text-blue-600 dark:text-blue-400" : "text-violet-600 dark:text-violet-400"
+              "absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-background/90 px-2.5 py-1.5 text-xs font-semibold backdrop-blur-xl shadow-sm",
+              isMovie ? "text-primary" : "text-primary",
             )}
           >
             {isMovie ? <Film className="h-3 w-3" /> : <Tv className="h-3 w-3" />}{" "}
             {isMovie ? "Movie" : "TV"}
           </span>
           {currentStatus ? (
-            <Badge variant={currentStatus} className="absolute left-2 bottom-2 backdrop-blur">
+            <Badge
+              variant={currentStatus}
+              className="absolute left-2 bottom-2 backdrop-blur-xl shadow-sm"
+            >
               {statusLabel}
             </Badge>
           ) : null}
         </div>
-        <div className="flex flex-1 flex-col p-3">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-tight">{title}</h3>
+        <div className="flex flex-1 flex-col p-3.5">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-tight tracking-tight">
+            {title}
+          </h3>
           {date && (
-            <p className="mt-1 text-xs text-muted-foreground">{new Date(date).getFullYear()}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground font-medium">
+              {new Date(date).getFullYear()}
+            </p>
           )}
-          <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+          <p className="mt-2.5 line-clamp-3 text-xs text-muted-foreground leading-relaxed">
             {item.overview || "No overview available."}
           </p>
         </div>
@@ -237,9 +244,9 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
 
 export function MediaCardSkeleton() {
   return (
-    <div className="flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm">
+    <div className="flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card">
       <Skeleton className="aspect-2/3 w-full" />
-      <div className="p-3 space-y-2">
+      <div className="p-3.5 space-y-2.5">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/4" />
         <Skeleton className="h-3 w-full" />

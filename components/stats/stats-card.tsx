@@ -15,16 +15,16 @@ interface StatsCardProps {
 
 export function StatsCard({ title, value, description, icon, trend, className }: StatsCardProps) {
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden group hover:border-primary/30", className)}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-3xl font-bold tracking-tight gradient-text">{value}</p>
             {description && <p className="text-xs text-muted-foreground">{description}</p>}
           </div>
           {icon && (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/15 group-hover:scale-110 transition-all duration-300">
               {icon}
             </div>
           )}

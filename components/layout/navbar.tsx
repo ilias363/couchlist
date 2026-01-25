@@ -25,12 +25,18 @@ export function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo */}
-          <Link href="/home" className="flex items-center gap-2 font-bold text-xl">
-            <Image src="/logo.png" alt="CouchList" width={32} height={32} className="w-8 h-8" />
-            <span className="hidden sm:inline-block">CouchList</span>
+          <Link href="/home" className="flex items-center gap-2.5 font-bold text-xl group">
+            <Image
+              src="/logo.png"
+              alt="CouchList"
+              width={32}
+              height={32}
+              className="w-8 h-8 drop-shadow-lg group-hover:scale-110 transition-transform duration-300"
+            />
+            <span className="hidden sm:inline-block tracking-tight">CouchList</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -43,11 +49,16 @@ export function Navbar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                    isActive && "bg-accent text-accent-foreground"
+                    "flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-primary/10 hover:text-primary",
+                    isActive && "bg-primary/10 text-primary shadow-sm",
                   )}
                 >
-                  <Icon className="h-4 w-4" />
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-300",
+                      isActive && "scale-110",
+                    )}
+                  />
                   {item.label}
                 </Link>
               );
@@ -60,7 +71,10 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                className={cn("hover:cursor-pointer", pathname === "/settings" && "bg-accent")}
+                className={cn(
+                  "hover:cursor-pointer hover:bg-primary/10 hover:text-primary transition-all duration-300",
+                  pathname === "/settings" && "bg-primary/10 text-primary",
+                )}
               >
                 <Settings className="h-4 w-4" />
                 <span className="sr-only">Settings</span>
@@ -73,7 +87,7 @@ export function Navbar() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="md:hidden hover:bg-primary/10 hover:text-primary transition-all duration-300"
               onClick={() => setMobileMenuOpen(true)}
             >
               <Menu className="h-5 w-5" />

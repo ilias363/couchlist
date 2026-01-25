@@ -14,15 +14,15 @@ export function PageHeader({ title, subtitle, actions, className }: PageHeaderPr
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between",
-        className
+        "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between animate-fade-up",
+        className,
       )}
     >
       <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
-        {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+        <h1 className="text-2xl sm:text-4xl font-bold tracking-tighter">{title}</h1>
+        {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
       </div>
-      {actions && <div className="mt-2 flex items-center gap-2 sm:mt-0">{actions}</div>}
+      {actions && <div className="mt-3 flex items-center gap-3 sm:mt-0">{actions}</div>}
     </div>
   );
 }
