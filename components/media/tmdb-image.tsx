@@ -18,6 +18,7 @@ interface BaseProps {
   fallback?: React.ReactNode;
   sizesAttr?: string;
   overlay?: React.ReactNode;
+  unoptimized?: boolean;
 }
 
 function BaseTMDBImage({
@@ -31,6 +32,7 @@ function BaseTMDBImage({
   fallback,
   sizesAttr,
   overlay,
+  unoptimized,
 }: BaseProps) {
   const [errored, setErrored] = useState(false);
   const url = getTMDBImgUrl(src, size);
@@ -40,7 +42,7 @@ function BaseTMDBImage({
         className={cn(
           "flex items-center justify-center bg-muted text-muted-foreground overflow-hidden rounded-md w-full",
           aspect,
-          className
+          className,
         )}
       >
         {fallback || <ImageIcon className="h-6 w-6 opacity-60" />}
@@ -53,7 +55,7 @@ function BaseTMDBImage({
         "relative overflow-hidden rounded-md w-full",
         aspect,
         hoverZoom && "group",
-        className
+        className,
       )}
     >
       <Image
@@ -61,9 +63,10 @@ function BaseTMDBImage({
         alt={alt}
         fill
         sizes={sizesAttr}
+        unoptimized={unoptimized}
         className={cn(
           "object-cover",
-          hoverZoom && "transition-transform duration-300 group-hover:scale-105"
+          hoverZoom && "transition-transform duration-300 group-hover:scale-105",
         )}
         onError={() => setErrored(true)}
         priority={priority}
@@ -73,8 +76,10 @@ function BaseTMDBImage({
   );
 }
 
-export interface PosterImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr"> {
+export interface PosterImageProps extends Omit<
+  BaseProps,
+  "size" | "aspect" | "fallback" | "sizesAttr"
+> {
   size?: PosterSize;
   fallbackType?: "movie" | "tv";
 }
@@ -92,8 +97,10 @@ export function PosterImage({ size = "w500", fallbackType = "movie", ...rest }: 
   );
 }
 
-export interface BackdropImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr" | "overlay"> {
+export interface BackdropImageProps extends Omit<
+  BaseProps,
+  "size" | "aspect" | "fallback" | "sizesAttr" | "overlay" | "unoptimized"
+> {
   size?: BackdropSize;
   gradient?: "none" | "top" | "bottom" | "both";
 }
@@ -102,10 +109,10 @@ export function BackdropImage({ size = "w1280", gradient = "none", ...rest }: Ba
     gradient === "none" ? undefined : (
       <>
         {(gradient === "top" || gradient === "both") && (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-background/60 to-background/10" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-background via-background/60 to-background/10" />
         )}
         {(gradient === "bottom" || gradient === "both") && (
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
+          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/60 to-background/10" />
         )}
       </>
     );
@@ -114,14 +121,17 @@ export function BackdropImage({ size = "w1280", gradient = "none", ...rest }: Ba
       {...rest}
       size={size}
       aspect="aspect-[16/9]"
-      sizesAttr="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      sizesAttr="100vw"
       overlay={overlay}
+      unoptimized
     />
   );
 }
 
-export interface StillImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr"> {
+export interface StillImageProps extends Omit<
+  BaseProps,
+  "size" | "aspect" | "fallback" | "sizesAttr"
+> {
   size?: StillSize;
 }
 export function StillImage({ size = "w300", ...rest }: StillImageProps) {
@@ -135,8 +145,10 @@ export function StillImage({ size = "w300", ...rest }: StillImageProps) {
   );
 }
 
-export interface LogoImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr"> {
+export interface LogoImageProps extends Omit<
+  BaseProps,
+  "size" | "aspect" | "fallback" | "sizesAttr"
+> {
   size?: LogoSize;
   transparentBg?: boolean;
 }
@@ -154,15 +166,17 @@ export function LogoImage({
       className={cn(
         "flex items-center justify-center p-2",
         transparentBg ? "bg-transparent" : "bg-muted",
-        className
+        className,
       )}
       sizesAttr="(max-width: 768px) 40vw, 20vw"
     />
   );
 }
 
-export interface ProfileImageProps
-  extends Omit<BaseProps, "size" | "aspect" | "fallback" | "sizesAttr"> {
+export interface ProfileImageProps extends Omit<
+  BaseProps,
+  "size" | "aspect" | "fallback" | "sizesAttr"
+> {
   size?: ProfileSize;
   rounded?: boolean;
 }
