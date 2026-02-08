@@ -151,13 +151,13 @@ export default function StatsPage() {
         <StatsCard
           title="Movies Watched"
           value={overview.totalWatchedMovies}
-          description={`${overview.totalStartedMovies} total in library`}
+          description={`${overview.totalStartedMovies} started movies`}
           icon={<Film className="h-5 w-5" />}
         />
         <StatsCard
           title="TV Shows Watched"
           value={overview.totalWatchedTvSeries}
-          description={`${overview.totalStartedTvSeries} total in library`}
+          description={`${overview.totalStartedTvSeries} started series`}
           icon={<Tv className="h-5 w-5" />}
         />
         <StatsCard
