@@ -11,7 +11,7 @@ export function EpisodeFilters({
   const options: { key: typeof filter; label: string; icon: React.ReactNode }[] = [
     { key: "all", label: "All", icon: <List className="h-4 w-4" /> },
     { key: "watched", label: "Watched", icon: <Eye className="h-4 w-4" /> },
-    { key: "unwatched", label: "Unwatched", icon: <EyeOff className="h-4 w-4" /> },
+    { key: "unwatched", label: "Remaining", icon: <EyeOff className="h-4 w-4" /> },
   ];
 
   return (

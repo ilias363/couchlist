@@ -26,7 +26,7 @@ export default function SeasonDetailsPage() {
   const { data: season, isLoading: loading, error } = useTMDBSeason(seriesId, seasonNum);
   const { data: series } = useTMDBTvSeries(seriesId);
   const [bulkUpdating, setBulkUpdating] = useState(false);
-  const [filter, setFilter] = useState<"all" | "watched" | "unwatched">("all");
+  const [filter, setFilter] = useState<"all" | "watched" | "unwatched">("unwatched");
 
   const episodeStatuses = useQuery(
     api.tv.getSeasonEpisodesStatus,
