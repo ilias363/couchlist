@@ -24,7 +24,7 @@ export default function MovieDetailsPage() {
   // Status management hook
   const { handleStatusChange, handleRemove, updating } = useMovieStatus(
     tmdbId,
-    movie?.runtime || null
+    movie?.runtime || null,
   );
 
   if (isLoading) {
@@ -75,24 +75,20 @@ export default function MovieDetailsPage() {
       />
 
       {/* Recommendations */}
-      {movie.recommendations.results.length > 0 && (
+      {movie.recommendations.results.length > 0 ? (
         <MediaCarousel
           title="Recommended"
-          items={movie.recommendations.results.map(it => {
-            return { ...it, media_type: "movie" as const };
-          })}
+          items={movie.recommendations.results.map(it => ({ ...it, media_type: "movie" as const }))}
         />
-      )}
+      ) : null}
 
       {/* Similar Movies */}
-      {movie.similar.results.length > 0 && (
+      {movie.similar.results.length > 0 ? (
         <MediaCarousel
           title="Similar movies"
-          items={movie.similar.results.map(it => {
-            return { ...it, media_type: "movie" as const };
-          })}
+          items={movie.similar.results.map(it => ({ ...it, media_type: "movie" as const }))}
         />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,3 @@
-"use server";
-
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";

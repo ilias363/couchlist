@@ -87,23 +87,19 @@ export default function TvSeriesDetailsPage() {
 
         <SeasonsSection seriesId={series.id} seasons={series.seasons} />
 
-        {series.recommendations.results.length > 0 && (
+        {series.recommendations.results.length > 0 ? (
           <MediaCarousel
             title="Recommended"
-            items={series.recommendations.results.map(it => {
-              return { ...it, media_type: "tv" };
-            })}
+            items={series.recommendations.results.map(it => ({ ...it, media_type: "tv" as const }))}
           />
-        )}
+        ) : null}
 
-        {series.similar.results.length > 0 && (
+        {series.similar.results.length > 0 ? (
           <MediaCarousel
             title="Similar series"
-            items={series.similar.results.map(it => {
-              return { ...it, media_type: "tv" };
-            })}
+            items={series.similar.results.map(it => ({ ...it, media_type: "tv" as const }))}
           />
-        )}
+        ) : null}
       </div>
     </div>
   );

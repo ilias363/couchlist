@@ -159,7 +159,7 @@ export function MovieDetailsGrid({
       </Card>
 
       {/* Financials Card */}
-      {(budget > 0 || revenue > 0) && (
+      {budget > 0 || revenue > 0 ? (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -197,7 +197,7 @@ export function MovieDetailsGrid({
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Links Card */}
       <LinksCard

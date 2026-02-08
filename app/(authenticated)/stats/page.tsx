@@ -1,19 +1,30 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  DoughnutChart,
-  BarChart,
-  LineChart,
   getStatusDistributionColors,
   doughnutOptions,
   weekdayLabel,
   barOptions,
 } from "@/components/stats/charts";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const DoughnutChart = dynamic(
+  () => import("@/components/stats/charts").then(m => ({ default: m.DoughnutChart })),
+  { ssr: false }
+);
+const BarChart = dynamic(
+  () => import("@/components/stats/charts").then(m => ({ default: m.BarChart })),
+  { ssr: false }
+);
+const LineChart = dynamic(
+  () => import("@/components/stats/charts").then(m => ({ default: m.LineChart })),
+  { ssr: false }
+);
 import {
   Flame,
   BarChart3,
@@ -26,22 +37,28 @@ import {
   TrendingUp,
   Calendar,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { UserStats } from "@/lib/types";
 import { Section } from "@/components/stats/section";
 import { AccentHeader } from "@/components/stats/accent-header";
 import { Sparkline } from "@/components/stats/spark-line";
 import { StatsCard } from "@/components/stats/stats-card";
 
+let didInit = false;
+
 export default function StatsPage() {
   const [data, setData] = useState<UserStats | undefined>(undefined);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const getStats = useMutation(api.stats.getUserStats);
   const refreshStats = useMutation(api.stats.refreshStats);
+  const getStatsRef = useRef(getStats);
+  getStatsRef.current = getStats;
 
   useEffect(() => {
-    getStats().then(setData);
-  }, [getStats]);
+    if (didInit) return;
+    didInit = true;
+    getStatsRef.current().then(setData);
+  }, []);
 
   if (!data) return <LoadingState />;
   const {
@@ -84,9 +101,8 @@ export default function StatsPage() {
     ],
   };
 
-  const weeklyLabels = weeklyActivity.map(w => w.label);
   const weeklyChartData = {
-    labels: weeklyLabels,
+    labels: weeklyActivity.map(w => w.label),
     datasets: [
       {
         label: "Movies Watched",

@@ -80,7 +80,8 @@ function TvSeriesView() {
         )}
         {results.map(m => {
           const details = detailsMap.get(m.tvSeriesId);
-          const item = { ...details, media_type: "tv" } as TMDBSearchResult;
+          if (!details) return <MediaCardSkeleton key={`tv-${m.tvSeriesId}`} />;
+          const item = { ...details, media_type: "tv" as const };
           return <MediaCard key={`tv-${m.tvSeriesId}`} item={item} status={m.status} />;
         })}
       </div>

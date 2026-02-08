@@ -49,11 +49,9 @@ export default function TvStatusPage() {
         };
       })
       .filter(item => {
-        // Filter by user watch status
         if (watchStatusFilter !== "all" && item.userStatus !== watchStatusFilter) {
           return false;
         }
-        // Filter by TMDB status
         if (tmdbStatusFilter !== "All" && item.tmdbStatus !== tmdbStatusFilter) {
           return false;
         }

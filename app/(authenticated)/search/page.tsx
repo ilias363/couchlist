@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { debounce } from "lodash";
+import debounce from "lodash/debounce";
 import { Film, Tv, Search, Sparkles, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";

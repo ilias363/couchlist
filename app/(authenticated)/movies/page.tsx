@@ -80,7 +80,8 @@ function MoviesView() {
         )}
         {results.map(m => {
           const details = detailsMap.get(m.movieId);
-          const item = { ...details, media_type: "movie" } as TMDBSearchResult;
+          if (!details) return <MediaCardSkeleton key={`movie-${m.movieId}`} />;
+          const item = { ...details, media_type: "movie" as const };
           return <MediaCard key={`movie-${m.movieId}`} item={item} status={m.status} />;
         })}
       </div>

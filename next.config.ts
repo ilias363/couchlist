@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactCompiler: true,
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   images: {
     remotePatterns: [
       {
