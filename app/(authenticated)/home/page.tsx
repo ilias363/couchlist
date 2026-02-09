@@ -14,13 +14,13 @@ export default function HomePage() {
 
       {/* Page Header */}
       <div className="space-y-3 animate-fade-up">
-        <div className="flex items-center gap-4">
-          <div className="p-3 rounded-2xl bg-primary/10 shadow-lg shadow-primary/10">
-            <Sparkles className="h-7 w-7 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tighter">Discover</h1>
-            <p className="text-muted-foreground mt-0.5">
+            <p className="text-muted-foreground mt-0.5 text-sm sm:text-base">
               Explore trending and popular movies & TV series
             </p>
           </div>

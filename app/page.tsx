@@ -42,19 +42,19 @@ function WelcomePageContent() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60">
-        <div className="container flex h-14 sm:h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2.5 font-bold text-lg sm:text-xl">
+      <header className="sticky top-0 z-40 w-full border-b border-border/30 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-2.5 font-bold text-xl group">
             <Image
               src="/logo.png"
               alt="CouchList"
               width={32}
               height={32}
-              className="w-7 h-7 sm:w-8 sm:h-8 drop-shadow-lg"
+              className="w-8 h-8 drop-shadow-md group-hover:scale-110 transition-transform duration-300"
             />
-            <span className="tracking-tight">CouchList</span>
+            <span className="tracking-tight font-display">CouchList</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <ThemeToggle />
             <SignInButton mode="modal">
               <Button
@@ -66,10 +66,7 @@ function WelcomePageContent() {
               </Button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <Button
-                size="sm"
-                className="shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
-              >
+              <Button size="sm" className="transition-all duration-300">
                 Get Started
               </Button>
             </SignUpButton>

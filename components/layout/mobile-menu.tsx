@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { X, Settings, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface NavItem {
   href: string;
@@ -21,10 +21,15 @@ interface MobileMenuProps {
 
 export function MobileMenu({ open, onClose, navItems }: MobileMenuProps) {
   const pathname = usePathname();
+  const prevPathname = useRef(pathname);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on route change
+  // Close menu on route change (only when path actually changes)
   useEffect(() => {
-    onClose();
+    if (prevPathname.current !== pathname) {
+      prevPathname.current = pathname;
+      onClose();
+    }
   }, [pathname, onClose]);
 
   // Prevent body scroll when menu is open
@@ -39,33 +44,63 @@ export function MobileMenu({ open, onClose, navItems }: MobileMenuProps) {
     };
   }, [open]);
 
-  if (!open) return null;
+  // Trap focus & handle Escape
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [open, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
-      {/* Backdrop */}
+    <div
+      className={cn(
+        "fixed inset-0 z-50 md:hidden",
+        // Always in DOM, toggle pointer-events & visibility via CSS
+        open ? "pointer-events-auto" : "pointer-events-none",
+      )}
+      aria-hidden={!open}
+    >
+      {/* Backdrop — opacity transition only, no blur to avoid GPU stalls */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-md animate-in fade-in-0"
+        className={cn(
+          "absolute inset-0 bg-black/60 transition-opacity duration-300 ease-out",
+          open ? "opacity-100" : "opacity-0",
+        )}
         onClick={onClose}
       />
 
-      {/* Menu Content */}
-      <div className="fixed inset-x-0 top-0 bg-background/95 backdrop-blur-2xl border-b border-border/40 shadow-2xl animate-in slide-in-from-top-5 duration-300">
-        <div className="flex items-center justify-between p-4 border-b border-border/40">
-          <span className="font-bold text-lg tracking-tight">Menu</span>
+      {/* Slide-in panel from the right */}
+      <div
+        ref={panelRef}
+        className={cn(
+          "absolute inset-y-0 right-0 w-[min(80vw,320px)] flex flex-col",
+          "bg-background/95 backdrop-blur-xl border-l border-border/40",
+          "shadow-[-4px_0_20px_rgba(0,0,0,0.08)] dark:shadow-[-4px_0_30px_rgba(0,0,0,0.3)]",
+          // GPU-composited slide transition
+          "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform",
+          open ? "translate-x-0" : "translate-x-full",
+        )}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
+          <span className="font-display text-lg tracking-tight text-foreground">Menu</span>
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="hover:bg-primary/10 hover:text-primary"
+            className="h-9 w-9 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors duration-200"
           >
             <X className="h-5 w-5" />
             <span className="sr-only">Close menu</span>
           </Button>
         </div>
 
-        <nav className="flex flex-col p-4 gap-1.5">
-          {navItems.map((item, index) => {
+        {/* Nav items */}
+        <nav className="flex-1 flex flex-col px-3 py-3 gap-0.5 overflow-y-auto overscroll-contain">
+          {navItems.map(item => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -73,37 +108,50 @@ export function MobileMenu({ open, onClose, navItems }: MobileMenuProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-medium transition-all duration-300 hover:bg-primary/10 hover:text-primary",
-                  isActive && "bg-primary/10 text-primary",
-                  "animate-fade-up",
+                  "relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium",
+                  "transition-colors duration-200",
+                  "active:scale-[0.98] active:transition-transform",
+                  isActive
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
                 )}
-                style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <Icon
-                  className={cn(
-                    "h-5 w-5 transition-transform duration-300",
-                    isActive && "scale-110",
-                  )}
-                />
+                {/* Active left accent */}
+                {isActive && (
+                  <span className="absolute left-1 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-full bg-primary" />
+                )}
+                <Icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
                 {item.label}
               </Link>
             );
           })}
 
-          <div className="my-3 h-px bg-border/50" />
+          <div className="my-2 mx-3 h-px bg-border/80" />
 
           <Link
             href="/settings"
             className={cn(
-              "flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-medium transition-all duration-300 hover:bg-primary/10 hover:text-primary animate-fade-up",
-              pathname === "/settings" && "bg-primary/10 text-primary",
+              "relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium",
+              "transition-colors duration-200",
+              "active:scale-[0.98] active:transition-transform",
+              pathname === "/settings"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
             )}
-            style={{ animationDelay: `${navItems.length * 0.05}s` }}
           >
-            <Settings className="h-5 w-5" />
+            {pathname === "/settings" && (
+              <span className="absolute left-1 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-full bg-primary" />
+            )}
+            <Settings
+              className={cn("h-5 w-5 shrink-0", pathname === "/settings" && "text-primary")}
+            />
             Settings
           </Link>
         </nav>
+
+        {/* Bottom ambient line */}
+        <div className="h-px mx-4 bg-linear-to-r from-transparent via-border/40 to-transparent" />
+        <div className="px-5 py-4 text-xs text-muted-foreground/60 text-center">CouchList</div>
       </div>
     </div>
   );
