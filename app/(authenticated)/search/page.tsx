@@ -97,15 +97,6 @@ function SearchView() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
-          <Search className="h-7 w-7 text-primary" />
-          Search
-        </h1>
-        <p className="text-muted-foreground">Find movies and TV series from The Movie Database</p>
-      </div>
-
       {/* Search Controls */}
       <div className="p-4 rounded-xl bg-card border border-border/50 space-y-4">
         {/* Search Input */}

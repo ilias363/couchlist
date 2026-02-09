@@ -15,19 +15,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const DoughnutChart = dynamic(
   () => import("@/components/stats/charts").then(m => ({ default: m.DoughnutChart })),
-  { ssr: false }
+  { ssr: false },
 );
 const BarChart = dynamic(
   () => import("@/components/stats/charts").then(m => ({ default: m.BarChart })),
-  { ssr: false }
+  { ssr: false },
 );
 const LineChart = dynamic(
   () => import("@/components/stats/charts").then(m => ({ default: m.LineChart })),
-  { ssr: false }
+  { ssr: false },
 );
 import {
   Flame,
-  BarChart3,
   Clock,
   Film,
   Tv,
@@ -43,6 +42,8 @@ import { Section } from "@/components/stats/section";
 import { AccentHeader } from "@/components/stats/accent-header";
 import { Sparkline } from "@/components/stats/spark-line";
 import { StatsCard } from "@/components/stats/stats-card";
+
+import { PageTitle } from "@/components/layout/page-title";
 
 let didInit = false;
 
@@ -126,41 +127,35 @@ export default function StatsPage() {
   return (
     <div className="space-y-4">
       {/* Page Header with Refresh Button */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="rounded-lg bg-primary/10 p-3">
-            <BarChart3 className="h-6 w-6 text-primary" />
+      <PageTitle
+        title="Your Insights"
+        subtitle="Visual breakdown of your viewing patterns & progress"
+        actions={
+          <div className="flex flex-col w-full sm:flex-row items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Last updated: {new Date(generatedAt).toLocaleString()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                setIsRefreshing(true);
+                try {
+                  const newStats = await refreshStats();
+                  setData(newStats);
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              disabled={isRefreshing}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Your Insights</h1>
-            <p className="text-muted-foreground">
-              Visual breakdown of your viewing patterns & progress
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Last updated: {new Date(generatedAt).toLocaleString()}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={async () => {
-              setIsRefreshing(true);
-              try {
-                const newStats = await refreshStats();
-                setData(newStats);
-              } finally {
-                setIsRefreshing(false);
-              }
-            }}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

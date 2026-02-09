@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmButton } from "@/components/common/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImportedDataResult, ImportMode } from "@/lib/types";
-import { Settings, Download, Upload, Trash2, AlertTriangle, FileJson, Loader2 } from "lucide-react";
+import { Download, Upload, Trash2, AlertTriangle, FileJson, Loader2 } from "lucide-react";
+import { PageTitle } from "@/components/layout/page-title";
 
 export default function SettingsPage() {
   const convex = useConvex();
@@ -95,16 +96,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Page Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="rounded-lg bg-primary/10 p-3">
-          <Settings className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground">Manage your tracked data</p>
-        </div>
-      </div>
+      <PageTitle title="Settings" subtitle="Manage your tracked data" className="mb-4" />
 
       {/* Error Display */}
       {error && (

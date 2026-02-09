@@ -3,14 +3,14 @@
 import { Suspense, useCallback } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { MOVIE_STATUSES, WATCH_STATUSES } from "@/lib/tmdb/utils";
+import { MOVIE_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { StatusFilter } from "@/components/media/status-filter";
 import { useBatchTMDBMovies } from "@/lib/tmdb/react-query";
-import { Clapperboard } from "lucide-react";
-import { TMDBSearchResult, MovieWatchStatus } from "@/lib/tmdb/types";
+import { MovieWatchStatus } from "@/lib/tmdb/types";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { PageTitle } from "@/components/layout/page-title";
 
 export default function MoviesPage() {
   return (
@@ -38,7 +38,7 @@ function MoviesView() {
       }
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams],
   );
 
   const {
@@ -48,7 +48,7 @@ function MoviesView() {
   } = usePaginatedQuery(
     api.movie.listUserMovies,
     { status: status as MovieWatchStatus | undefined },
-    { initialNumItems: 30 }
+    { initialNumItems: 30 },
   );
 
   const { map: detailsMap } = useBatchTMDBMovies(results.map(r => r.movieId));
@@ -57,16 +57,7 @@ function MoviesView() {
 
   return (
     <div className="mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-primary/10">
-          <Clapperboard className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Movies</h1>
-          <p className="text-muted-foreground text-sm">Tracked movies ordered by recent updates</p>
-        </div>
-      </div>
+      <PageTitle title="My Movies" subtitle="Tracked movies ordered by recent updates" />
 
       <StatusFilter options={MOVIE_STATUSES} value={status} onChange={setStatus} />
 

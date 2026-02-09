@@ -7,10 +7,10 @@ import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { StatusFilter } from "@/components/media/status-filter";
-import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
+import { WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
-import { Tv } from "lucide-react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { PageTitle } from "@/components/layout/page-title";
 
 export default function TvSeriesPage() {
   return (
@@ -38,7 +38,7 @@ function TvSeriesView() {
       }
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams],
   );
 
   const {
@@ -48,7 +48,7 @@ function TvSeriesView() {
   } = usePaginatedQuery(
     api.tv.listUserTvSeries,
     { status: status as WatchStatus | undefined },
-    { initialNumItems: 30 }
+    { initialNumItems: 30 },
   );
 
   const { map: detailsMap } = useBatchTMDBTvSeries(results.map(r => r.tvSeriesId));
@@ -57,16 +57,7 @@ function TvSeriesView() {
 
   return (
     <div className="mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-primary/10">
-          <Tv className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My TV Series</h1>
-          <p className="text-muted-foreground text-sm">Tracked series ordered by recent updates</p>
-        </div>
-      </div>
+      <PageTitle title="My TV Series" subtitle="Tracked series ordered by recent updates" />
 
       <StatusFilter options={WATCH_STATUSES} value={status} onChange={setStatus} />
 
