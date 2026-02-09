@@ -3,19 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useTMDBCategoryFeed } from "@/lib/tmdb/react-query";
 import { MediaCarousel } from "../media/media-carousel";
-import { LucideIcon } from "lucide-react";
 
 interface CategorySectionProps {
   title: string;
   subtitle?: string;
-  icon?: LucideIcon;
   type: "movie" | "tv";
   category: "trending" | "popular" | "top_rated" | "now_playing" | "airing_today";
   defer?: boolean;
 }
 
 export function CategorySection(props: CategorySectionProps) {
-  const { title, subtitle, icon, defer = false } = props;
+  const { title, subtitle, defer = false } = props;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(!defer);
 
@@ -40,7 +38,7 @@ export function CategorySection(props: CategorySectionProps) {
       {active ? (
         <CategorySectionContent {...props} />
       ) : (
-        <MediaCarousel title={title} subtitle={subtitle} icon={icon} items={[]} isLoading />
+        <MediaCarousel title={title} subtitle={subtitle} items={[]} isLoading />
       )}
     </div>
   );
@@ -49,7 +47,6 @@ export function CategorySection(props: CategorySectionProps) {
 function CategorySectionContent({
   title,
   subtitle,
-  icon,
   type,
   category,
 }: Omit<CategorySectionProps, "defer">) {
@@ -81,7 +78,6 @@ function CategorySectionContent({
     <MediaCarousel
       title={title}
       subtitle={subtitle}
-      icon={icon}
       items={items}
       isLoading={isLoading}
       hasNextPage={hasNextPage}

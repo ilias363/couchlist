@@ -1,7 +1,7 @@
 "use client";
 
 import { CategorySection } from "@/components/home/category-section";
-import { Sparkles, TrendingUp, Star, Play, Calendar } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -32,14 +32,12 @@ export default function HomePage() {
         <CategorySection
           title="Trending Movies"
           subtitle="What everyone's watching this week"
-          icon={TrendingUp}
           type="movie"
           category="trending"
         />
         <CategorySection
           title="Trending TV Shows"
           subtitle="The hottest series right now"
-          icon={TrendingUp}
           type="tv"
           category="trending"
         />
@@ -50,7 +48,6 @@ export default function HomePage() {
         <CategorySection
           title="Popular Movies"
           subtitle="Fan favorites and crowd pleasers"
-          icon={Star}
           type="movie"
           category="popular"
           defer
@@ -58,7 +55,6 @@ export default function HomePage() {
         <CategorySection
           title="Popular TV Shows"
           subtitle="Binge-worthy series everyone loves"
-          icon={Star}
           type="tv"
           category="popular"
           defer
@@ -70,7 +66,6 @@ export default function HomePage() {
         <CategorySection
           title="Top Rated Movies"
           subtitle="Critically acclaimed masterpieces"
-          icon={Star}
           type="movie"
           category="top_rated"
           defer
@@ -78,7 +73,6 @@ export default function HomePage() {
         <CategorySection
           title="Top Rated TV Shows"
           subtitle="The best of television"
-          icon={Star}
           type="tv"
           category="top_rated"
           defer
@@ -90,7 +84,6 @@ export default function HomePage() {
         <CategorySection
           title="Now Playing"
           subtitle="Currently in theaters"
-          icon={Play}
           type="movie"
           category="now_playing"
           defer
@@ -98,7 +91,6 @@ export default function HomePage() {
         <CategorySection
           title="Airing Today"
           subtitle="New episodes available now"
-          icon={Calendar}
           type="tv"
           category="airing_today"
           defer

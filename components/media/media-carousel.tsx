@@ -2,13 +2,11 @@
 
 import { TMDBSearchResult } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "./media-card";
-import { LucideIcon } from "lucide-react";
 import { useUserStatuses } from "@/components/providers/user-status-provider";
 
 interface MediaCarouselProps {
   title: string;
   subtitle?: string;
-  icon?: LucideIcon;
   items: TMDBSearchResult[];
   isLoading?: boolean;
   hasNextPage?: boolean;
@@ -19,7 +17,6 @@ interface MediaCarouselProps {
 export function MediaCarousel({
   title,
   subtitle,
-  icon: Icon,
   items,
   isLoading = false,
   hasNextPage = false,
@@ -30,16 +27,13 @@ export function MediaCarousel({
 
   return (
     <section className="space-y-5">
-      <div className="flex items-center gap-3">
-        {Icon && (
-          <div className="p-2.5 rounded-xl bg-primary/10 text-primary shadow-sm">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-          {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+      <div className="flex items-center gap-4">
+        <div className="h-px flex-1 bg-linear-to-l from-primary/50 to-transparent" />
+        <div className="text-center shrink-0">
+          <h2 className="font-display text-2xl tracking-tight">{title}</h2>
+          {subtitle && <p className="text-[13px] text-muted-foreground/70 mt-1">{subtitle}</p>}
         </div>
+        <div className="h-px flex-1 bg-linear-to-r from-primary/50 to-transparent" />
       </div>
       <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent hover:scrollbar-thumb-primary/40 -mx-2 px-2 transition-all duration-300">
         {items.length === 0 &&
