@@ -38,10 +38,10 @@ Copy `.env.example` to `.env.local` and fill values.
 See `.env.example` for placeholders and notes.
 
 ## Local Development
-Prerequisites: Node 18+, pnpm, a Clerk app, a TMDB API key, and the Convex CLI.
+Prerequisites: Node 18+, bun, a Clerk app, a TMDB API key, and the Convex CLI.
 
 1) Install dependencies
-- pnpm install
+- bun install
 
 2) Configure env
 - Copy `.env.example` to `.env.local` and fill all values.
@@ -51,7 +51,7 @@ Prerequisites: Node 18+, pnpm, a Clerk app, a TMDB API key, and the Convex CLI.
 - Note the printed Convex URL and set it as `NEXT_PUBLIC_CONVEX_URL` in `.env.local`.
 
 4) Run the Next.js app
-- pnpm dev
+- bun dev
 - Open http://localhost:3000
 
 Sign-in is handled by Clerk. The middleware protects all routes except `/`.
