@@ -46,6 +46,7 @@ function Badge({
   const Comp = asChild ? Slot : "span";
 
   return (
+    // @ts-ignore — Radix Slot ref type mismatch with React 19
     <Comp data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />
   );
 }

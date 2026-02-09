@@ -47,6 +47,7 @@ function Button({
   const Comp = asChild ? Slot : "button";
 
   return (
+    // @ts-ignore — Radix Slot ref type mismatch with React 19
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
