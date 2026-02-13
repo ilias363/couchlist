@@ -14,8 +14,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
-import Image from "next/image";
 import { Footer } from "@/components/layout/footer";
+import { HeaderShell } from "@/components/layout/header-shell";
+import { Logo } from "@/components/layout/logo";
 
 export default async function Welcome() {
   const authObject = await auth();
@@ -42,37 +43,26 @@ function WelcomePageContent() {
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/30 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60">
-        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2.5 font-bold text-xl group">
-            <Image
-              src="/logo.png"
-              alt="CouchList"
-              width={32}
-              height={32}
-              className="w-8 h-8 drop-shadow-md group-hover:scale-110 transition-transform duration-300"
-            />
-            <span className="tracking-tight font-display">CouchList</span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            <ThemeToggle />
-            <SignInButton mode="modal">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:inline-flex hover:bg-primary/10 hover:text-primary transition-colors"
-              >
-                Sign In
-              </Button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <Button size="sm" className="transition-all duration-300">
-                Get Started
-              </Button>
-            </SignUpButton>
-          </div>
+      <HeaderShell>
+        <Logo />
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <ThemeToggle />
+          <SignInButton mode="modal">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex hover:bg-primary/10 hover:text-primary transition-colors"
+            >
+              Sign In
+            </Button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <Button size="sm" className="transition-all duration-300">
+              Get Started
+            </Button>
+          </SignUpButton>
         </div>
-      </header>
+      </HeaderShell>
 
       {/* Hero Section */}
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-16 sm:pb-28 relative">
