@@ -392,6 +392,43 @@ export const deleteTvSeries = mutation({
   },
 });
 
+export const getUpToDateSeriesWithEpisodes = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const upToDateSeries = await ctx.db
+      .query("userTvSeries")
+      .withIndex("by_user_status_updatedAt", q =>
+        q.eq("userId", identity.subject).eq("status", "up_to_date")
+      )
+      .collect();
+
+    const results = await Promise.all(
+      upToDateSeries.map(async (series) => {
+        const episodes = await ctx.db
+          .query("userEpisodes")
+          .withIndex("by_user_tv", q =>
+            q.eq("userId", identity.subject).eq("tvSeriesId", series.tvSeriesId)
+          )
+          .collect();
+
+        const watchedEpisodeIds = episodes
+          .filter(ep => ep.isWatched)
+          .map(ep => ep.episodeId);
+
+        return {
+          tvSeriesId: series.tvSeriesId,
+          watchedEpisodeIds,
+        };
+      })
+    );
+
+    return results;
+  },
+});
+
 export const clearAllTvData = mutation({
   args: {},
   handler: async ctx => {

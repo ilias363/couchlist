@@ -11,6 +11,8 @@ import { WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PageTitle } from "@/components/layout/page-title";
+import Link from "next/link";
+import { CalendarClock } from "lucide-react";
 
 export default function TvSeriesPage() {
   return (
@@ -57,7 +59,18 @@ function TvSeriesView() {
 
   return (
     <div className="mx-auto space-y-6">
-      <PageTitle title="My TV Series" subtitle="Tracked series ordered by recent updates" />
+      <PageTitle
+        title="My TV Series"
+        subtitle="Tracked series ordered by recent updates"
+        actions={
+          <Link href="/tv-series/catch-up">
+            <Button variant="outline" size="sm" className="gap-2">
+              <CalendarClock className="h-4 w-4" />
+              Catch Up
+            </Button>
+          </Link>
+        }
+      />
 
       <StatusFilter options={WATCH_STATUSES} value={status} onChange={setStatus} />
 
