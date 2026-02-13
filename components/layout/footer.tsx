@@ -13,7 +13,7 @@ export function Footer() {
       {/* Film strip decoration */}
       <div className="film-strip w-full opacity-20 absolute top-0" />
 
-      <div className="container px-4 flex flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center gap-3 text-center text-sm text-muted-foreground">
         <div className="flex items-center gap-2.5 text-sm text-muted-foreground group">
           <Image
             src="/logo.png"

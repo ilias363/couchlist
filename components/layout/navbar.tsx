@@ -39,7 +39,7 @@ export function Navbar() {
       <header
         className="sticky top-0 z-40 w-full border-b border-border/30 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60"
       >
-        <div className="container flex h-16 items-center justify-between px-4">
+        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-2 sm:px-4 lg:px-6">
           {/* Logo */}
           <Link
             href="/home"
@@ -50,7 +50,7 @@ export function Navbar() {
               alt="CouchList"
               width={32}
               height={32}
-              className="w-8 h-8 drop-shadow-md group-hover:scale-110 transition-transform duration-300"
+              className="w-7 h-7 sm:w-8 sm:h-8 drop-shadow-md group-hover:scale-110 transition-transform duration-300 shrink-0"
             />
             <span
               className={cn(

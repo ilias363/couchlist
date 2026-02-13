@@ -32,18 +32,18 @@ function WelcomePageContent() {
       {/* Cinematic background effects */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         {/* Primary spotlight */}
-        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-300 h-200 bg-gradient-radial from-primary/15 via-primary/5 to-transparent rounded-full blur-3xl opacity-60" />
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[80rem] h-[50rem] bg-gradient-radial from-primary/15 via-primary/5 to-transparent rounded-full blur-3xl opacity-60" />
         {/* Secondary accent glow */}
-        <div className="absolute bottom-[-10%] right-[-10%] w-150 h-150 bg-gradient-radial from-primary/10 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-gradient-radial from-primary/10 to-transparent rounded-full blur-3xl" />
         {/* Ambient left glow */}
-        <div className="absolute top-1/2 left-[-10%] w-100 h-200 bg-gradient-radial from-primary/8 to-transparent rounded-full blur-3xl opacity-40" />
+        <div className="absolute top-1/2 left-[-10%] w-[24rem] h-[50rem] bg-gradient-radial from-primary/8 to-transparent rounded-full blur-3xl opacity-40" />
         {/* Film grain texture overlay */}
         <div className="absolute inset-0 opacity-[0.02] bg-[url('data:image/svg+xml,%3Csvg viewBox=%220 0 256 256%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noise%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%224%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noise)%22/%3E%3C/svg%3E')]" />
       </div>
 
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b border-border/30 bg-background/80 backdrop-blur-2xl supports-backdrop-filter:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
+        <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5 font-bold text-xl group">
             <Image
               src="/logo.png"
@@ -75,7 +75,7 @@ function WelcomePageContent() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-16 sm:pb-28 relative">
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-16 sm:pb-28 relative">
         <div className="max-w-4xl mx-auto text-center space-y-8 sm:space-y-10">
           {/* Floating badge */}
           <div
@@ -160,7 +160,7 @@ function WelcomePageContent() {
       <div className="film-strip w-full opacity-30" />
 
       {/* Features Section */}
-      <section className="container mx-auto px-4 sm:px-6 py-16 sm:py-24 relative">
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 relative">
         {/* Section spotlight */}
         <div className="absolute inset-0 -z-10 spotlight opacity-50" />
 
@@ -216,7 +216,7 @@ function WelcomePageContent() {
       </section>
 
       {/* CTA Section */}
-      <section className="container mx-auto px-4 sm:px-6 py-16 sm:py-24">
+      <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <div className="max-w-4xl mx-auto text-center glass-card rounded-2xl sm:rounded-3xl p-8 sm:p-12 md:p-16 relative overflow-hidden border-gradient">
           {/* Background glow */}
           <div className="absolute inset-0 -z-10 bg-gradient-radial from-primary/10 via-transparent to-transparent opacity-60" />
