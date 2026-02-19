@@ -13,7 +13,10 @@ export function CatchUpSection() {
     id: item.tvSeriesId,
     name: item.name,
     original_name: item.name,
-    overview: `${item.unwatchedEpisodes} unwatched episode${item.unwatchedEpisodes !== 1 ? "s" : ""}`,
+    overview:
+      item.unwatchedEpisodes > 0
+        ? `${item.unwatchedEpisodes} unwatched episode${item.unwatchedEpisodes !== 1 ? "s" : ""}`
+        : `${item.upcomingSeasons.length} upcoming season${item.upcomingSeasons.length !== 1 ? "s" : ""}`,
     poster_path: item.posterPath,
     backdrop_path: null,
     popularity: 0,
