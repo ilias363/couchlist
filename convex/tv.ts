@@ -329,6 +329,35 @@ export const listUserTvSeries = query({
   },
 });
 
+export const getRecentTvByStatus = query({
+  args: {
+    status: v.union(
+      v.literal("want_to_watch"),
+      v.literal("currently_watching"),
+      v.literal("watched"),
+      v.literal("up_to_date"),
+      v.literal("on_hold"),
+      v.literal("dropped")
+    ),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const max = args.limit ?? 20;
+    const items = await ctx.db
+      .query("userTvSeries")
+      .withIndex("by_user_status_updatedAt", q =>
+        q.eq("userId", identity.subject).eq("status", args.status)
+      )
+      .order("desc")
+      .take(max);
+
+    return items.map(s => ({ tvSeriesId: s.tvSeriesId, updatedAt: s.updatedAt }));
+  },
+});
+
 export const listAllTvStatuses = query({
   args: {},
   handler: async ctx => {
