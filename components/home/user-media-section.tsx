@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useBatchTMDBMovies, useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
@@ -45,34 +46,34 @@ export function UserMediaSection({
   const tmdbLoading = (movieIds.length > 0 && moviesLoading) || (tvIds.length > 0 && tvLoading);
   const isLoading = convexLoading || tmdbLoading;
 
-  // Build items with updatedAt for sorting
-  const tagged: { item: TMDBSearchResult; updatedAt: number }[] = [];
+  const items = useMemo(() => {
+    const tagged: { item: TMDBSearchResult; updatedAt: number }[] = [];
 
-  if (movieRecords) {
-    for (const rec of movieRecords) {
-      const movie = movieMap.get(rec.movieId);
-      if (!movie) continue;
-      tagged.push({
-        item: { ...movie, media_type: "movie" } as TMDBSearchResult,
-        updatedAt: rec.updatedAt,
-      });
+    if (movieRecords) {
+      for (const rec of movieRecords) {
+        const movie = movieMap.get(rec.movieId);
+        if (!movie) continue;
+        tagged.push({
+          item: { ...movie, media_type: "movie" } as TMDBSearchResult,
+          updatedAt: rec.updatedAt,
+        });
+      }
     }
-  }
 
-  if (tvRecords) {
-    for (const rec of tvRecords) {
-      const series = tvMap.get(rec.tvSeriesId);
-      if (!series) continue;
-      tagged.push({
-        item: { ...series, media_type: "tv" } as TMDBSearchResult,
-        updatedAt: rec.updatedAt,
-      });
+    if (tvRecords) {
+      for (const rec of tvRecords) {
+        const series = tvMap.get(rec.tvSeriesId);
+        if (!series) continue;
+        tagged.push({
+          item: { ...series, media_type: "tv" } as TMDBSearchResult,
+          updatedAt: rec.updatedAt,
+        });
+      }
     }
-  }
 
-  // Sort by most recently updated first
-  tagged.sort((a, b) => b.updatedAt - a.updatedAt);
-  const items = tagged.map(t => t.item);
+    tagged.sort((a, b) => b.updatedAt - a.updatedAt);
+    return tagged.map(t => t.item);
+  }, [movieMap, movieRecords, tvMap, tvRecords]);
 
   // Hide when no items and done loading
   if (!isLoading && items.length === 0) return null;

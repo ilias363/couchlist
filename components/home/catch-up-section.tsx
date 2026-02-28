@@ -7,8 +7,6 @@ import { MediaCarousel } from "../media/media-carousel";
 export function CatchUpSection() {
   const { catchUpItems, isLoading, totalUnwatchedEpisodes } = useCatchUpData();
 
-  if (!isLoading && catchUpItems.length === 0) return null;
-
   const items: TMDBSearchResult[] = catchUpItems.map(item => ({
     id: item.tvSeriesId,
     name: item.name,
@@ -29,6 +27,8 @@ export function CatchUpSection() {
     adult: false,
     media_type: "tv" as const,
   }));
+
+  if (!isLoading && items.length === 0) return null;
 
   const subtitle =
     totalUnwatchedEpisodes > 0

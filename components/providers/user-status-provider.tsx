@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useQueries } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WatchStatus } from "@/lib/tmdb/types";
@@ -26,18 +26,38 @@ export function UserStatusProvider({ children }: { children: ReactNode }) {
     allTvStatuses: { query: api.tv.listAllTvStatuses, args: {} },
   });
 
-  const movieStatuses = (allMovieStatuses ?? {}) as Record<number, StatusRecord>;
-  const tvStatuses = (allTvStatuses ?? {}) as Record<number, StatusRecord>;
+  const movieStatuses = useMemo(
+    () => (allMovieStatuses ?? {}) as Record<number, StatusRecord>,
+    [allMovieStatuses],
+  );
+  const tvStatuses = useMemo(
+    () => (allTvStatuses ?? {}) as Record<number, StatusRecord>,
+    [allTvStatuses],
+  );
+  const isLoading = allMovieStatuses === undefined || allTvStatuses === undefined;
 
-  const value: UserStatusContextValue = {
-    movieStatuses,
-    tvStatuses,
-    getMovieStatus: (tmdbId: number) => movieStatuses[tmdbId]?.status,
-    getTvStatus: (tmdbId: number) => tvStatuses[tmdbId]?.status,
-    getStatus: (tmdbId: number, mediaType: "movie" | "tv") =>
+  const getMovieStatus = useCallback(
+    (tmdbId: number) => movieStatuses[tmdbId]?.status,
+    [movieStatuses],
+  );
+  const getTvStatus = useCallback((tmdbId: number) => tvStatuses[tmdbId]?.status, [tvStatuses]);
+  const getStatus = useCallback(
+    (tmdbId: number, mediaType: "movie" | "tv") =>
       mediaType === "movie" ? movieStatuses[tmdbId]?.status : tvStatuses[tmdbId]?.status,
-    isLoading: allMovieStatuses === undefined || allTvStatuses === undefined,
-  };
+    [movieStatuses, tvStatuses],
+  );
+
+  const value = useMemo<UserStatusContextValue>(
+    () => ({
+      movieStatuses,
+      tvStatuses,
+      getMovieStatus,
+      getTvStatus,
+      getStatus,
+      isLoading,
+    }),
+    [movieStatuses, tvStatuses, getMovieStatus, getTvStatus, getStatus, isLoading],
+  );
 
   return <UserStatusContext.Provider value={value}>{children}</UserStatusContext.Provider>;
 }

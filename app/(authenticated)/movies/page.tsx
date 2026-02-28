@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback } from "react";
+import { Suspense } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { MOVIE_STATUSES } from "@/lib/tmdb/utils";
@@ -28,18 +28,15 @@ function MoviesView() {
   const statusParam = searchParams.get("status");
   const status = MOVIE_STATUSES.some(s => s.value === statusParam) ? statusParam : undefined;
 
-  const setStatus = useCallback(
-    (newStatus: string | undefined) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (newStatus) {
-        params.set("status", newStatus);
-      } else {
-        params.delete("status");
-      }
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    },
-    [router, pathname, searchParams],
-  );
+  const setStatus = (newStatus: string | undefined) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (newStatus) {
+      params.set("status", newStatus);
+    } else {
+      params.delete("status");
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const {
     results,

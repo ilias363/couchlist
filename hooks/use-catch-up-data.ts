@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { useQueries } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
@@ -15,7 +16,7 @@ export function useCatchUpData() {
   // Get all "up to date" series with their watched episode IDs
   const upToDateData = useQuery(api.tv.getUpToDateSeriesWithEpisodes);
 
-  const seriesIds = upToDateData?.map(s => s.tvSeriesId) ?? [];
+  const seriesIds = useMemo(() => upToDateData?.map(s => s.tvSeriesId) ?? [], [upToDateData]);
 
   // Fetch TMDB details (shared cache with other pages)
   const seriesQueries = useQueries({
@@ -27,28 +28,32 @@ export function useCatchUpData() {
     })),
   });
 
-  const seriesMap = new Map<number, TMDBTvSeries>();
-  seriesQueries.forEach((q, i) => {
-    if (q.data) seriesMap.set(seriesIds[i], q.data);
-  });
+  const seriesMap = useMemo(() => {
+    const map = new Map<number, TMDBTvSeries>();
+    seriesQueries.forEach((q, i) => {
+      if (q.data) map.set(seriesIds[i], q.data);
+    });
+    return map;
+  }, [seriesQueries, seriesIds]);
 
   // Only fetch season details for series that might have unwatched content
-  const seasonRequests: { seriesId: number; seasonNumber: number }[] = [];
-  if (upToDateData) {
-    const watchedCounts = new Map(
-      upToDateData.map(s => [s.tvSeriesId, s.watchedEpisodeIds.length])
-    );
+  const seasonRequests = useMemo(() => {
+    const requests: { seriesId: number; seasonNumber: number }[] = [];
+    if (!upToDateData) return requests;
+
+    const watchedCounts = new Map(upToDateData.map(s => [s.tvSeriesId, s.watchedEpisodeIds.length]));
     for (const [seriesId, details] of seriesMap) {
       if (!details?.seasons) continue;
       const watched = watchedCounts.get(seriesId) ?? 0;
       if (watched >= details.number_of_episodes && details.status !== "Returning Series") continue;
       for (const season of details.seasons) {
         if (season.season_number !== 0) {
-          seasonRequests.push({ seriesId, seasonNumber: season.season_number });
+          requests.push({ seriesId, seasonNumber: season.season_number });
         }
       }
     }
-  }
+    return requests;
+  }, [upToDateData, seriesMap]);
 
   // Fetch all seasons in parallel (shared cache)
   const seasonQueries = useQueries({
@@ -60,19 +65,20 @@ export function useCatchUpData() {
     })),
   });
 
-  const seasonDataMap = new Map<number, Map<number, TMDBSeason>>();
-  seasonQueries.forEach((q, i) => {
-    if (q.data) {
-      const req = seasonRequests[i];
-      if (!seasonDataMap.has(req.seriesId)) seasonDataMap.set(req.seriesId, new Map());
-      seasonDataMap.get(req.seriesId)!.set(req.seasonNumber, q.data);
-    }
-  });
+  const seasonDataMap = useMemo(() => {
+    const map = new Map<number, Map<number, TMDBSeason>>();
+    seasonQueries.forEach((q, i) => {
+      if (q.data) {
+        const req = seasonRequests[i];
+        if (!map.has(req.seriesId)) map.set(req.seriesId, new Map());
+        map.get(req.seriesId)!.set(req.seasonNumber, q.data);
+      }
+    });
+    return map;
+  }, [seasonQueries, seasonRequests]);
 
-  // Compute catch-up items
-  const computeCatchUpItems = (): CatchUpItem[] => {
-    if (!upToDateData) return [];
-
+  const catchUpItems = useMemo(() => {
+    if (!upToDateData) return [] as CatchUpItem[];
     const now = new Date();
     const items: CatchUpItem[] = [];
 
@@ -180,23 +186,21 @@ export function useCatchUpData() {
     );
 
     return items;
-  };
-
-  const catchUpItems = computeCatchUpItems();
+  }, [upToDateData, seriesMap, seasonDataMap]);
 
   const seriesLoading = seriesQueries.some(q => q.isLoading);
   const seasonsLoading = seasonQueries.some(q => q.isLoading);
   const isLoading = upToDateData === undefined || seriesLoading || seasonsLoading;
+
+  const totalUnwatchedEpisodes = catchUpItems.reduce((sum, item) => sum + item.unwatchedEpisodes, 0);
+  const totalUpcoming = catchUpItems.filter(item => item.upcomingSeasons.length > 0).length;
 
   return {
     catchUpItems,
     isLoading,
     totalUpToDate: upToDateData?.length ?? quickUpToDateCount,
     totalNeedingAttention: catchUpItems.length,
-    totalUnwatchedEpisodes: catchUpItems.reduce(
-      (sum, item) => sum + item.unwatchedEpisodes,
-      0
-    ),
-    totalUpcoming: catchUpItems.filter(item => item.upcomingSeasons.length > 0).length,
+    totalUnwatchedEpisodes,
+    totalUpcoming,
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
@@ -26,13 +26,13 @@ export default function TvStatusPage() {
 
   // Get all user's TV series
   const allSeries = useQuery(api.tv.listAllTvStatuses);
-  const seriesIds = allSeries ? Object.keys(allSeries).map(Number) : [];
+  const seriesIds = useMemo(() => (allSeries ? Object.keys(allSeries).map(Number) : []), [allSeries]);
 
   // Fetch TMDB details for all series
   const { map: detailsMap, isLoading: loading } = useBatchTMDBTvSeries(seriesIds);
 
   // Combine and filter data
-  const tableData = (() => {
+  const tableData = useMemo(() => {
     if (!allSeries) return [];
 
     return seriesIds
@@ -58,10 +58,9 @@ export default function TvStatusPage() {
         return true;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  })();
+  }, [allSeries, seriesIds, detailsMap, watchStatusFilter, tmdbStatusFilter]);
 
-  // Calculate stats
-  const stats = (() => {
+  const stats = useMemo(() => {
     if (!allSeries) return null;
 
     const all = seriesIds.map(id => ({
@@ -76,7 +75,7 @@ export default function TvStatusPage() {
     }
 
     return { byTmdbStatus, total: all.length };
-  })();
+  }, [allSeries, seriesIds, detailsMap]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">

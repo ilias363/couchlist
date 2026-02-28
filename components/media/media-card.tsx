@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
+import {
+  memo,
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { TMDBSearchResult, type StatusOption, WatchStatus } from "@/lib/tmdb/types";
 import { PosterImage } from "./tmdb-image";
 import { Film, Tv } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +23,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useMovieStatus } from "@/hooks/use-movie-status";
 import { useTvSeriesStatus } from "@/hooks/use-tv-status";
 import { useSeasonData } from "@/hooks/use-season-data";
-import { useTMDBMovie, useTMDBTvSeries } from "@/lib/tmdb/react-query";
+import {
+  prefetchTMDBExtendedMedia,
+  useTMDBMovie,
+  useTMDBTvSeries,
+} from "@/lib/tmdb/react-query";
 import { MediaCardMenu } from "./media-card-menu";
 
 interface MediaCardProps {
@@ -23,144 +36,84 @@ interface MediaCardProps {
   className?: string;
 }
 
-export function MediaCard({ item, status, className }: MediaCardProps) {
-  const isMovie = item.media_type === "movie";
-  const isTv = item.media_type === "tv";
-  const title = isMovie ? item.title : isTv ? item.name : "";
-  const date = isMovie ? item.release_date : isTv ? item.first_air_date : undefined;
-  const itemLink = isMovie ? `/movies/${item.id}` : isTv ? `/tv-series/${item.id}` : "#";
+type MovieCardItem = Extract<TMDBSearchResult, { media_type: "movie" }>;
+type TvCardItem = Extract<TMDBSearchResult, { media_type: "tv" }>;
+type SupportedMediaCardItem = MovieCardItem | TvCardItem;
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
-  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>(
-    undefined,
-  );
-  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [removing, setRemoving] = useState(false);
+const CARD_PERF_STYLE: CSSProperties = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "320px 500px",
+};
+
+function getItemLink(id: number, mediaType: "movie" | "tv") {
+  return mediaType === "movie" ? `/movies/${id}` : `/tv-series/${id}`;
+}
+
+function useCardPrefetch(id: number, mediaType: "movie" | "tv") {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const prefetchedRef = useRef(false);
+  const href = getItemLink(id, mediaType);
 
   useEffect(() => {
-    setCurrentStatus(status ?? null);
-  }, [status]);
+    prefetchedRef.current = false;
+  }, [href, id, mediaType]);
 
-  const statusOptions = useMemo(() => (isMovie ? MOVIE_STATUSES : WATCH_STATUSES), [isMovie]);
+  return () => {
+    if (prefetchedRef.current) return;
+    prefetchedRef.current = true;
+    router.prefetch(href);
+    void prefetchTMDBExtendedMedia(queryClient, mediaType, id);
+  };
+}
 
-  const { data: movieDetails } = useTMDBMovie(item.id, { enabled: isMovie && menuOpen });
-  const { data: tvDetails } = useTMDBTvSeries(item.id, { enabled: isTv && menuOpen });
+interface MediaCardLayoutProps {
+  item: SupportedMediaCardItem;
+  currentStatus: WatchStatus | null;
+  statusLabel?: string;
+  statusOptions: StatusOption[];
+  menuOpen: boolean;
+  onMenuOpenChange: (open: boolean) => void;
+  onStatusSelect: (status: WatchStatus) => void;
+  updating: boolean;
+  removeDialogOpen: boolean;
+  onRemoveDialogOpenChange: (open: boolean) => void;
+  onRemove: () => Promise<void>;
+  removing: boolean;
+  watchedDialogOpen: boolean;
+  onDialogOpenChange: (open: boolean) => void;
+  onWatchedConfirm: (watchedAt?: number) => void | Promise<void>;
+  watchedDialogDefaultMs?: number;
+  watchedDialogChildren?: ReactNode;
+  onLinkIntent: () => void;
+  className?: string;
+}
 
-  const movieStatus = useMovieStatus(
-    isMovie ? item.id : 0,
-    isMovie ? movieDetails?.runtime : undefined,
-  );
-  const tvStatus = useTvSeriesStatus(isTv ? item.id : 0);
-
-  const { filteredSeasons, fetchAllSeasons } = useSeasonData(
-    isTv ? item.id : 0,
-    isTv ? tvDetails?.seasons : undefined,
-  );
-
-  const updating = isMovie ? movieStatus.updating : tvStatus.updating;
-  const watchedDialogOpen = isMovie ? movieStatus.watchedDialogOpen : tvStatus.watchedDialogOpen;
-
-  const statusLabel = currentStatus
-    ? WATCH_STATUSES.find(s => s.value === currentStatus)?.label
-    : undefined;
-
-  const handleDialogOpenChange = useCallback(
-    (open: boolean) => {
-      if (isMovie) {
-        movieStatus.setWatchedDialogOpen(open);
-      } else {
-        tvStatus.setWatchedDialogOpen(open);
-      }
-
-      if (!open) {
-        setWatchedDialogDefaultMs(undefined);
-      }
-    },
-    [isMovie, movieStatus, tvStatus],
-  );
-
-  const handleStatusSelect = useCallback(
-    async (nextStatus: WatchStatus) => {
-      if (nextStatus === currentStatus) {
-        setMenuOpen(false);
-        return;
-      }
-
-      if (nextStatus === "watched") {
-        setWatchedDialogDefaultMs(Date.now());
-        if (isMovie) {
-          movieStatus.handleStatusClick(nextStatus);
-        } else {
-          tvStatus.handleStatusClick(nextStatus);
-        }
-        setMenuOpen(false);
-        return;
-      }
-
-      try {
-        if (isMovie) {
-          await movieStatus.handleStatusChange(nextStatus);
-        } else {
-          await tvStatus.handleStatusChange(nextStatus);
-        }
-        setCurrentStatus(nextStatus);
-      } finally {
-        setMenuOpen(false);
-      }
-    },
-    [currentStatus, isMovie, movieStatus, tvStatus],
-  );
-
-  const handleWatchedConfirm = useCallback(
-    async (watchedAt?: number) => {
-      try {
-        if (isMovie) {
-          await movieStatus.handleWatchedConfirm(watchedAt);
-        } else {
-          const shouldMarkAll = tvStatus.markEntireSeries;
-          const seasons = shouldMarkAll ? await fetchAllSeasons() : undefined;
-          await tvStatus.handleWatchedConfirm(watchedAt, seasons);
-        }
-        setCurrentStatus("watched");
-      } finally {
-        setWatchedDialogDefaultMs(undefined);
-      }
-    },
-    [fetchAllSeasons, isMovie, movieStatus, tvStatus],
-  );
-
-  const handleRemove = useCallback(async () => {
-    if (removing) return;
-    try {
-      setRemoving(true);
-      if (isMovie) {
-        await movieStatus.handleRemove();
-      } else {
-        await tvStatus.handleRemove();
-      }
-      setCurrentStatus(null);
-      setRemoveDialogOpen(false);
-    } finally {
-      setRemoving(false);
-      setMenuOpen(false);
-    }
-  }, [isMovie, movieStatus, removing, tvStatus]);
-
-  const watchedDialogChildren = isTv ? (
-    <label className="flex items-center gap-2 text-sm">
-      <Checkbox
-        checked={tvStatus.markEntireSeries}
-        onCheckedChange={value => tvStatus.setMarkEntireSeries(Boolean(value))}
-        disabled={tvStatus.updating || filteredSeasons.length === 0}
-      />
-      <span>Also mark all episodes in this series as watched</span>
-    </label>
-  ) : null;
-
-  if (!isMovie && !isTv) {
-    return null;
-  }
+function MediaCardLayout({
+  item,
+  currentStatus,
+  statusLabel,
+  statusOptions,
+  menuOpen,
+  onMenuOpenChange,
+  onStatusSelect,
+  updating,
+  removeDialogOpen,
+  onRemoveDialogOpenChange,
+  onRemove,
+  removing,
+  watchedDialogOpen,
+  onDialogOpenChange,
+  onWatchedConfirm,
+  watchedDialogDefaultMs,
+  watchedDialogChildren,
+  onLinkIntent,
+  className,
+}: MediaCardLayoutProps) {
+  const isMovie = item.media_type === "movie";
+  const title = isMovie ? item.title : item.name;
+  const date = isMovie ? item.release_date : item.first_air_date;
+  const itemLink = getItemLink(item.id, item.media_type);
 
   return (
     <div
@@ -168,28 +121,35 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
         "group relative h-full flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500",
         className,
       )}
+      style={CARD_PERF_STYLE}
     >
       <MediaCardMenu
         menuOpen={menuOpen}
-        onMenuOpenChange={setMenuOpen}
+        onMenuOpenChange={onMenuOpenChange}
         statusLabel={statusLabel}
         statusOptions={statusOptions}
         currentStatus={currentStatus}
-        onStatusSelect={handleStatusSelect}
+        onStatusSelect={onStatusSelect}
         updating={updating}
         removeDialogOpen={removeDialogOpen}
-        onRemoveDialogOpenChange={setRemoveDialogOpen}
-        onRemove={handleRemove}
+        onRemoveDialogOpenChange={onRemoveDialogOpenChange}
+        onRemove={onRemove}
         removing={removing}
         isMovie={isMovie}
       />
 
-      <Link href={itemLink} className="flex h-full flex-col" prefetch={false}>
+      <Link
+        href={itemLink}
+        className="flex h-full flex-col"
+        prefetch={false}
+        onMouseEnter={onLinkIntent}
+        onFocus={onLinkIntent}
+      >
         <div className="relative overflow-hidden">
           <PosterImage
             src={item.poster_path}
             size="w780"
-            alt={title}
+            alt={title ?? ""}
             className="w-full transition-transform duration-500 group-hover:scale-105"
             fallbackType={isMovie ? "movie" : "tv"}
             hoverZoom
@@ -230,17 +190,290 @@ export function MediaCard({ item, status, className }: MediaCardProps) {
 
       <WatchedDateDialog
         open={watchedDialogOpen}
-        onOpenChange={handleDialogOpenChange}
-        onConfirm={handleWatchedConfirm}
+        onOpenChange={onDialogOpenChange}
+        onConfirm={onWatchedConfirm}
         defaultValueMs={watchedDialogDefaultMs}
-        hideDatePicker={isTv}
-        title={isTv ? "Mark as watched" : "Watched date"}
+        hideDatePicker={!isMovie}
+        title={isMovie ? "Watched date" : "Mark as watched"}
       >
-        {watchedDialogChildren}
+        {watchedDialogChildren ?? null}
       </WatchedDateDialog>
     </div>
   );
 }
+
+interface MovieMediaCardProps {
+  item: MovieCardItem;
+  status?: WatchStatus | null;
+  className?: string;
+}
+
+function MovieMediaCard({ item, status, className }: MovieMediaCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
+  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  useEffect(() => {
+    setCurrentStatus(status ?? null);
+  }, [status]);
+
+  const { data: movieDetails } = useTMDBMovie(item.id, { enabled: menuOpen });
+  const {
+    updating,
+    watchedDialogOpen,
+    setWatchedDialogOpen,
+    handleStatusChange,
+    handleStatusClick,
+    handleWatchedConfirm,
+    handleRemove,
+  } = useMovieStatus(item.id, movieDetails?.runtime);
+
+  const onLinkIntent = useCardPrefetch(item.id, "movie");
+  const statusLabel = currentStatus
+    ? MOVIE_STATUSES.find(s => s.value === currentStatus)?.label
+    : undefined;
+
+  const onDialogOpenChange = (open: boolean) => {
+    setWatchedDialogOpen(open);
+    if (!open) {
+      setWatchedDialogDefaultMs(undefined);
+    }
+  };
+
+  const onStatusSelect = async (nextStatus: WatchStatus) => {
+    if (nextStatus === currentStatus) {
+      setMenuOpen(false);
+      return;
+    }
+
+    if (nextStatus === "watched") {
+      setWatchedDialogDefaultMs(Date.now());
+      handleStatusClick(nextStatus);
+      setMenuOpen(false);
+      return;
+    }
+
+    try {
+      await handleStatusChange(nextStatus);
+      setCurrentStatus(nextStatus);
+    } finally {
+      setMenuOpen(false);
+    }
+  };
+
+  const onWatchedConfirm = async (watchedAt?: number) => {
+    try {
+      await handleWatchedConfirm(watchedAt);
+      setCurrentStatus("watched");
+    } finally {
+      setWatchedDialogDefaultMs(undefined);
+    }
+  };
+
+  const onRemove = async () => {
+    if (removing) return;
+    try {
+      setRemoving(true);
+      await handleRemove();
+      setCurrentStatus(null);
+      setRemoveDialogOpen(false);
+    } finally {
+      setRemoving(false);
+      setMenuOpen(false);
+    }
+  };
+
+  return (
+    <MediaCardLayout
+      item={item}
+      currentStatus={currentStatus}
+      statusLabel={statusLabel}
+      statusOptions={MOVIE_STATUSES}
+      menuOpen={menuOpen}
+      onMenuOpenChange={setMenuOpen}
+      onStatusSelect={onStatusSelect}
+      updating={updating}
+      removeDialogOpen={removeDialogOpen}
+      onRemoveDialogOpenChange={setRemoveDialogOpen}
+      onRemove={onRemove}
+      removing={removing}
+      watchedDialogOpen={watchedDialogOpen}
+      onDialogOpenChange={onDialogOpenChange}
+      onWatchedConfirm={onWatchedConfirm}
+      watchedDialogDefaultMs={watchedDialogDefaultMs}
+      onLinkIntent={onLinkIntent}
+      className={className}
+    />
+  );
+}
+
+interface TvMediaCardProps {
+  item: TvCardItem;
+  status?: WatchStatus | null;
+  className?: string;
+}
+
+function TvMediaCard({ item, status, className }: TvMediaCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
+  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  useEffect(() => {
+    setCurrentStatus(status ?? null);
+  }, [status]);
+
+  const { data: tvDetails } = useTMDBTvSeries(item.id, { enabled: menuOpen });
+  const {
+    updating,
+    watchedDialogOpen,
+    setWatchedDialogOpen,
+    markEntireSeries,
+    setMarkEntireSeries,
+    handleStatusChange,
+    handleStatusClick,
+    handleWatchedConfirm,
+    handleRemove,
+  } = useTvSeriesStatus(item.id);
+
+  const { filteredSeasons, fetchAllSeasons } = useSeasonData(item.id, tvDetails?.seasons);
+  const onLinkIntent = useCardPrefetch(item.id, "tv");
+  const statusLabel = currentStatus
+    ? WATCH_STATUSES.find(s => s.value === currentStatus)?.label
+    : undefined;
+
+  const onDialogOpenChange = (open: boolean) => {
+    setWatchedDialogOpen(open);
+    if (!open) {
+      setWatchedDialogDefaultMs(undefined);
+    }
+  };
+
+  const onStatusSelect = async (nextStatus: WatchStatus) => {
+    if (nextStatus === currentStatus) {
+      setMenuOpen(false);
+      return;
+    }
+
+    if (nextStatus === "watched") {
+      setWatchedDialogDefaultMs(Date.now());
+      handleStatusClick(nextStatus);
+      setMenuOpen(false);
+      return;
+    }
+
+    try {
+      await handleStatusChange(nextStatus);
+      setCurrentStatus(nextStatus);
+    } finally {
+      setMenuOpen(false);
+    }
+  };
+
+  const onWatchedConfirm = async (watchedAt?: number) => {
+    try {
+      const seasons = markEntireSeries ? await fetchAllSeasons() : undefined;
+      await handleWatchedConfirm(watchedAt, seasons);
+      setCurrentStatus("watched");
+    } finally {
+      setWatchedDialogDefaultMs(undefined);
+    }
+  };
+
+  const onRemove = async () => {
+    if (removing) return;
+    try {
+      setRemoving(true);
+      await handleRemove();
+      setCurrentStatus(null);
+      setRemoveDialogOpen(false);
+    } finally {
+      setRemoving(false);
+      setMenuOpen(false);
+    }
+  };
+
+  const watchedDialogChildren = (
+    <label className="flex items-center gap-2 text-sm">
+      <Checkbox
+        checked={markEntireSeries}
+        onCheckedChange={value => setMarkEntireSeries(Boolean(value))}
+        disabled={updating || filteredSeasons.length === 0}
+      />
+      <span>Also mark all episodes in this series as watched</span>
+    </label>
+  );
+
+  return (
+    <MediaCardLayout
+      item={item}
+      currentStatus={currentStatus}
+      statusLabel={statusLabel}
+      statusOptions={WATCH_STATUSES}
+      menuOpen={menuOpen}
+      onMenuOpenChange={setMenuOpen}
+      onStatusSelect={onStatusSelect}
+      updating={updating}
+      removeDialogOpen={removeDialogOpen}
+      onRemoveDialogOpenChange={setRemoveDialogOpen}
+      onRemove={onRemove}
+      removing={removing}
+      watchedDialogOpen={watchedDialogOpen}
+      onDialogOpenChange={onDialogOpenChange}
+      onWatchedConfirm={onWatchedConfirm}
+      watchedDialogDefaultMs={watchedDialogDefaultMs}
+      watchedDialogChildren={watchedDialogChildren}
+      onLinkIntent={onLinkIntent}
+      className={className}
+    />
+  );
+}
+
+function getComparablePoster(item: TMDBSearchResult) {
+  return "poster_path" in item ? item.poster_path : undefined;
+}
+
+function getComparableOverview(item: TMDBSearchResult) {
+  return "overview" in item ? item.overview : undefined;
+}
+
+function getComparableTitle(item: TMDBSearchResult) {
+  if (item.media_type === "movie") return item.title;
+  if (item.media_type === "tv") return item.name;
+  return undefined;
+}
+
+function getComparableDate(item: TMDBSearchResult) {
+  if (item.media_type === "movie") return item.release_date;
+  if (item.media_type === "tv") return item.first_air_date;
+  return undefined;
+}
+
+function areMediaCardPropsEqual(prev: MediaCardProps, next: MediaCardProps) {
+  return (
+    prev.className === next.className &&
+    prev.status === next.status &&
+    prev.item.id === next.item.id &&
+    prev.item.media_type === next.item.media_type &&
+    getComparablePoster(prev.item) === getComparablePoster(next.item) &&
+    getComparableOverview(prev.item) === getComparableOverview(next.item) &&
+    getComparableTitle(prev.item) === getComparableTitle(next.item) &&
+    getComparableDate(prev.item) === getComparableDate(next.item)
+  );
+}
+
+export const MediaCard = memo(function MediaCard({ item, status, className }: MediaCardProps) {
+  if (item.media_type === "movie") {
+    return <MovieMediaCard item={item} status={status} className={className} />;
+  }
+  if (item.media_type === "tv") {
+    return <TvMediaCard item={item} status={status} className={className} />;
+  }
+  return null;
+}, areMediaCardPropsEqual);
 
 export function MediaCardSkeleton() {
   return (

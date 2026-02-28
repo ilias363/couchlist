@@ -1,5 +1,6 @@
 import { tmdbClient } from "./client-api";
-import { useInfiniteQuery, useQuery, useQueries } from "@tanstack/react-query";
+import { QueryClient, useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import {
   ExtendedTMDBMovie,
   ExtendedTMDBTvSeries,
@@ -25,6 +26,10 @@ export const tmdbKeys = {
 type QueryOptions = {
   enabled?: boolean;
 };
+
+function uniquePositiveIds(ids: number[]) {
+  return Array.from(new Set(ids.filter((id): id is number => Number.isFinite(id) && id > 0)));
+}
 
 export function useTMDBMovie(id: number, options?: QueryOptions) {
   return useQuery<TMDBMovie>({
@@ -67,19 +72,25 @@ export function useTMDBSeason(seriesId: number, seasonNumber: number, options?: 
 }
 
 export function useBatchTMDBMovies(ids: number[], options?: QueryOptions) {
+  const stableIds = useMemo(() => uniquePositiveIds(ids), [ids]);
+  const enabled = (options?.enabled ?? true) && stableIds.length > 0;
+
   const queries = useQueries({
-    queries: ids.map(id => ({
+    queries: stableIds.map(id => ({
       queryKey: tmdbKeys.movie(id),
       queryFn: () => tmdbClient.getMovieDetails(id),
-      enabled: options?.enabled ?? true,
+      enabled,
     })),
   });
 
-  const map = new Map<number, TMDBMovie | null>();
-  queries.forEach((q, i) => {
-    const id = ids[i];
-    if (id) map.set(id, q.data || null);
-  });
+  const map = useMemo(() => {
+    const next = new Map<number, TMDBMovie | null>();
+    queries.forEach((q, i) => {
+      const id = stableIds[i];
+      if (id) next.set(id, q.data || null);
+    });
+    return next;
+  }, [queries, stableIds]);
 
   const isLoading = queries.some(q => q.isLoading);
   const isFetching = queries.some(q => q.isFetching);
@@ -87,19 +98,25 @@ export function useBatchTMDBMovies(ids: number[], options?: QueryOptions) {
 }
 
 export function useBatchTMDBTvSeries(ids: number[], options?: QueryOptions) {
+  const stableIds = useMemo(() => uniquePositiveIds(ids), [ids]);
+  const enabled = (options?.enabled ?? true) && stableIds.length > 0;
+
   const queries = useQueries({
-    queries: ids.map(id => ({
+    queries: stableIds.map(id => ({
       queryKey: tmdbKeys.tv(id),
       queryFn: () => tmdbClient.getTVSeriesDetails(id),
-      enabled: options?.enabled ?? true,
+      enabled,
     })),
   });
 
-  const map = new Map<number, TMDBTvSeries | null>();
-  queries.forEach((q, i) => {
-    const id = ids[i];
-    if (id) map.set(id, q.data || null);
-  });
+  const map = useMemo(() => {
+    const next = new Map<number, TMDBTvSeries | null>();
+    queries.forEach((q, i) => {
+      const id = stableIds[i];
+      if (id) next.set(id, q.data || null);
+    });
+    return next;
+  }, [queries, stableIds]);
 
   const isLoading = queries.some(q => q.isLoading);
   const isFetching = queries.some(q => q.isFetching);
@@ -111,19 +128,28 @@ export function useBatchTMDBSeasons(
   seasonNumbers: number[],
   options?: QueryOptions
 ) {
+  const stableSeasonNumbers = useMemo(
+    () => uniquePositiveIds(seasonNumbers),
+    [seasonNumbers]
+  );
+  const enabled = (options?.enabled ?? true) && stableSeasonNumbers.length > 0;
+
   const queries = useQueries({
-    queries: seasonNumbers.map(seasonNumber => ({
+    queries: stableSeasonNumbers.map(seasonNumber => ({
       queryKey: tmdbKeys.season(seriesId, seasonNumber),
       queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
-      enabled: options?.enabled ?? true,
+      enabled,
     })),
   });
 
-  const map = new Map<number, TMDBSeason | null>();
-  queries.forEach((q, i) => {
-    const seasonNumber = seasonNumbers[i];
-    if (seasonNumber) map.set(seasonNumber, q.data || null);
-  });
+  const map = useMemo(() => {
+    const next = new Map<number, TMDBSeason | null>();
+    queries.forEach((q, i) => {
+      const seasonNumber = stableSeasonNumbers[i];
+      if (seasonNumber) next.set(seasonNumber, q.data || null);
+    });
+    return next;
+  }, [queries, stableSeasonNumbers]);
 
   const isLoading = queries.some(q => q.isLoading);
   const isFetching = queries.some(q => q.isFetching);
@@ -185,5 +211,25 @@ export function useTMDBCategoryFeed(
       if (category === "airing_today" && type === "tv") return tmdbClient.getAiringTodayTv(p);
       return Promise.resolve({ results: [], page: p, total_pages: p, total_results: 0 });
     },
+  });
+}
+
+export function prefetchTMDBExtendedMedia(
+  queryClient: QueryClient,
+  mediaType: "movie" | "tv",
+  id: number
+) {
+  if (!Number.isFinite(id) || id <= 0) return Promise.resolve(undefined);
+  if (mediaType === "movie") {
+    return queryClient.prefetchQuery({
+      queryKey: tmdbKeys.movieExtended(id),
+      queryFn: () => tmdbClient.getExtendedMovieDetails(id),
+      staleTime: 1000 * 60 * 10,
+    });
+  }
+  return queryClient.prefetchQuery({
+    queryKey: tmdbKeys.tvExtended(id),
+    queryFn: () => tmdbClient.getExtendedTVSeriesDetails(id),
+    staleTime: 1000 * 60 * 10,
   });
 }

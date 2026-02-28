@@ -7,12 +7,6 @@ import { CatchUpSection } from "@/components/home/catch-up-section";
 export default function HomePage() {
   return (
     <div className="space-y-12 relative">
-      {/* Ambient background effect */}
-      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/3 w-150 h-150 bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl opacity-60" />
-        <div className="absolute bottom-1/4 right-0 w-100 h-100 bg-gradient-radial from-primary/8 to-transparent rounded-full blur-3xl opacity-40" />
-      </div>
-
       {/* Personal Sections */}
       <div className="space-y-10">
         <UserMediaSection

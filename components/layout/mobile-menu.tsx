@@ -77,7 +77,7 @@ export function MobileMenu({ open, onClose, navItems }: MobileMenuProps) {
         ref={panelRef}
         className={cn(
           "absolute inset-y-0 right-0 w-[min(80vw,320px)] flex flex-col",
-          "bg-background/95 backdrop-blur-xl border-l border-border/40",
+          "bg-background/95 backdrop-blur-md border-l border-border/40",
           "shadow-[-4px_0_20px_rgba(0,0,0,0.08)] dark:shadow-[-4px_0_30px_rgba(0,0,0,0.3)]",
           // GPU-composited slide transition
           "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform",

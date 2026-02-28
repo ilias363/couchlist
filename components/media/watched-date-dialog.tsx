@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,80 @@ interface WatchedDateDialogProps {
   children?: ReactNode;
 }
 
+interface WatchedDateDialogBodyProps {
+  onConfirm: (watchedAtMs?: number) => void;
+  onOpenChange: (open: boolean) => void;
+  label: string;
+  defaultValueMs?: number;
+  confirmText: string;
+  cancelText: string;
+  hideDatePicker: boolean;
+  children?: ReactNode;
+}
+
+function WatchedDateDialogBody({
+  onConfirm,
+  onOpenChange,
+  label,
+  defaultValueMs,
+  confirmText,
+  cancelText,
+  hideDatePicker,
+  children,
+}: WatchedDateDialogBodyProps) {
+  const checkboxId = useId();
+  const [value, setValue] = useState(() => {
+    const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
+    return formatDateTimeLocal(date);
+  });
+  const [isUnknown, setIsUnknown] = useState(false);
+
+  const handleConfirm = () => {
+    if (hideDatePicker || isUnknown) {
+      onConfirm(undefined);
+      return;
+    }
+
+    const dt = new Date(value);
+    const ms = isNaN(dt.getTime()) ? Date.now() : dt.getTime();
+    onConfirm(ms);
+  };
+
+  return (
+    <>
+      {!hideDatePicker && (
+        <div className="space-y-2">
+          <label className="text-xs text-muted-foreground">{label}</label>
+          <input
+            type="datetime-local"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            disabled={isUnknown}
+          />
+          <div className="flex items-center gap-2 pt-1">
+            <Checkbox
+              id={checkboxId}
+              checked={isUnknown}
+              onCheckedChange={checked => setIsUnknown(checked === true)}
+            />
+            <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
+              Mark watched date as unknown
+            </label>
+          </div>
+        </div>
+      )}
+      {children ? <div className="mt-2">{children}</div> : null}
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          {cancelText}
+        </Button>
+        <Button onClick={handleConfirm}>{confirmText}</Button>
+      </DialogFooter>
+    </>
+  );
+}
+
 export function WatchedDateDialog({
   open,
   onOpenChange,
@@ -46,36 +120,7 @@ export function WatchedDateDialog({
   hideDatePicker = false,
   children,
 }: WatchedDateDialogProps) {
-  const checkboxId = useId();
-
-  // Use a key based on open state and defaultValueMs to reset the component state
-  const resetKey = `${open}-${defaultValueMs}`;
-  const [value, setValue] = useState(() => {
-    const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
-    return formatDateTimeLocal(date);
-  });
-  const [isUnknown, setIsUnknown] = useState(false);
-  const [lastResetKey, setLastResetKey] = useState(resetKey);
-
-  // Reset state when dialog opens or defaultValueMs changes
-  if (resetKey !== lastResetKey) {
-    const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
-    setValue(formatDateTimeLocal(date));
-    setIsUnknown(false);
-    setLastResetKey(resetKey);
-  }
-
-  const handleConfirm = () => {
-    // If date picker is hidden (TV series), always pass undefined
-    if (hideDatePicker || isUnknown) {
-      onConfirm(undefined);
-      return;
-    }
-
-    const dt = new Date(value);
-    const ms = isNaN(dt.getTime()) ? Date.now() : dt.getTime();
-    onConfirm(ms);
-  };
+  const resetKey = `${open}-${defaultValueMs ?? "now"}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -83,35 +128,18 @@ export function WatchedDateDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {!hideDatePicker && (
-          <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">{label}</label>
-            <input
-              type="datetime-local"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              value={value}
-              onChange={e => setValue(e.target.value)}
-              disabled={isUnknown}
-            />
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox
-                id={checkboxId}
-                checked={isUnknown}
-                onCheckedChange={checked => setIsUnknown(checked === true)}
-              />
-              <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
-                Mark watched date as unknown
-              </label>
-            </div>
-          </div>
-        )}
-        {children ? <div className="mt-2">{children}</div> : null}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {cancelText}
-          </Button>
-          <Button onClick={handleConfirm}>{confirmText}</Button>
-        </DialogFooter>
+        <WatchedDateDialogBody
+          key={resetKey}
+          onConfirm={onConfirm}
+          onOpenChange={onOpenChange}
+          label={label}
+          defaultValueMs={defaultValueMs}
+          confirmText={confirmText}
+          cancelText={cancelText}
+          hideDatePicker={hideDatePicker}
+        >
+          {children}
+        </WatchedDateDialogBody>
       </DialogContent>
     </Dialog>
   );

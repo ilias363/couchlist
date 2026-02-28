@@ -72,7 +72,7 @@ function CategorySectionContent({
     return () => observer.disconnect();
   }, [hasNextPage, isFetching, fetchNextPage]);
 
-  const items = data?.pages.flatMap(page => page.results) || [];
+  const items = data?.pages.flatMap(page => page.results) ?? [];
 
   return (
     <MediaCarousel

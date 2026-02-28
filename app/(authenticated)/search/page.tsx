@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import debounce from "lodash/debounce";
@@ -42,14 +42,11 @@ function SearchView() {
     [],
   );
 
-  const onChangeQuery = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value;
-      setRawQuery(v);
-      debouncedUpdate(v);
-    },
-    [debouncedUpdate],
-  );
+  const onChangeQuery = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = e.target.value;
+    setRawQuery(v);
+    debouncedUpdate(v);
+  };
 
   const {
     data,
@@ -93,7 +90,7 @@ function SearchView() {
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage, debouncedQuery, mode]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="space-y-6">

@@ -8,8 +8,8 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
       <div className="min-h-screen flex flex-col relative">
         {/* Subtle ambient background */}
         <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] right-[-5%] w-[32rem] h-[32rem] bg-gradient-radial from-primary/5 to-transparent rounded-full blur-3xl opacity-50" />
-          <div className="absolute bottom-[-10%] left-[-5%] w-[24rem] h-[24rem] bg-gradient-radial from-primary/8 to-transparent rounded-full blur-3xl opacity-30" />
+          <div className="absolute top-[-10%] right-[-5%] w-[24rem] h-[24rem] bg-gradient-radial from-primary/5 to-transparent rounded-full blur-2xl opacity-40" />
+          <div className="absolute bottom-[-10%] left-[-5%] w-[18rem] h-[18rem] bg-gradient-radial from-primary/8 to-transparent rounded-full blur-2xl opacity-25" />
         </div>
 
         <Navbar />
