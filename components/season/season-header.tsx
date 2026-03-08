@@ -142,9 +142,11 @@ function SeasonSwitcher({
   seasons?: BaseTMDBSeason[];
   currentSeason: number;
 }) {
-  if (!seasons || seasons.length <= 1) return null;
+  const sorted = (seasons ?? [])
+    .filter(season => season.season_number > 0)
+    .sort((a, b) => a.season_number - b.season_number);
 
-  const sorted = [...seasons].sort((a, b) => a.season_number - b.season_number);
+  if (sorted.length <= 1) return null;
 
   return (
     <DropdownMenu>
