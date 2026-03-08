@@ -2,6 +2,13 @@ import { query, mutation } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
+const movieStatusValidator = v.union(
+  v.literal("want_to_watch"),
+  v.literal("watched"),
+  v.literal("on_hold"),
+  v.literal("dropped")
+);
+
 export const getMovieStatus = query({
   args: { movieId: v.number() },
   handler: async (ctx, args: { movieId: number }) => {
@@ -20,12 +27,7 @@ export const getMovieStatus = query({
 export const setMovieStatus = mutation({
   args: {
     movieId: v.number(),
-    status: v.union(
-      v.literal("want_to_watch"),
-      v.literal("watched"),
-      v.literal("on_hold"),
-      v.literal("dropped")
-    ),
+    status: movieStatusValidator,
     runtime: v.optional(v.number()),
     watchedAt: v.optional(v.number()),
   },
@@ -65,14 +67,7 @@ export const setMovieStatus = mutation({
 
 export const listUserMovies = query({
   args: {
-    status: v.optional(
-      v.union(
-        v.literal("want_to_watch"),
-        v.literal("watched"),
-        v.literal("on_hold"),
-        v.literal("dropped")
-      )
-    ),
+    status: v.optional(movieStatusValidator),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
@@ -97,12 +92,7 @@ export const listUserMovies = query({
 
 export const getRecentMoviesByStatus = query({
   args: {
-    status: v.union(
-      v.literal("want_to_watch"),
-      v.literal("watched"),
-      v.literal("on_hold"),
-      v.literal("dropped")
-    ),
+    statuses: v.array(movieStatusValidator),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -110,13 +100,23 @@ export const getRecentMoviesByStatus = query({
     if (!identity) return [];
 
     const max = args.limit ?? 20;
-    const items = await ctx.db
-      .query("userMovies")
-      .withIndex("by_user_status_updatedAt", q =>
-        q.eq("userId", identity.subject).eq("status", args.status)
+    const statuses = Array.from(new Set(args.statuses));
+
+    if (statuses.length === 0) return [];
+
+    const groups = await Promise.all(
+      statuses.map(status =>
+        ctx.db
+          .query("userMovies")
+          .withIndex("by_user_status_updatedAt", q =>
+            q.eq("userId", identity.subject).eq("status", status)
+          )
+          .order("desc")
+          .take(max)
       )
-      .order("desc")
-      .take(max);
+    );
+
+    const items = groups.flat().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 
     return items.map(m => ({ movieId: m.movieId, updatedAt: m.updatedAt }));
   },

@@ -10,25 +10,25 @@ import { MediaCarousel } from "../media/media-carousel";
 interface UserMediaSectionProps {
   title: string;
   subtitle?: string;
-  movieStatus?: MovieWatchStatus;
-  tvStatus?: WatchStatus;
+  movieStatuses?: MovieWatchStatus[];
+  tvStatuses?: WatchStatus[];
   limit?: number;
 }
 
 export function UserMediaSection({
   title,
   subtitle,
-  movieStatus,
-  tvStatus,
+  movieStatuses,
+  tvStatuses,
   limit = 20,
 }: UserMediaSectionProps) {
   const movieRecords = useQuery(
     api.movie.getRecentMoviesByStatus,
-    movieStatus ? { status: movieStatus, limit } : "skip",
+    movieStatuses?.length ? { statuses: movieStatuses, limit } : "skip",
   );
   const tvRecords = useQuery(
     api.tv.getRecentTvByStatus,
-    tvStatus ? { status: tvStatus, limit } : "skip",
+    tvStatuses?.length ? { statuses: tvStatuses, limit } : "skip",
   );
 
   const movieIds = movieRecords?.map(m => m.movieId) ?? [];
@@ -42,7 +42,8 @@ export function UserMediaSection({
   });
 
   const convexLoading =
-    (movieStatus && movieRecords === undefined) || (tvStatus && tvRecords === undefined);
+    (movieStatuses?.length && movieRecords === undefined) ||
+    (tvStatuses?.length && tvRecords === undefined);
   const tmdbLoading = (movieIds.length > 0 && moviesLoading) || (tvIds.length > 0 && tvLoading);
   const isLoading = convexLoading || tmdbLoading;
 
