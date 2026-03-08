@@ -12,6 +12,7 @@ interface UserMediaSectionProps {
   subtitle?: string;
   movieStatus?: MovieWatchStatus;
   tvStatus?: WatchStatus;
+  secondaryTvStatus?: WatchStatus;
   limit?: number;
 }
 
@@ -20,6 +21,7 @@ export function UserMediaSection({
   subtitle,
   movieStatus,
   tvStatus,
+  secondaryTvStatus,
   limit = 20,
 }: UserMediaSectionProps) {
   const movieRecords = useQuery(
@@ -30,9 +32,18 @@ export function UserMediaSection({
     api.tv.getRecentTvByStatus,
     tvStatus ? { status: tvStatus, limit } : "skip",
   );
+  const secondaryTvRecords = useQuery(
+    api.tv.getRecentTvByStatus,
+    secondaryTvStatus ? { status: secondaryTvStatus, limit } : "skip",
+  );
 
   const movieIds = movieRecords?.map(m => m.movieId) ?? [];
-  const tvIds = tvRecords?.map(s => s.tvSeriesId) ?? [];
+  const tvIds = Array.from(
+    new Set([
+      ...(tvRecords?.map(s => s.tvSeriesId) ?? []),
+      ...(secondaryTvRecords?.map(s => s.tvSeriesId) ?? []),
+    ])
+  );
 
   const { map: movieMap, isLoading: moviesLoading } = useBatchTMDBMovies(movieIds, {
     enabled: movieIds.length > 0,
@@ -42,7 +53,9 @@ export function UserMediaSection({
   });
 
   const convexLoading =
-    (movieStatus && movieRecords === undefined) || (tvStatus && tvRecords === undefined);
+    (movieStatus && movieRecords === undefined) ||
+    (tvStatus && tvRecords === undefined) ||
+    (secondaryTvStatus && secondaryTvRecords === undefined);
   const tmdbLoading = (movieIds.length > 0 && moviesLoading) || (tvIds.length > 0 && tvLoading);
   const isLoading = convexLoading || tmdbLoading;
 
@@ -60,8 +73,10 @@ export function UserMediaSection({
       }
     }
 
-    if (tvRecords) {
-      for (const rec of tvRecords) {
+    for (const records of [tvRecords, secondaryTvRecords]) {
+      if (!records) continue;
+
+      for (const rec of records) {
         const series = tvMap.get(rec.tvSeriesId);
         if (!series) continue;
         tagged.push({
@@ -73,7 +88,7 @@ export function UserMediaSection({
 
     tagged.sort((a, b) => b.updatedAt - a.updatedAt);
     return tagged.map(t => t.item);
-  }, [movieMap, movieRecords, tvMap, tvRecords]);
+  }, [movieMap, movieRecords, secondaryTvRecords, tvMap, tvRecords]);
 
   // Hide when no items and done loading
   if (!isLoading && items.length === 0) return null;

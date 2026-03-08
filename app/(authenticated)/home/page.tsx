@@ -13,6 +13,7 @@ export default function HomePage() {
           title="Continue Watching"
           subtitle="Pick up where you left off"
           tvStatus="currently_watching"
+          secondaryTvStatus="on_hold"
         />
         <UserMediaSection
           title="Your Watchlist"
