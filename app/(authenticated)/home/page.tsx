@@ -12,6 +12,7 @@ export default function HomePage() {
         <UserMediaSection
           title="Continue Watching"
           subtitle="Pick up where you left off"
+          movieStatuses={["on_hold"]}
           tvStatuses={["currently_watching", "on_hold"]}
         />
         <UserMediaSection
