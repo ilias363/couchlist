@@ -12,13 +12,13 @@ export default function HomePage() {
         <UserMediaSection
           title="Continue Watching"
           subtitle="Pick up where you left off"
-          tvStatus="currently_watching"
+          tvStatuses={["currently_watching", "on_hold"]}
         />
         <UserMediaSection
           title="Your Watchlist"
           subtitle="Saved for later"
-          movieStatus="want_to_watch"
-          tvStatus="want_to_watch"
+          movieStatuses={["want_to_watch"]}
+          tvStatuses={["want_to_watch"]}
         />
         <CatchUpSection />
       </div>

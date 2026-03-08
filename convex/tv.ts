@@ -2,6 +2,15 @@ import { mutation, query, MutationCtx } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
+const tvStatusValidator = v.union(
+  v.literal("want_to_watch"),
+  v.literal("currently_watching"),
+  v.literal("watched"),
+  v.literal("up_to_date"),
+  v.literal("on_hold"),
+  v.literal("dropped")
+);
+
 export const getSeriesStatus = query({
   args: { tvSeriesId: v.number() },
   handler: async (ctx, args) => {
@@ -101,14 +110,7 @@ const updateSeriesDatesFromEpisodes = async (
 export const setSeriesStatus = mutation({
   args: {
     tvSeriesId: v.number(),
-    status: v.union(
-      v.literal("want_to_watch"),
-      v.literal("currently_watching"),
-      v.literal("watched"),
-      v.literal("up_to_date"),
-      v.literal("on_hold"),
-      v.literal("dropped")
-    ),
+    status: tvStatusValidator,
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -297,16 +299,7 @@ export const bulkToggleSeasonEpisodes = mutation({
 
 export const listUserTvSeries = query({
   args: {
-    status: v.optional(
-      v.union(
-        v.literal("want_to_watch"),
-        v.literal("currently_watching"),
-        v.literal("watched"),
-        v.literal("up_to_date"),
-        v.literal("on_hold"),
-        v.literal("dropped")
-      )
-    ),
+    status: v.optional(tvStatusValidator),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
@@ -331,14 +324,7 @@ export const listUserTvSeries = query({
 
 export const getRecentTvByStatus = query({
   args: {
-    status: v.union(
-      v.literal("want_to_watch"),
-      v.literal("currently_watching"),
-      v.literal("watched"),
-      v.literal("up_to_date"),
-      v.literal("on_hold"),
-      v.literal("dropped")
-    ),
+    statuses: v.array(tvStatusValidator),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -346,13 +332,23 @@ export const getRecentTvByStatus = query({
     if (!identity) return [];
 
     const max = args.limit ?? 20;
-    const items = await ctx.db
-      .query("userTvSeries")
-      .withIndex("by_user_status_updatedAt", q =>
-        q.eq("userId", identity.subject).eq("status", args.status)
+    const statuses = Array.from(new Set(args.statuses));
+
+    if (statuses.length === 0) return [];
+
+    const groups = await Promise.all(
+      statuses.map(status =>
+        ctx.db
+          .query("userTvSeries")
+          .withIndex("by_user_status_updatedAt", q =>
+            q.eq("userId", identity.subject).eq("status", status)
+          )
+          .order("desc")
+          .take(max)
       )
-      .order("desc")
-      .take(max);
+    );
+
+    const items = groups.flat().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 
     return items.map(s => ({ tvSeriesId: s.tvSeriesId, updatedAt: s.updatedAt }));
   },
