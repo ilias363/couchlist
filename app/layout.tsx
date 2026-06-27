@@ -21,7 +21,10 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CouchList - Track Your Movies & TV Shows",
+  title: {
+    default: "CouchList — Track Your Movies & TV Shows",
+    template: "%s · CouchList",
+  },
   description:
     "Your personal entertainment tracker. Discover, track, and analyze your viewing journey with CouchList.",
   keywords: ["movies", "tv shows", "tracking", "watchlist", "entertainment"],
@@ -36,7 +39,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${playfair.variable} font-sans antialiased`}>
         <ThemeProvider>
-          <ClerkProvider appearance={{ theme: shadcn }}>
+          <ClerkProvider appearance={{ theme: shadcn }} afterSignOutUrl="/">
             <ConvexClientProvider>
               <RQProvider>{children}</RQProvider>
             </ConvexClientProvider>
