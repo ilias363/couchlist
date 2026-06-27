@@ -33,12 +33,12 @@ export function SeasonCard({
     <Link
       href={`/tv-series/${seriesId}/season/${seasonNumber}`}
       className={cn(
-        "group flex gap-2 p-2 rounded-lg border bg-card transition-all hover:shadow-md hover:border-primary/50",
+        "group flex gap-3 p-2.5 rounded-xl border border-border/50 bg-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/40",
         className
       )}
     >
       {/* Poster */}
-      <div className="relative flex-shrink-0 w-20 aspect-[2/3] rounded-md overflow-hidden bg-muted">
+      <div className="relative shrink-0 w-20 aspect-2/3 rounded-lg overflow-hidden bg-muted">
         {posterPath ? (
           <PosterImage src={posterPath} alt={name} size="w185" />
         ) : (

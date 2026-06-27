@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Filter, Eye, EyeOff, List } from "lucide-react";
+import { Eye, EyeOff, List } from "lucide-react";
 
 export function EpisodeFilters({
   filter,

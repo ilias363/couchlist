@@ -103,7 +103,7 @@ export function SeasonEpisodes({
                       )}
                       {ep.vote_average != null && ep.vote_average > 0 && (
                         <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                          <Star className="h-3 w-3 text-primary fill-primary" />
                           {ep.vote_average.toFixed(1)}
                         </div>
                       )}

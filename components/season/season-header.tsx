@@ -102,11 +102,11 @@ export function SeasonHeader({
                     disabled={season.episodes.length === 0}
                     onConfirm={onMarkAllWatched}
                     title="Mark All Episodes as Watched?"
-                    description="This will set the watched date for all episodes in this season to uknown."
+                    description="This will mark every episode in this season as watched."
                     confirmText="Watch All"
                     className="gap-2"
                   >
-                    <X className="h-4 w-4" />
+                    <Check className="h-4 w-4" />
                     Mark All Watched
                   </ConfirmButton>
                 )}

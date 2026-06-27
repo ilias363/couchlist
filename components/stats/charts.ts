@@ -34,6 +34,15 @@ export const LineChart = Line;
 
 export type ChartColorPalette = string[];
 
+/* Brand-aligned series colors: cinematic gold paired with a complementary
+   teal so the stats charts read as part of the app, not a generic dashboard. */
+export const SERIES_COLORS = {
+  primary: "#E0A42A",
+  primarySoft: "rgba(224, 164, 42, 0.30)",
+  secondary: "#2FB8A8",
+  secondarySoft: "rgba(47, 184, 168, 0.30)",
+} as const;
+
 export const defaultPalette: ChartColorPalette = [
   "#6366F1",
   "#0EA5E9",
