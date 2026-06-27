@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { StatusOption } from "@/lib/tmdb/types";
+import { getStatusClasses } from "@/lib/status-colors";
 
 interface StatusFilterProps {
   options: StatusOption[];
@@ -22,25 +23,29 @@ export function StatusFilter({ options, value, onChange, allLabel = "All" }: Sta
               "shrink-0 px-4 py-2 text-sm font-medium rounded-full border transition-colors",
               !value
                 ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-muted-foreground border-border hover:border-foreground/20"
+                : "bg-background text-muted-foreground border-border hover:border-foreground/20",
             )}
           >
             {allLabel}
           </button>
-          {options.map(s => (
-            <button
-              key={s.value}
-              onClick={() => onChange(s.value)}
-              className={cn(
-                "shrink-0 px-4 py-2 text-sm font-medium rounded-full border transition-colors whitespace-nowrap",
-                value === s.value
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-muted-foreground border-border hover:border-foreground/20"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+          {options.map(s => {
+            const active = value === s.value;
+            const colors = getStatusClasses(s.value);
+            return (
+              <button
+                key={s.value}
+                onClick={() => onChange(s.value)}
+                className={cn(
+                  "shrink-0 px-4 py-2 text-sm font-medium rounded-full border transition-colors whitespace-nowrap",
+                  active
+                    ? cn(colors.bg, colors.text, "border-transparent")
+                    : "bg-background text-muted-foreground border-border hover:border-foreground/20",
+                )}
+              >
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -53,25 +58,29 @@ export function StatusFilter({ options, value, onChange, allLabel = "All" }: Sta
               "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
               !value
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50",
             )}
           >
             {allLabel}
           </button>
-          {options.map(s => (
-            <button
-              key={s.value}
-              onClick={() => onChange(s.value)}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
-                value === s.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/50"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+          {options.map(s => {
+            const active = value === s.value;
+            const colors = getStatusClasses(s.value);
+            return (
+              <button
+                key={s.value}
+                onClick={() => onChange(s.value)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  active
+                    ? cn(colors.bg, colors.text, "shadow-sm")
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50",
+                )}
+              >
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </>
