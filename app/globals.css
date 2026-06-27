@@ -214,10 +214,12 @@
     @apply bg-primary/30 text-foreground;
   }
 
-  /* Display font for headings */
+  /* Display serif reserved for top-level display headings (h1/h2).
+     Smaller functional headings (h3 and below — card titles, section labels)
+     stay on the sans stack so they read cleanly at small sizes.
+     Opt back into the serif anywhere with the `font-display` utility. */
   h1,
-  h2,
-  h3 {
+  h2 {
     font-family: var(--font-display), serif;
     font-weight: 600;
     letter-spacing: -0.02em;
@@ -446,5 +448,24 @@
     inset: 0;
     pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 50%, oklch(0 0 0 / 0.3) 100%);
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY - REDUCED MOTION
+   Honor the user's OS-level motion preference: collapse the cinematic
+   animations/transitions to near-instant so content still settles into
+   its final state without movement.
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
