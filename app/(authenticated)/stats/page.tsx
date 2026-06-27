@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMutation } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   doughnutOptions,
   weekdayLabel,
   barOptions,
+  SERIES_COLORS,
 } from "@/components/stats/charts";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -35,32 +36,61 @@ import {
   Trophy,
   TrendingUp,
   Calendar,
+  AlertCircle,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { UserStats } from "@/lib/types";
 import { Section } from "@/components/stats/section";
 import { AccentHeader } from "@/components/stats/accent-header";
 import { Sparkline } from "@/components/stats/spark-line";
 import { StatsCard } from "@/components/stats/stats-card";
+import { EmptyState } from "@/components/common/empty-state";
 
 import { PageTitle } from "@/components/layout/page-title";
 
-let didInit = false;
-
 export default function StatsPage() {
+  const { isAuthenticated } = useConvexAuth();
   const [data, setData] = useState<UserStats | undefined>(undefined);
+  const [loadError, setLoadError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const getStats = useMutation(api.stats.getUserStats);
   const refreshStats = useMutation(api.stats.refreshStats);
-  const getStatsRef = useRef(getStats);
-  getStatsRef.current = getStats;
+  const requestedRef = useRef(false);
 
+  const loadStats = useCallback(async () => {
+    requestedRef.current = true;
+    setLoadError(false);
+    try {
+      setData(await getStats());
+    } catch {
+      setLoadError(true);
+      requestedRef.current = false;
+    }
+  }, [getStats]);
+
+  // Convex mutations only carry the user's identity once the client has
+  // authenticated - wait for that to avoid an "Unauthorized" error on cold load.
   useEffect(() => {
-    if (didInit) return;
-    didInit = true;
-    getStatsRef.current().then(setData);
-  }, []);
+    if (!isAuthenticated || requestedRef.current) return;
+    void loadStats();
+  }, [isAuthenticated, loadStats]);
 
+  if (loadError && !data) {
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title="Couldn't load your stats"
+        description="Something went wrong while crunching your numbers."
+        action={
+          <Button onClick={() => void loadStats()} variant="outline" className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        }
+        className="min-h-[50vh]"
+      />
+    );
+  }
   if (!data) return <LoadingState />;
   const {
     overview,
@@ -108,16 +138,16 @@ export default function StatsPage() {
       {
         label: "Movies Watched",
         data: weeklyActivity.map(w => w.movies),
-        borderColor: "#6366F1",
-        backgroundColor: "rgba(99,102,241,0.35)",
+        borderColor: SERIES_COLORS.primary,
+        backgroundColor: SERIES_COLORS.primarySoft,
         fill: true,
         tension: 0.35,
       },
       {
         label: "Episodes Watched",
         data: weeklyActivity.map(w => w.episodes),
-        borderColor: "#0EA5E9",
-        backgroundColor: "rgba(14,165,233,0.35)",
+        borderColor: SERIES_COLORS.secondary,
+        backgroundColor: SERIES_COLORS.secondarySoft,
         fill: true,
         tension: 0.35,
       },
@@ -268,13 +298,13 @@ export default function StatsPage() {
                       {
                         label: "Movies",
                         data: weekdayDistribution.map(w => w.movies),
-                        backgroundColor: "#6366F1",
+                        backgroundColor: SERIES_COLORS.primary,
                         borderRadius: 4,
                       },
                       {
                         label: "Episodes",
                         data: weekdayDistribution.map(w => w.episodes),
-                        backgroundColor: "#0EA5E9",
+                        backgroundColor: SERIES_COLORS.secondary,
                         borderRadius: 4,
                       },
                     ],
@@ -297,7 +327,7 @@ export default function StatsPage() {
                           watchTimeBreakdown.moviesMinutes,
                           watchTimeBreakdown.episodesMinutes,
                         ],
-                        backgroundColor: ["#6366F1", "#0EA5E9"],
+                        backgroundColor: [SERIES_COLORS.primary, SERIES_COLORS.secondary],
                         borderWidth: 0,
                         borderColor: "transparent",
                       },
