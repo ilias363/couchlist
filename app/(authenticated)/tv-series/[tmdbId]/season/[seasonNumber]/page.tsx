@@ -146,7 +146,7 @@ export default function SeasonDetailsPage() {
   return (
     <div className="space-y-8 -mt-2">
       {/* Progress Bar */}
-      <div className="p-2 rounded-xl bg-card border border-border/50 space-y-3">
+      <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
         <div className="flex items-center justify-between">
           <ProgressSummary watched={watchedCount} total={episodesInfo.length} />
           <span className="text-xs text-muted-foreground">{Math.round(progressPct)}% complete</span>
@@ -197,7 +197,7 @@ function SeasonSkeleton() {
 
       {/* Header skeleton */}
       <div className="flex flex-col md:flex-row gap-6">
-        <Skeleton className="w-40 md:w-48 aspect-[2/3] rounded-xl mx-auto md:mx-0" />
+        <Skeleton className="w-40 md:w-48 aspect-2/3 rounded-xl mx-auto md:mx-0" />
         <div className="flex-1 space-y-4">
           <Skeleton className="h-8 w-3/4" />
           <Skeleton className="h-4 w-1/3" />
