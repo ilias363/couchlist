@@ -9,7 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmButton } from "@/components/common/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImportedDataResult, ImportMode } from "@/lib/types";
-import { Download, Upload, Trash2, AlertTriangle, FileJson, Loader2 } from "lucide-react";
+import {
+  Download,
+  Upload,
+  Trash2,
+  AlertTriangle,
+  FileJson,
+  Loader2,
+  CheckCircle2,
+} from "lucide-react";
 import { PageTitle } from "@/components/layout/page-title";
 
 export default function SettingsPage() {
@@ -100,8 +108,9 @@ export default function SettingsPage() {
 
       {/* Error Display */}
       {error && (
-        <div className="mb-6 rounded-lg border border-red-500/50 bg-red-500/10 p-4 text-sm text-red-600 dark:text-red-400">
-          {error}
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <span>{error}</span>
         </div>
       )}
 
@@ -138,11 +147,14 @@ export default function SettingsPage() {
 
               {/* Export Success */}
               {successMessage === "Data exported successfully!" && (
-                <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
-                  <p className="font-medium text-green-600 dark:text-green-400">Export Complete</p>
-                  <p className="text-muted-foreground">
-                    Your backup file has been downloaded successfully.
-                  </p>
+                <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="font-medium text-green-600 dark:text-green-400">Export complete</p>
+                    <p className="text-muted-foreground">
+                      Your backup file has been downloaded successfully.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -223,8 +235,11 @@ export default function SettingsPage() {
 
               {/* Import Result */}
               {result && (
-                <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
-                  <p className="font-medium mb-2">Import Complete</p>
+                <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
+                  <p className="mb-2 flex items-center gap-2 font-medium text-green-600 dark:text-green-400">
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    Import complete
+                  </p>
                   <div className="text-muted-foreground space-y-1">
                     <p>
                       Movies: {result.movies.inserted} added, {result.movies.updated} updated
@@ -306,9 +321,12 @@ export default function SettingsPage() {
 
             {/* Clear Success */}
             {successMessage && successMessage !== "Data exported successfully!" && (
-              <div className="rounded-lg border p-4 bg-green-500/10 text-sm">
-                <p className="font-medium text-green-600 dark:text-green-400">Operation Complete</p>
-                <p className="text-muted-foreground">{successMessage}</p>
+              <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+                <div>
+                  <p className="font-medium text-green-600 dark:text-green-400">Operation complete</p>
+                  <p className="text-muted-foreground">{successMessage}</p>
+                </div>
               </div>
             )}
           </CardContent>
