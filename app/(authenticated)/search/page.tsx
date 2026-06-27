@@ -4,11 +4,13 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import debounce from "lodash/debounce";
-import { Film, Tv, Search, Sparkles, Loader2 } from "lucide-react";
+import { Film, Tv, Search, SearchX, Sparkles, Loader2, TriangleAlert } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
 import { useUserStatuses } from "@/components/providers/user-status-provider";
+import { EmptyState } from "@/components/common/empty-state";
+import { PageTitle } from "@/components/layout/page-title";
 
 export default function SearchPage() {
   return (
@@ -94,6 +96,8 @@ function SearchView() {
 
   return (
     <div className="space-y-6">
+      <PageTitle title="Search" subtitle="Find movies and TV series to track" />
+
       {/* Search Controls */}
       <div className="p-4 rounded-xl bg-card border border-border/50 space-y-4">
         {/* Search Input */}
@@ -140,33 +144,27 @@ function SearchView() {
 
       {/* Results */}
       {!debouncedQuery && !loading && results.length === 0 && (
-        <div className="text-center py-16">
-          <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-            <Search className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium mb-1">Start your search</h3>
-          <p className="text-muted-foreground max-w-sm mx-auto">
-            Type in the search box above to find movies and TV series
-          </p>
-        </div>
+        <EmptyState
+          icon={Search}
+          title="Start your search"
+          description="Type in the search box above to find movies and TV series to track."
+        />
       )}
 
       {debouncedQuery && !loading && results.length === 0 && !error && (
-        <div className="text-center py-16">
-          <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-            <Search className="h-10 w-10 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-medium mb-1">No results found</h3>
-          <p className="text-muted-foreground max-w-sm mx-auto">
-            Try searching with different keywords or check your spelling
-          </p>
-        </div>
+        <EmptyState
+          icon={SearchX}
+          title="No results found"
+          description="Try searching with different keywords or check your spelling."
+        />
       )}
 
       {error && (
-        <div className="text-center py-16">
-          <p className="text-destructive">{error.message}</p>
-        </div>
+        <EmptyState
+          icon={TriangleAlert}
+          title="Something went wrong"
+          description={error.message}
+        />
       )}
 
       {(loading || results.length > 0) && (
