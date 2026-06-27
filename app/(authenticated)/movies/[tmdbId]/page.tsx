@@ -7,8 +7,9 @@ import { useTMDBExtendedMovie } from "@/lib/tmdb/react-query";
 import { useMovieStatus } from "@/hooks/use-movie-status";
 import { MovieHeroSection } from "@/components/movie-details/hero-section";
 import { MovieDetailsGrid } from "@/components/movie-details/details-grid";
+import { CastSection } from "@/components/details-shared/cast-section";
+import { DetailPageSkeleton } from "@/components/details-shared/detail-skeleton";
 import { MediaCarousel } from "@/components/media/media-carousel";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { WatchStatus } from "@/lib/tmdb/types";
 
 export default function MovieDetailsPage() {
@@ -28,7 +29,7 @@ export default function MovieDetailsPage() {
   );
 
   if (isLoading) {
-    return MoviePageSkeleton();
+    return <DetailPageSkeleton />;
   }
 
   if (isError || !movie) {
@@ -50,6 +51,8 @@ export default function MovieDetailsPage() {
         releaseDate={movie.release_date}
         runtime={movie.runtime}
         originalLanguage={movie.original_language}
+        voteAverage={movie.vote_average}
+        voteCount={movie.vote_count}
         currentStatus={movieStatus?.status as WatchStatus | null}
         watchedDate={movieStatus?.watchedDate}
         onStatusChange={handleStatusChange}
@@ -74,6 +77,9 @@ export default function MovieDetailsPage() {
         homepage={movie.homepage}
       />
 
+      {/* Cast */}
+      <CastSection cast={movie.credits?.cast} />
+
       {/* Recommendations */}
       {movie.recommendations.results.length > 0 ? (
         <MediaCarousel
@@ -89,48 +95,6 @@ export default function MovieDetailsPage() {
           items={movie.similar.results.map(it => ({ ...it, media_type: "movie" as const }))}
         />
       ) : null}
-    </div>
-  );
-}
-
-function MoviePageSkeleton() {
-  return (
-    <div className="mx-auto">
-      <div className="relative w-full overflow-hidden">
-        <Skeleton className="aspect-[16/12] sm:aspect-[16/7] w-full" />
-        <div className="relative -mt-20 md:absolute md:inset-x-0 md:bottom-0">
-          <div className="px-4 md:px-8 py-4 md:py-6">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:translate-y-4">
-              <div className="w-40 sm:w-48 md:w-56 mx-auto md:mx-0">
-                <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-              </div>
-              <div className="flex-1 space-y-4">
-                <Skeleton className="h-8 w-2/3" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-4 w-1/3" />
-                <div className="flex gap-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-24" />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="px-4 md:px-8 mt-4 md:mt-10 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-lg" />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { type WatchStatus, type Genre } from "@/lib/tmdb/types";
 import { Badge } from "@/components/ui/badge";
 import { StatusSelector } from "@/components/media/status-selector";
 import { BackdropImage, PosterImage } from "@/components/media/tmdb-image";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MovieHeroSectionProps {
@@ -17,6 +17,8 @@ interface MovieHeroSectionProps {
   releaseDate: string;
   runtime: number | null;
   originalLanguage: string;
+  voteAverage?: number;
+  voteCount?: number;
   currentStatus?: WatchStatus | null;
   watchedDate?: number | null;
   onStatusChange: (status: string, watchedAt?: number) => void;
@@ -35,6 +37,8 @@ export function MovieHeroSection({
   releaseDate,
   runtime,
   originalLanguage,
+  voteAverage,
+  voteCount,
   currentStatus,
   watchedDate,
   onStatusChange,
@@ -53,7 +57,11 @@ export function MovieHeroSection({
 
   const hours = runtime ? Math.floor(runtime / 60) : 0;
   const minutes = runtime ? runtime % 60 : 0;
-  const runtimeText = runtime ? `${hours > 0 ? `${hours}h ` : ""}${minutes}m` : null;
+  const runtimeText = runtime
+    ? `${hours > 0 ? `${hours}h ` : ""}${minutes}m`
+    : null;
+
+  const hasRating = typeof voteAverage === "number" && voteAverage > 0;
 
   return (
     <section className={cn("relative", className)}>
@@ -72,12 +80,18 @@ export function MovieHeroSection({
         <div className="absolute inset-0 bg-linear-to-r from-background/80 via-transparent to-background/80" />
       </div>
 
-      <div className="container px-4 pt-28 pb-10 sm:pt-72">
+      <div className="container px-4 pt-28 pb-10 sm:pt-52">
         <div className="flex flex-col gap-8 sm:flex-row sm:gap-10 animate-fade-up">
           {/* Poster with enhanced styling */}
           <div className="shrink-0 mx-auto sm:mx-0">
             <div className="w-48 sm:w-72 rounded-2xl overflow-hidden shadow-2xl shadow-black/40 ring-1 ring-white/10 hover:scale-[1.02] transition-transform duration-500">
-              <PosterImage src={posterPath} alt={title} size="w500" fallbackType="movie" priority />
+              <PosterImage
+                src={posterPath}
+                alt={title}
+                size="w500"
+                fallbackType="movie"
+                priority
+              />
             </div>
           </div>
 
@@ -87,19 +101,27 @@ export function MovieHeroSection({
               <h1 className="text-3xl sm:text-5xl font-bold tracking-tighter text-shadow">
                 {title}{" "}
                 {year && (
-                  <span className="text-muted-foreground font-normal opacity-80">({year})</span>
+                  <span className="text-muted-foreground font-normal opacity-80">
+                    ({year})
+                  </span>
                 )}
               </h1>
 
               {tagline && (
-                <p className="mt-3 text-lg sm:text-xl italic text-muted-foreground">{tagline}</p>
+                <p className="mt-3 text-lg sm:text-xl italic text-muted-foreground">
+                  {tagline}
+                </p>
               )}
             </div>
 
             {/* Genres */}
             <div className="flex flex-wrap justify-center gap-2.5 sm:justify-start">
               {genres.map(genre => (
-                <Badge key={genre.id} variant="secondary" className="px-3 py-1 text-sm font-medium">
+                <Badge
+                  key={genre.id}
+                  variant="secondary"
+                  className="px-3 py-1 text-sm font-medium"
+                >
                   {genre.name}
                 </Badge>
               ))}
@@ -107,10 +129,29 @@ export function MovieHeroSection({
 
             {/* Meta */}
             <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground sm:justify-start font-medium">
-              {formattedDate && <span className="flex items-center gap-1.5">{formattedDate}</span>}
-              {runtimeText && <span className="flex items-center gap-1.5">• {runtimeText}</span>}
+              {hasRating && (
+                <span className="flex items-center gap-1.5 text-foreground">
+                  <Star className="h-4 w-4 fill-primary text-primary" />
+                  {voteAverage!.toFixed(1)}
+                  {voteCount ? (
+                    <span className="text-muted-foreground font-normal">
+                      ({voteCount.toLocaleString()})
+                    </span>
+                  ) : null}
+                </span>
+              )}
+              {formattedDate && (
+                <span className="flex items-center gap-1.5">
+                  {formattedDate}
+                </span>
+              )}
+              {runtimeText && (
+                <span className="flex items-center gap-1.5">{runtimeText}</span>
+              )}
               {originalLanguage && (
-                <span className="flex items-center gap-1.5 uppercase">• {originalLanguage}</span>
+                <span className="flex items-center gap-1.5 uppercase">
+                  {originalLanguage}
+                </span>
               )}
             </div>
 

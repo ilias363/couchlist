@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useTMDBExtendedTvSeries } from "@/lib/tmdb/react-query";
@@ -10,6 +9,8 @@ import { useTvSeriesStatus } from "@/hooks/use-tv-status";
 import { useSeasonData } from "@/hooks/use-season-data";
 import { TvHeroSection } from "@/components/tv-details/hero-section";
 import { TvDetailsGrid } from "@/components/tv-details/details-grid";
+import { CastSection } from "@/components/details-shared/cast-section";
+import { DetailPageSkeleton } from "@/components/details-shared/detail-skeleton";
 import { SeasonsSection } from "@/components/tv-details/seasons-section";
 
 export default function TvSeriesDetailsPage() {
@@ -31,7 +32,7 @@ export default function TvSeriesDetailsPage() {
   };
 
   if (loading) {
-    return <TvSeriesPageSkeleton />;
+    return <DetailPageSkeleton />;
   }
 
   if (error) {
@@ -57,6 +58,8 @@ export default function TvSeriesDetailsPage() {
         genres={series.genres}
         firstAirDate={series.first_air_date}
         originalLanguage={series.original_language}
+        voteAverage={series.vote_average}
+        voteCount={series.vote_count}
         currentStatus={currentStatus}
         startedAt={userSeries?.startedAt}
         lastWatchedAt={userSeries?.lastWatchedAt}
@@ -85,6 +88,8 @@ export default function TvSeriesDetailsPage() {
           homepage={series.homepage}
         />
 
+        <CastSection cast={series.credits?.cast} />
+
         <SeasonsSection seriesId={series.id} seasons={series.seasons} />
 
         {series.recommendations.results.length > 0 ? (
@@ -100,48 +105,6 @@ export default function TvSeriesDetailsPage() {
             items={series.similar.results.map(it => ({ ...it, media_type: "tv" as const }))}
           />
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function TvSeriesPageSkeleton() {
-  return (
-    <div className="mx-auto">
-      <div className="relative w-full overflow-hidden">
-        <Skeleton className="aspect-[16/12] sm:aspect-[16/7] w-full" />
-        <div className="relative -mt-20 md:absolute md:inset-x-0 md:bottom-0">
-          <div className="px-4 md:px-8 py-4 md:py-6">
-            <div className="flex flex-col gap-6 md:flex-row md:items-center md:translate-y-4">
-              <div className="w-40 sm:w-48 md:w-56 mx-auto md:mx-0">
-                <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-              </div>
-              <div className="flex-1 space-y-4">
-                <Skeleton className="h-8 w-2/3" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-4 w-1/3" />
-                <div className="flex gap-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-24" />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="px-4 md:px-8 mt-4 md:mt-10 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-lg" />
-          ))}
-        </div>
       </div>
     </div>
   );
