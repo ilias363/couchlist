@@ -108,7 +108,7 @@ export function Navbar() {
             </Button>
           </Link>
           <ThemeToggle />
-          <UserButton afterSignOutUrl="/" />
+          <UserButton />
 
           {/* Mobile Menu Button */}
           <Button
