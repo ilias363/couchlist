@@ -67,7 +67,7 @@ export class TMDBClient {
 
   async getExtendedMovieDetails(movieId: number): Promise<ExtendedTMDBMovie> {
     return this.makeRequest(
-      `/movie/${movieId}?append_to_response=external_ids,recommendations,similar`
+      `/movie/${movieId}?append_to_response=external_ids,recommendations,similar,credits`
     );
   }
 
@@ -77,7 +77,7 @@ export class TMDBClient {
 
   async getExtendedTVSeriesDetails(seriesId: number): Promise<ExtendedTMDBTvSeries> {
     return this.makeRequest(
-      `/tv/${seriesId}?append_to_response=external_ids,recommendations,similar`
+      `/tv/${seriesId}?append_to_response=external_ids,recommendations,similar,credits`
     );
   }
 

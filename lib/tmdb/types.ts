@@ -75,6 +75,7 @@ export interface ExtendedTMDBMovie extends TMDBMovie {
   external_ids: MovieExternalIDs;
   recommendations: PaginatedTMDBResponse<BaseTMDBMovie>;
   similar: PaginatedTMDBResponse<BaseTMDBMovie>;
+  credits: Credits;
 }
 
 /********************************* Episode *********************************/
@@ -215,6 +216,29 @@ export interface ExtendedTMDBTvSeries extends TMDBTvSeries {
   external_ids: TvSeriesExternalIDs;
   recommendations: PaginatedTMDBResponse<BaseTMDBTvSeries>;
   similar: PaginatedTMDBResponse<BaseTMDBTvSeries>;
+  credits: Credits;
+}
+
+/********************************* Credits *********************************/
+
+export interface CastMember {
+  adult: boolean;
+  gender: number | null;
+  id: number;
+  known_for_department: string;
+  name: string;
+  original_name: string;
+  popularity: number;
+  profile_path: string | null;
+  cast_id?: number;
+  character: string;
+  credit_id: string;
+  order: number;
+}
+
+export interface Credits {
+  cast: CastMember[];
+  crew: CrewMember[];
 }
 
 /********************************* Person *********************************/
