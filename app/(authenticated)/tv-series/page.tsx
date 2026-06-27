@@ -7,12 +7,13 @@ import { WATCH_STATUSES } from "@/lib/tmdb/utils";
 import { Button } from "@/components/ui/button";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { StatusFilter } from "@/components/media/status-filter";
+import { EmptyState } from "@/components/common/empty-state";
 import { WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { PageTitle } from "@/components/layout/page-title";
 import Link from "next/link";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Filter, Search, Tv } from "lucide-react";
 
 export default function TvSeriesPage() {
   return (
@@ -72,20 +73,44 @@ function TvSeriesView() {
       <StatusFilter options={WATCH_STATUSES} value={status} onChange={setStatus} />
 
       {/* Results Grid */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {loading &&
-          results.length === 0 &&
-          Array.from({ length: 12 }).map((_, i) => <MediaCardSkeleton key={i} />)}
-        {!loading && results.length === 0 && (
-          <p className="col-span-full text-sm text-muted-foreground">No series found.</p>
-        )}
-        {results.map(m => {
-          const details = detailsMap.get(m.tvSeriesId);
-          if (!details) return <MediaCardSkeleton key={`tv-${m.tvSeriesId}`} />;
-          const item = { ...details, media_type: "tv" as const };
-          return <MediaCard key={`tv-${m.tvSeriesId}`} item={item} status={m.status} />;
-        })}
-      </div>
+      {!loading && results.length === 0 ? (
+        <EmptyState
+          icon={status ? Filter : Tv}
+          title={status ? "Nothing with this status" : "No series yet"}
+          description={
+            status
+              ? "Try a different filter, or add series from search."
+              : "Search for a show to start tracking your progress."
+          }
+          action={
+            <>
+              {status && (
+                <Button variant="outline" size="sm" onClick={() => setStatus(undefined)}>
+                  Clear filter
+                </Button>
+              )}
+              <Link href="/search">
+                <Button size="sm" className="gap-2">
+                  <Search className="h-4 w-4" />
+                  Search series
+                </Button>
+              </Link>
+            </>
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {loading &&
+            results.length === 0 &&
+            Array.from({ length: 12 }).map((_, i) => <MediaCardSkeleton key={i} />)}
+          {results.map(m => {
+            const details = detailsMap.get(m.tvSeriesId);
+            if (!details) return <MediaCardSkeleton key={`tv-${m.tvSeriesId}`} />;
+            const item = { ...details, media_type: "tv" as const };
+            return <MediaCard key={`tv-${m.tvSeriesId}`} item={item} status={m.status} />;
+          })}
+        </div>
+      )}
 
       {paginationStatus === "CanLoadMore" && (
         <div className="flex justify-center md:pt-2">
