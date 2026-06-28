@@ -3,10 +3,14 @@
 import { CategorySection } from "@/components/home/category-section";
 import { UserMediaSection } from "@/components/home/user-media-section";
 import { CatchUpSection } from "@/components/home/catch-up-section";
+import { HomeHero } from "@/components/home/home-hero";
 
 export default function HomePage() {
   return (
     <div className="space-y-12 relative">
+      {/* Featured spotlight */}
+      <HomeHero />
+
       {/* Personal Sections */}
       <div className="space-y-10">
         <UserMediaSection
