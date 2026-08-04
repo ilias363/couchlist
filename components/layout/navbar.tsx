@@ -14,11 +14,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { UserButton } from "@clerk/nextjs";
 import { useState } from "react";
 import { MobileMenu } from "./mobile-menu";
 import { HeaderShell } from "./header-shell";
 import { Logo } from "./logo";
+import { UserMenu } from "./user-menu";
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
@@ -108,7 +108,7 @@ export function Navbar() {
             </Button>
           </Link>
           <ThemeToggle />
-          <UserButton />
+          <UserMenu />
 
           {/* Mobile Menu Button */}
           <Button

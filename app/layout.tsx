@@ -3,9 +3,7 @@ import { Playfair_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import ConvexClientProvider from "@/components/providers/convex-client-provider";
 import { RQProvider } from "@/components/providers/query-client-provider";
-import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { shadcn } from "@clerk/themes";
 
 const playfair = Playfair_Display({
   variable: "--font-display",
@@ -39,11 +37,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${playfair.variable} font-sans antialiased`}>
         <ThemeProvider>
-          <ClerkProvider appearance={{ theme: shadcn }} afterSignOutUrl="/">
-            <ConvexClientProvider>
-              <RQProvider>{children}</RQProvider>
-            </ConvexClientProvider>
-          </ClerkProvider>
+          <ConvexClientProvider>
+            <RQProvider>{children}</RQProvider>
+          </ConvexClientProvider>
         </ThemeProvider>
       </body>
     </html>

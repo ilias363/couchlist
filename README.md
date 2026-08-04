@@ -3,7 +3,7 @@
 Track what you watch across movies and TV series. Browse trending/popular titles from TMDB, search, set per-item watch status, mark episodes watched, view rich personal stats, and back up or restore your tracking data.
 
 ### Highlights
-- Authenticated app with Clerk; public landing page at `/`
+- Authenticated app with WorkOS AuthKit; public landing page at `/`
 - Movies and TV tracking with statuses: Want to Watch, Currently Watching (TV), Watched, On Hold, Dropped
 - Episode-level tracking with bulk mark/unmark for a season
 - Home feed: Trending, Popular, Top Rated, Now Playing/Airing Today
@@ -14,7 +14,7 @@ Track what you watch across movies and TV series. Browse trending/popular titles
 
 ## Tech Stack
 - Next.js 15 (App Router) + React 19
-- Authentication: Clerk
+- Authentication: WorkOS AuthKit
 - Data & backend: Convex (queries/mutations, document DB)
 - Data fetching/cache: TanStack Query
 - UI: Tailwind CSS v4, custom shadcn-style components, lucide-react icons
@@ -24,7 +24,7 @@ Track what you watch across movies and TV series. Browse trending/popular titles
 ## Architecture Overview
 - Frontend (Next.js):
 	- Auth gating via `middleware.ts` (all routes require auth except `/`).
-	- Providers in `app/layout.tsx`: ThemeProvider, ClerkProvider, ConvexClientProvider, React Query provider.
+	- Providers in `app/layout.tsx`: ThemeProvider, ConvexClientProvider, React Query provider.
 	- Pages under `app/(authenticated)/…`: `home`, `search`, `movies`, `tv-series`, `stats`.
 - Backend (Convex):
 	- `convex/schema.ts`: tables for `userMovies`, `userTvSeries`, `userEpisodes` with indexes for status and recency.
@@ -38,7 +38,7 @@ Copy `.env.example` to `.env.local` and fill values.
 See `.env.example` for placeholders and notes.
 
 ## Local Development
-Prerequisites: Node 18+, bun, a Clerk app, a TMDB API key, and the Convex CLI.
+Prerequisites: Node 22.11+, bun, a WorkOS AuthKit environment, a TMDB API key, and the Convex CLI.
 
 1) Install dependencies
 - bun install
@@ -54,7 +54,7 @@ Prerequisites: Node 18+, bun, a Clerk app, a TMDB API key, and the Convex CLI.
 - bun dev
 - Open http://localhost:3000
 
-Sign-in is handled by Clerk. The middleware protects all routes except `/`.
+Sign-in is handled by WorkOS AuthKit. The proxy protects all routes except the landing and authentication routes.
 
 ## Scripts
 - dev: Start Next.js (Turbopack)
@@ -90,7 +90,7 @@ Stats are cached in the `userStats` table to reduce compute usage.
 - **Automatic Refresh**: When stats are requested and the cache is older than 24 hours, fresh stats are calculated automatically.
 
 ## Deployment
-Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) and [Clerk deployment docs](https://clerk.com/docs/deployments/overview).
+Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) and [WorkOS environment docs](https://workos.com/docs/authkit/environments).
 
 ## Attribution
 This product uses the TMDB API but is not endorsed or certified by TMDB.
