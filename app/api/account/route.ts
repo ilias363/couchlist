@@ -39,7 +39,15 @@ export async function DELETE(request: NextRequest) {
     dataDeleted = true;
 
     await getWorkOS().userManagement.deleteUser(user.id);
-    return NextResponse.json({ deleted: true });
+    const response = NextResponse.json({ deleted: true });
+    response.cookies.delete({
+      name: process.env.WORKOS_COOKIE_NAME ?? "wos-session",
+      path: "/",
+      ...(process.env.WORKOS_COOKIE_DOMAIN
+        ? { domain: process.env.WORKOS_COOKIE_DOMAIN }
+        : {}),
+    });
+    return response;
   } catch (error) {
     console.error("Failed to delete account", error);
     return NextResponse.json(

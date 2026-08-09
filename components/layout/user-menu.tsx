@@ -49,7 +49,7 @@ export function UserMenu() {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => void signOut({ returnTo: "/" })}>
+            <DropdownMenuItem onSelect={() => void signOut()}>
               <LogOut />
               Sign out
             </DropdownMenuItem>

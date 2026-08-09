@@ -64,7 +64,7 @@ export function AccountSettingsDialog({
   onOpenChange,
 }: AccountSettingsDialogProps) {
   const { accessToken } = useAccessToken();
-  const { user, sessionId, signOut } = useAuth();
+  const { user, sessionId } = useAuth();
   const [view, setView] = useState<AccountView>("profile");
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +84,7 @@ export function AccountSettingsDialog({
         throw new Error(result.error ?? "The account could not be deleted.");
       }
 
-      await signOut({ returnTo: "/" });
+      window.location.replace("/");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     }
