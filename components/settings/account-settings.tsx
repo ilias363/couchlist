@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import {
   UserProfile,
+  UserProfileLoading,
   UserSecurity,
+  UserSecurityLoading,
   UserSessions,
+  UserSessionsLoading,
   WorkOsWidgets,
 } from "@workos-inc/widgets";
 import {
@@ -60,16 +63,10 @@ export function AccountSettingsDialog({
   open,
   onOpenChange,
 }: AccountSettingsDialogProps) {
-  const { getAccessToken } = useAccessToken();
-  const { user, signOut } = useAuth();
+  const { accessToken } = useAccessToken();
+  const { user, sessionId, signOut } = useAuth();
   const [view, setView] = useState<AccountView>("profile");
   const [error, setError] = useState<string | null>(null);
-
-  const getWidgetToken = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) throw new Error("You need to sign in again.");
-    return token;
-  }, [getAccessToken]);
 
   const handleDeleteAccount = async () => {
     setError(null);
@@ -151,6 +148,7 @@ export function AccountSettingsDialog({
               ) : null}
 
               <WorkOsWidgets
+                key={accessToken ?? "loading"}
                 className="account-settings-widgets"
                 style={{ blockSize: "auto", minBlockSize: "0" }}
                 theme={{
@@ -164,13 +162,28 @@ export function AccountSettingsDialog({
                 }}
               >
                 {view === "profile" ? (
-                  <UserProfile authToken={getWidgetToken} />
+                  accessToken ? (
+                    <UserProfile authToken={accessToken} />
+                  ) : (
+                    <UserProfileLoading />
+                  )
                 ) : null}
                 {view === "security" ? (
-                  <UserSecurity authToken={getWidgetToken} />
+                  accessToken ? (
+                    <UserSecurity authToken={accessToken} />
+                  ) : (
+                    <UserSecurityLoading />
+                  )
                 ) : null}
                 {view === "sessions" ? (
-                  <UserSessions authToken={getWidgetToken} />
+                  accessToken && sessionId ? (
+                    <UserSessions
+                      authToken={accessToken}
+                      currentSessionId={sessionId}
+                    />
+                  ) : (
+                    <UserSessionsLoading />
+                  )
                 ) : null}
               </WorkOsWidgets>
 
