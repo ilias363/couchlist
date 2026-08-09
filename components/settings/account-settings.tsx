@@ -94,7 +94,10 @@ export function AccountSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-4xl">
+      <DialogContent
+        overlayClassName="z-0"
+        className="z-0 max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-4xl"
+      >
         <DialogTitle className="sr-only">Account settings</DialogTitle>
         <DialogDescription className="sr-only">
           Manage your profile, security, and active sessions.

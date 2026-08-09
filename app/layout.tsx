@@ -42,7 +42,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <ConvexClientProvider>
-            <RQProvider>{children}</RQProvider>
+            <RQProvider>
+              <div className="relative isolate z-0">{children}</div>
+            </RQProvider>
           </ConvexClientProvider>
         </ThemeProvider>
       </body>

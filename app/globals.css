@@ -469,11 +469,6 @@
   }
 }
 
-/* WorkOS portals render outside the account dialog's stacking context. */
-.woswidgets-dialog-overlay {
-  z-index: 60;
-}
-
 .account-settings-widgets {
   container: account-settings / inline-size;
 }
