@@ -473,6 +473,26 @@
   container: account-settings / inline-size;
 }
 
+@media (max-width: 30rem) {
+  .woswidgets-dialog {
+    padding: var(--space-4);
+  }
+
+  .woswidgets-dialog .rt-Flex:has(> .rt-Grid input[inputmode="numeric"][maxlength="1"]) {
+    width: 100% !important;
+  }
+
+  .woswidgets-dialog .rt-Grid:has(input[inputmode="numeric"][maxlength="1"]) {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .woswidgets-dialog .rt-Grid:has(input[inputmode="numeric"][maxlength="1"]) .rt-TextFieldRoot {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
 @container account-settings (max-width: 36rem) {
   [data-woswidgets-widget-id="user-profile"] .rt-DataListRoot.rt-r-orientation-horizontal {
     display: flex !important;

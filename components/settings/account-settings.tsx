@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import {
   UserProfile,
@@ -27,6 +27,12 @@ import {
 } from "@/components/ui/dialog";
 
 type AccountView = "profile" | "security" | "sessions";
+
+type WorkOSDialogElement = NonNullable<
+  NonNullable<ComponentProps<typeof WorkOsWidgets>["elements"]>["dialog"]
+> & {
+  container?: HTMLElement | null;
+};
 
 type DeleteAccountResponse = {
   error?: string;
@@ -67,6 +73,14 @@ export function AccountSettingsDialog({
   const { user, sessionId } = useAuth();
   const [view, setView] = useState<AccountView>("profile");
   const [error, setError] = useState<string | null>(null);
+  const [widgetDialogContainer, setWidgetDialogContainer] =
+    useState<HTMLDivElement | null>(null);
+
+  const widgetDialogElement = {
+    container: widgetDialogContainer,
+    maxHeight: "calc(100svh - 3rem)",
+    maxWidth: "min(30rem, calc(100svw - 3rem))",
+  } satisfies WorkOSDialogElement;
 
   const handleDeleteAccount = async () => {
     setError(null);
@@ -95,6 +109,7 @@ export function AccountSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        ref={setWidgetDialogContainer}
         overlayClassName="z-0"
         className="z-0 max-h-[calc(100svh-2rem)] gap-0 overflow-hidden p-0 sm:max-w-4xl"
       >
@@ -135,7 +150,7 @@ export function AccountSettingsDialog({
             </nav>
           </aside>
 
-          <section className="min-w-0 overflow-y-auto">
+          <section className="isolate min-w-0 overflow-y-auto">
             <header className="sticky top-0 z-10 border-b bg-background/95 px-5 py-4 backdrop-blur md:px-7">
               <h3 className="font-semibold">{activeView.label}</h3>
               <p className="text-sm text-muted-foreground">
@@ -153,6 +168,7 @@ export function AccountSettingsDialog({
               <WorkOsWidgets
                 key={accessToken ?? "loading"}
                 className="account-settings-widgets"
+                elements={{ dialog: widgetDialogElement }}
                 style={{ blockSize: "auto", minBlockSize: "0" }}
                 theme={{
                   accentColor: "amber",
