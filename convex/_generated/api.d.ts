@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as account from "../account.js";
 import type * as importExport from "../importExport.js";
 import type * as migrations from "../migrations.js";
 import type * as movie from "../movie.js";
@@ -21,6 +22,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  account: typeof account;
   importExport: typeof importExport;
   migrations: typeof migrations;
   movie: typeof movie;

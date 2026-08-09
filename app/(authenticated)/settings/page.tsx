@@ -5,7 +5,13 @@ import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useConvex, useMutation } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { ConfirmButton } from "@/components/common/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ImportedDataResult, ImportMode } from "@/lib/types";
@@ -71,7 +77,9 @@ export default function SettingsPage() {
       fr.readAsText(file);
     });
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -103,8 +111,12 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <PageTitle title="Settings" subtitle="Manage your tracked data" className="mb-4" />
+    <div className="max-w-4xl mx-auto">
+      <PageTitle
+        title="Settings"
+        subtitle="Manage your tracked data"
+        className="mb-6"
+      />
 
       {/* Error Display */}
       {error && (
@@ -114,7 +126,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="flex flex-col gap-8">
         {/* Export Section */}
         <Card>
           <CardHeader>
@@ -131,11 +143,16 @@ export default function SettingsPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
-                    Your backup includes all movies, TV series, and episode watch history. Use this
-                    to transfer your data or as a safety backup.
+                    Your backup includes all movies, TV series, and episode
+                    watch history. Use this to transfer your data or as a safety
+                    backup.
                   </p>
                 </div>
-                <Button onClick={handleDownload} disabled={exporting} className="whitespace-nowrap">
+                <Button
+                  onClick={handleDownload}
+                  disabled={exporting}
+                  className="whitespace-nowrap"
+                >
                   {exporting ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
@@ -150,7 +167,9 @@ export default function SettingsPage() {
                 <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
                   <div>
-                    <p className="font-medium text-green-600 dark:text-green-400">Export complete</p>
+                    <p className="font-medium text-green-600 dark:text-green-400">
+                      Export complete
+                    </p>
                     <p className="text-muted-foreground">
                       Your backup file has been downloaded successfully.
                     </p>
@@ -168,15 +187,18 @@ export default function SettingsPage() {
               <Upload className="h-5 w-5" />
               Import Data
             </CardTitle>
-            <CardDescription>Restore from a previously exported backup file</CardDescription>
+            <CardDescription>
+              Restore from a previously exported backup file
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="flex-1">
                   <p className="text-sm text-muted-foreground">
-                    Import a CouchList backup file to restore your watch history. Choose to merge
-                    with existing data or replace it completely.
+                    Import a CouchList backup file to restore your watch
+                    history. Choose to merge with existing data or replace it
+                    completely.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -242,13 +264,16 @@ export default function SettingsPage() {
                   </p>
                   <div className="text-muted-foreground space-y-1">
                     <p>
-                      Movies: {result.movies.inserted} added, {result.movies.updated} updated
+                      Movies: {result.movies.inserted} added,{" "}
+                      {result.movies.updated} updated
                     </p>
                     <p>
-                      TV Series: {result.tvSeries.inserted} added, {result.tvSeries.updated} updated
+                      TV Series: {result.tvSeries.inserted} added,{" "}
+                      {result.tvSeries.updated} updated
                     </p>
                     <p>
-                      Episodes: {result.episodes.inserted} added, {result.episodes.updated} updated
+                      Episodes: {result.episodes.inserted} added,{" "}
+                      {result.episodes.updated} updated
                     </p>
                   </div>
                 </div>
@@ -258,7 +283,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Danger Zone */}
-        <Card className="border-red-500/50">
+        <Card id="danger-zone" className="border-destructive/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-500">
               <AlertTriangle className="h-5 w-5" />
@@ -286,7 +311,9 @@ export default function SettingsPage() {
                   await clearMovies({});
                   setError(null);
                   setResult(null);
-                  setSuccessMessage("All movies have been cleared successfully.");
+                  setSuccessMessage(
+                    "All movies have been cleared successfully.",
+                  );
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -298,7 +325,8 @@ export default function SettingsPage() {
               <div>
                 <p className="font-medium">Clear All TV Data</p>
                 <p className="text-sm text-muted-foreground">
-                  Remove all TV series and episode history. This cannot be undone.
+                  Remove all TV series and episode history. This cannot be
+                  undone.
                 </p>
               </div>
               <ConfirmButton
@@ -311,7 +339,9 @@ export default function SettingsPage() {
                   await clearTv({});
                   setError(null);
                   setResult(null);
-                  setSuccessMessage("All TV series and episodes have been cleared successfully.");
+                  setSuccessMessage(
+                    "All TV series and episodes have been cleared successfully.",
+                  );
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -320,15 +350,18 @@ export default function SettingsPage() {
             </div>
 
             {/* Clear Success */}
-            {successMessage && successMessage !== "Data exported successfully!" && (
-              <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
-                <div>
-                  <p className="font-medium text-green-600 dark:text-green-400">Operation complete</p>
-                  <p className="text-muted-foreground">{successMessage}</p>
+            {successMessage &&
+              successMessage !== "Data exported successfully!" && (
+                <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/10 p-4 text-sm">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="font-medium text-green-600 dark:text-green-400">
+                      Operation complete
+                    </p>
+                    <p className="text-muted-foreground">{successMessage}</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </CardContent>
         </Card>
       </div>

@@ -468,3 +468,99 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* WorkOS portals render outside the account dialog's stacking context. */
+.woswidgets-dialog-overlay {
+  z-index: 60;
+}
+
+.account-settings-widgets {
+  container: account-settings / inline-size;
+}
+
+@container account-settings (max-width: 36rem) {
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListRoot.rt-r-orientation-horizontal {
+    display: flex !important;
+    flex-direction: column;
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListItem {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch;
+    grid-column: auto !important;
+    grid-template-columns: none !important;
+    gap: var(--space-2);
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListLabel {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListValue {
+    min-width: 0;
+    width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListValue > .rt-Flex {
+    gap: var(--space-3);
+    min-width: 0;
+    width: 100%;
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListValue .rt-Text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  [data-woswidgets-widget-id="user-profile"] .rt-DataListValue button {
+    flex: 0 0 auto;
+  }
+
+  [data-woswidgets-widget-id="user-security"] .rt-Grid {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  [data-woswidgets-widget-id="user-security"] .rt-Grid > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  [data-woswidgets-widget-id="user-security"] .rt-Grid > :last-child button {
+    width: 100%;
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] .woswidgets-card-list-item > .rt-Box > .rt-Flex {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] .woswidgets-card-list-item > .rt-Box > .rt-Flex > :nth-child(2) {
+    min-width: 0;
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] .woswidgets-card-list-item > .rt-Box > .rt-Flex > :nth-child(2) > .rt-Flex {
+    flex-wrap: wrap;
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] .woswidgets-card-list-item > .rt-Box > .rt-Flex > :nth-child(3) {
+    grid-column: 2;
+    justify-self: start;
+    margin-left: 0;
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] > .rt-Card > .rt-Flex {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  [data-woswidgets-widget-id="user-sessions"] > .rt-Card > .rt-Flex > button {
+    width: 100%;
+  }
+}
