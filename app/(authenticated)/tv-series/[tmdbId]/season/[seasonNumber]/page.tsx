@@ -8,9 +8,6 @@ import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { SeasonEpisodes } from "@/components/season/season-episodes";
 import { SeasonHeader } from "@/components/season/season-header";
-import { Progress } from "@/components/ui/progress";
-import { EpisodeFilters } from "@/components/season/episode-filters";
-import { ProgressSummary } from "@/components/season/progress-summary";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
 import { useTMDBSeason, useTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { ArrowLeft, AlertCircle } from "lucide-react";
@@ -26,7 +23,6 @@ export default function SeasonDetailsPage() {
   const { data: season, isLoading: loading, error } = useTMDBSeason(seriesId, seasonNum);
   const { data: series } = useTMDBTvSeries(seriesId);
   const [bulkUpdating, setBulkUpdating] = useState(false);
-  const [filter, setFilter] = useState<"all" | "watched" | "unwatched">("unwatched");
 
   const episodeStatuses = useQuery(
     api.tv.getSeasonEpisodesStatus,
@@ -102,22 +98,14 @@ export default function SeasonDetailsPage() {
         seasonId: season.id,
         episodeId: ep.id,
         runtime: ep.runtime ?? undefined,
-        isWatched: !statusMap.get(ep.id),
+        isWatched: !statusMap.get(ep.id)?.isWatched,
         watchedAt,
       });
     },
     [season, seriesId, statusMap, toggleEpisode]
   );
 
-  const filteredEpisodes = useMemo(() => {
-    if (!season) return [];
-    if (filter === "all") return season.episodes;
-    return season.episodes.filter(ep =>
-      filter === "watched" ? statusMap.get(ep.id) : !statusMap.get(ep.id)
-    );
-  }, [season, filter, statusMap]);
-
-  if (loading) {
+  if (loading || (season && episodeStatuses === undefined)) {
     return <SeasonSkeleton />;
   }
 
@@ -141,19 +129,8 @@ export default function SeasonDetailsPage() {
 
   if (!season) return null;
 
-  const progressPct = episodesInfo.length ? (watchedCount / episodesInfo.length) * 100 : 0;
-
   return (
     <div className="space-y-8 -mt-2">
-      {/* Progress Bar */}
-      <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
-        <div className="flex items-center justify-between">
-          <ProgressSummary watched={watchedCount} total={episodesInfo.length} />
-          <span className="text-xs text-muted-foreground">{Math.round(progressPct)}% complete</span>
-        </div>
-        <Progress value={progressPct} className="h-2" />
-      </div>
-
       {/* Season Header */}
       <SeasonHeader
         season={season}
@@ -167,12 +144,9 @@ export default function SeasonDetailsPage() {
         seriesName={series?.name}
       />
 
-      {/* Episode Filters */}
-      <EpisodeFilters filter={filter} setFilter={setFilter} />
-
       {/* Episodes List */}
       <SeasonEpisodes
-        episodes={filteredEpisodes}
+        episodes={season.episodes}
         statusMap={statusMap}
         onToggle={handleToggleEpisode}
       />
@@ -186,15 +160,6 @@ export default function SeasonDetailsPage() {
 function SeasonSkeleton() {
   return (
     <div className="space-y-8 -mt-2">
-      {/* Progress skeleton */}
-      <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-        <Skeleton className="h-2 w-full" />
-      </div>
-
       {/* Header skeleton */}
       <div className="flex flex-col md:flex-row gap-6">
         <Skeleton className="w-40 md:w-48 aspect-2/3 rounded-xl mx-auto md:mx-0" />
@@ -207,13 +172,6 @@ function SeasonSkeleton() {
             <Skeleton className="h-10 w-32" />
           </div>
         </div>
-      </div>
-
-      {/* Filters skeleton */}
-      <div className="flex gap-2">
-        <Skeleton className="h-9 w-16 rounded-full" />
-        <Skeleton className="h-9 w-24 rounded-full" />
-        <Skeleton className="h-9 w-28 rounded-full" />
       </div>
 
       {/* Episodes skeleton */}
