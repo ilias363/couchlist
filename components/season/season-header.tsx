@@ -102,7 +102,7 @@ export function SeasonHeader({
                     disabled={season.episodes.length === 0}
                     onConfirm={onMarkAllWatched}
                     title="Mark All Episodes as Watched?"
-                    description="This will mark every episode in this season as watched."
+                    description="Already-watched episodes keep their dates. Newly watched episodes will have unknown dates."
                     confirmText="Watch All"
                     className="gap-2"
                   >

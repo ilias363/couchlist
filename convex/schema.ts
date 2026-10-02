@@ -36,8 +36,8 @@ export default defineSchema({
       v.literal("dropped")
     ),
     // New field names
-    startedAt: v.optional(v.number()), // When started watching (earliest episode date)
-    lastWatchedAt: v.optional(v.number()), // When last watched (latest episode date)
+    startedAt: v.optional(v.number()), // First valid recorded date among watched episodes
+    lastWatchedAt: v.optional(v.number()), // Last valid recorded date among watched episodes
     // Old field names (to be removed after migration)
     // startedDate: v.optional(v.number()), // @deprecated - use startedAt
     // watchedDate: v.optional(v.number()), // @deprecated - use lastWatchedAt

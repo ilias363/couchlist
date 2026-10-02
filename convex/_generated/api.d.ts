@@ -10,6 +10,7 @@
 
 import type * as account from "../account.js";
 import type * as importExport from "../importExport.js";
+import type * as lib_tvWatchDates from "../lib/tvWatchDates.js";
 import type * as migrations from "../migrations.js";
 import type * as movie from "../movie.js";
 import type * as stats from "../stats.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   account: typeof account;
   importExport: typeof importExport;
+  "lib/tvWatchDates": typeof lib_tvWatchDates;
   migrations: typeof migrations;
   movie: typeof movie;
   stats: typeof stats;

@@ -177,13 +177,16 @@ export function TvHeroSection({
                 </label>
               </StatusSelector>
               {/* Watch dates display */}
-              {(startedAt || lastWatchedAt) && (
+              {(startedAt != null || lastWatchedAt != null) && (
                 <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
-                  {startedAt && (
-                    <div className="flex items-center gap-2 text-primary">
-                      <Play className="h-4 w-4" />
+                  {startedAt != null && (
+                    <div
+                      className="flex items-center gap-2 text-primary"
+                      title="Earliest recorded episode watch date"
+                    >
+                      <Play className="h-4 w-4" aria-hidden="true" />
                       <span>
-                        Started{" "}
+                        First recorded{" "}
                         {new Date(startedAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",
@@ -192,13 +195,14 @@ export function TvHeroSection({
                       </span>
                     </div>
                   )}
-                  {lastWatchedAt && (
-                    <div className="flex items-center gap-2 text-primary">
-                      <CalendarCheck className="h-4 w-4" />
+                  {lastWatchedAt != null && (
+                    <div
+                      className="flex items-center gap-2 text-primary"
+                      title="Latest recorded episode watch date"
+                    >
+                      <CalendarCheck className="h-4 w-4" aria-hidden="true" />
                       <span>
-                        {currentStatus === "watched"
-                          ? "Finished"
-                          : "Last watched"}{" "}
+                        Last recorded{" "}
                         {new Date(lastWatchedAt).toLocaleDateString(undefined, {
                           year: "numeric",
                           month: "short",

@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { refreshSeriesWatchDates, validateUniqueIds, validateWatchDate } from "./lib/tvWatchDates";
 
 export const exportData = query({
   args: {},
@@ -129,6 +130,21 @@ export const importData = mutation({
 
     const mode = args.mode ?? "merge";
 
+    // Validate the entire backup before replace deletes or any merge writes.
+    validateUniqueIds((args.payload.movies ?? []).map(m => m.movieId), "movie");
+    validateUniqueIds((args.payload.tvSeries ?? []).map(t => t.tvSeriesId), "series");
+    validateUniqueIds((args.payload.episodes ?? []).map(e => e.episodeId), "episode");
+    for (const series of args.payload.tvSeries ?? []) {
+      validateWatchDate(series.startedAt);
+      validateWatchDate(series.lastWatchedAt);
+    }
+    for (const episode of args.payload.episodes ?? []) {
+      validateUniqueIds([episode.tvSeriesId], "series");
+      validateUniqueIds([episode.seasonId], "season");
+      validateWatchDate(episode.watchedDate);
+    }
+    const affectedSeries = new Set((args.payload.tvSeries ?? []).map(t => t.tvSeriesId));
+
     // If replace, delete all existing user docs first.
     if (mode === "replace") {
       const [movies, series, episodes] = await Promise.all([
@@ -142,7 +158,7 @@ export const importData = mutation({
           .collect(),
         ctx.db
           .query("userEpisodes")
-          .withIndex("by_user_tv", q => q.eq("userId", userId).gte("tvSeriesId", 0))
+          .withIndex("by_user_tv", q => q.eq("userId", userId))
           .collect(),
       ]);
       await Promise.all([
@@ -205,8 +221,6 @@ export const importData = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           status: t.status,
-          startedAt: t.startedAt ?? existing.startedAt,
-          lastWatchedAt: t.lastWatchedAt ?? existing.lastWatchedAt,
           updatedAt: now,
         });
         tvUpdated++;
@@ -215,8 +229,6 @@ export const importData = mutation({
           userId,
           tvSeriesId: t.tvSeriesId,
           status: t.status,
-          startedAt: t.startedAt,
-          lastWatchedAt: t.lastWatchedAt,
           createdAt: t.createdAt ?? now,
           updatedAt: t.updatedAt ?? now,
         });
@@ -226,6 +238,7 @@ export const importData = mutation({
 
     // Upsert episodes
     for (const e of args.payload.episodes ?? []) {
+      affectedSeries.add(e.tvSeriesId);
       const existing =
         mode === "replace"
           ? null
@@ -237,11 +250,14 @@ export const importData = mutation({
             .unique();
 
       if (existing) {
+        affectedSeries.add(existing.tvSeriesId);
         await ctx.db.patch(existing._id, {
           tvSeriesId: e.tvSeriesId,
           seasonId: e.seasonId,
           isWatched: e.isWatched,
-          watchedDate: e.watchedDate ?? existing.watchedDate,
+          // Version 1 omission cannot clear a watched-to-watched date, even
+          // when moving parents. Transitions never resurrect unwatched dates.
+          watchedDate: e.watchedDate ?? (e.isWatched && existing.isWatched ? existing.watchedDate : undefined),
           runtime: e.runtime ?? existing.runtime,
           updatedAt: now,
         });
@@ -260,6 +276,12 @@ export const importData = mutation({
         });
         epInserted++;
       }
+    }
+
+    // Imported series summaries are compatibility data, not watch evidence.
+    // Derive once per affected series from the full resulting history.
+    for (const tvSeriesId of affectedSeries) {
+      await refreshSeriesWatchDates(ctx, userId, tvSeriesId, true);
     }
 
     return {

@@ -195,6 +195,12 @@ export function StatusSelector({
         title={type === "tv" ? "Mark as watched" : "Watched date"}
       >
         {children}
+        {type === "tv" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            When marking all episodes, already-watched episodes keep their dates.
+            Newly watched episodes have unknown dates.
+          </p>
+        )}
       </WatchedDateDialog>
     </div>
   );

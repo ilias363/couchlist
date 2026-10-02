@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 
 function formatDateTimeLocal(d: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -56,11 +57,15 @@ function WatchedDateDialogBody({
   children,
 }: WatchedDateDialogBodyProps) {
   const checkboxId = useId();
+  const dateId = useId();
+  const errorId = useId();
+  const dateInput = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(() => {
-    const date = defaultValueMs ? new Date(defaultValueMs) : new Date();
+    const date = new Date(defaultValueMs ?? Date.now());
     return formatDateTimeLocal(date);
   });
   const [isUnknown, setIsUnknown] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleConfirm = () => {
     if (hideDatePicker || isUnknown) {
@@ -68,28 +73,45 @@ function WatchedDateDialogBody({
       return;
     }
 
-    const dt = new Date(value);
-    const ms = isNaN(dt.getTime()) ? Date.now() : dt.getTime();
+    // Validate the visible input too: native partial date edits can be invalid
+    // before a change event updates the controlled value.
+    const visibleValue = dateInput.current?.value ?? value;
+    const ms = new Date(visibleValue).getTime();
+    if (!visibleValue || !Number.isFinite(ms) || dateInput.current?.validity.valid === false) {
+      setValue(visibleValue);
+      setError("Enter a valid watch date or select unknown.");
+      return;
+    }
     onConfirm(ms);
   };
 
   return (
     <>
       {!hideDatePicker && (
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">{label}</label>
-          <input
+        <div className="flex flex-col gap-2" data-invalid={Boolean(error)}>
+          <label htmlFor={dateId} className="text-xs text-muted-foreground">{label}</label>
+          <Input
+            ref={dateInput}
+            id={dateId}
             type="datetime-local"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={value}
-            onChange={e => setValue(e.target.value)}
+            onChange={e => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? errorId : undefined}
             disabled={isUnknown}
           />
+          {error && <p id={errorId} role="alert" className="text-xs text-destructive">{error}</p>}
           <div className="flex items-center gap-2 pt-1">
             <Checkbox
               id={checkboxId}
               checked={isUnknown}
-              onCheckedChange={checked => setIsUnknown(checked === true)}
+              onCheckedChange={checked => {
+                setIsUnknown(checked === true);
+                setError(null);
+              }}
             />
             <label htmlFor={checkboxId} className="text-xs text-muted-foreground">
               Mark watched date as unknown

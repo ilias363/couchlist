@@ -1,5 +1,97 @@
-import { mutation } from "./_generated/server";
+import { mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { deriveWatchDates, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchDates } from "./lib/tvWatchDates";
+
+// Two independent cursor passes. Read-only, and deployable on the old version
+// before any clearing write paths (see docs/runbooks/tv-watch-dates.md).
+export const preflightTvSeriesDates = internalQuery({
+  args: {
+    pass: v.union(v.literal("series"), v.literal("episodes")),
+    cursor: v.union(v.string(), v.null()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 1;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error("Page limit must be 1–10");
+    const counts = {
+      summaryOnlyDates: 0, mismatchedBounds: 0, emptyDateSummaries: 0,
+      invalidSummaryDates: 0, invalidEpisodeDates: 0,
+      missingParents: 0, duplicateSeriesGroups: 0, duplicateEpisodeGroups: 0,
+    };
+    const candidates: { userId: string; tvSeriesId: number }[] = [];
+    let maxSeriesEpisodes = 0;
+    if (args.pass === "series") {
+      const page = await ctx.db.query("userTvSeries").paginate({ cursor: args.cursor, numItems: limit });
+      for (const series of page.page) {
+        const matches = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
+          q.eq("userId", series.userId).eq("tvSeriesId", series.tvSeriesId)
+        ).take(2);
+        if (matches.length > 1 && matches[0]._id === series._id) counts.duplicateSeriesGroups++;
+        const episodes = await getSeriesEpisodes(ctx, series.userId, series.tvSeriesId);
+        maxSeriesEpisodes = Math.max(maxSeriesEpisodes, episodes.length);
+        const dates = deriveWatchDates(episodes);
+        const hasSummary = series.startedAt !== undefined || series.lastWatchedAt !== undefined;
+        if (hasSummary && dates.startedAt === undefined) {
+          counts.emptyDateSummaries++;
+          if (!episodes.some(ep => ep.isWatched)) counts.summaryOnlyDates++;
+        }
+        for (const date of [series.startedAt, series.lastWatchedAt]) {
+          if (date !== undefined && !isValidWatchDate(date)) counts.invalidSummaryDates++;
+        }
+        if (series.startedAt !== dates.startedAt || series.lastWatchedAt !== dates.lastWatchedAt) counts.mismatchedBounds++;
+        candidates.push({ userId: series.userId, tvSeriesId: series.tvSeriesId });
+      }
+      return { isDone: page.isDone, continueCursor: page.continueCursor, scanned: page.page.length, counts, candidates, maxSeriesEpisodes };
+    }
+    const page = await ctx.db.query("userEpisodes").paginate({ cursor: args.cursor, numItems: limit });
+    const seen = new Set<string>();
+    for (const episode of page.page) {
+      if (episode.watchedDate !== undefined && !isValidWatchDate(episode.watchedDate)) counts.invalidEpisodeDates++;
+      const matches = await ctx.db.query("userEpisodes").withIndex("by_user_episode", q =>
+        q.eq("userId", episode.userId).eq("episodeId", episode.episodeId)
+      ).take(2);
+      if (matches.length > 1 && matches[0]._id === episode._id) counts.duplicateEpisodeGroups++;
+      if (!episode.isWatched) continue;
+      const key = JSON.stringify([episode.userId, episode.tvSeriesId]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const parent = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
+        q.eq("userId", episode.userId).eq("tvSeriesId", episode.tvSeriesId)
+      ).first();
+      if (parent) continue;
+      candidates.push({ userId: episode.userId, tvSeriesId: episode.tvSeriesId });
+      // Count each orphan group at its first watched row, even across pages.
+      const firstWatched = await ctx.db.query("userEpisodes").withIndex("by_user_tv", q =>
+        q.eq("userId", episode.userId).eq("tvSeriesId", episode.tvSeriesId)
+      ).filter(q => q.eq(q.field("isWatched"), true)).first();
+      if (firstWatched?._id === episode._id) {
+        counts.missingParents++;
+        maxSeriesEpisodes = Math.max(maxSeriesEpisodes, (await getSeriesEpisodes(ctx, episode.userId, episode.tvSeriesId)).length);
+      }
+    }
+    return { isDone: page.isDone, continueCursor: page.continueCursor, scanned: page.page.length, counts, candidates, maxSeriesEpisodes };
+  },
+});
+
+// One series per transaction: current reads and writes conflict with concurrent
+// episode mutations. A stale discovery cannot recreate deleted watch history.
+export const repairTvSeriesDates = internalMutation({
+  args: { userId: v.string(), tvSeriesId: v.number() },
+  handler: async (ctx, args) => {
+    const series = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
+      q.eq("userId", args.userId).eq("tvSeriesId", args.tvSeriesId)
+    ).take(2);
+    if (series.length > 1) throw new Error("Repair blocked: duplicate series identities; reconcile explicitly");
+    const episodes = await getSeriesEpisodes(ctx, args.userId, args.tvSeriesId);
+    for (const episode of episodes) {
+      const matches = await ctx.db.query("userEpisodes").withIndex("by_user_episode", q =>
+        q.eq("userId", args.userId).eq("episodeId", episode.episodeId)
+      ).take(2);
+      if (matches.length > 1) throw new Error("Repair blocked: duplicate episode identities; reconcile explicitly");
+    }
+    return { result: await refreshSeriesWatchDates(ctx, args.userId, args.tvSeriesId, true), episodeCount: episodes.length };
+  },
+});
 
 export const replaceUserId = mutation({
   args: {
@@ -60,64 +152,6 @@ export const replaceUserId = mutation({
       episodesUpdated: episodes.length,
       statsUpdated: stats.length,
       totalUpdated: movies.length + tvSeries.length + episodes.length + stats.length,
-    };
-
-    console.log("Migration complete:", result);
-    return result;
-  },
-});
-
-// Migration to recalculate TV series startedAt and lastWatchedAt from episode watch dates
-export const recalculateTvSeriesDates = mutation({
-  args: {},
-  handler: async (ctx) => {
-    console.log("Starting TV series dates recalculation migration...");
-
-    // Get all TV series
-    const allSeries = await ctx.db.query("userTvSeries").collect();
-    console.log(`Found ${allSeries.length} TV series to process`);
-
-    let updated = 0;
-    let skipped = 0;
-    const now = Date.now();
-
-    for (const series of allSeries) {
-      // Get all episodes for this series and user
-      const episodes = await ctx.db
-        .query("userEpisodes")
-        .withIndex("by_user_tv", (q) =>
-          q.eq("userId", series.userId).eq("tvSeriesId", series.tvSeriesId)
-        )
-        .collect();
-
-      // Extract dates from episodes
-      const dates = episodes
-        .filter((ep) => ep.watchedDate !== undefined)
-        .map((ep) => ep.watchedDate!);
-
-      if (dates.length === 0) {
-        skipped++;
-        continue;
-      }
-
-      const earliest = Math.min(...dates);
-      const latest = Math.max(...dates);
-
-      const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
-        updatedAt: now,
-        startedAt: earliest,
-        lastWatchedAt: latest,
-      };
-
-      await ctx.db.patch(series._id, updates);
-      updated++;
-    }
-
-    const result = {
-      success: true,
-      totalProcessed: allSeries.length,
-      updated,
-      skipped,
     };
 
     console.log("Migration complete:", result);

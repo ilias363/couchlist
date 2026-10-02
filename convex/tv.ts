@@ -1,6 +1,14 @@
-import { mutation, query, MutationCtx } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import {
+  deriveWatchDates,
+  getSeriesEpisodes,
+  refreshSeriesWatchDates,
+  validateWatchDate,
+  validateUniqueIds,
+  validateEpisodeIdentity,
+} from "./lib/tvWatchDates";
 
 const tvStatusValidator = v.union(
   v.literal("want_to_watch"),
@@ -8,7 +16,7 @@ const tvStatusValidator = v.union(
   v.literal("watched"),
   v.literal("up_to_date"),
   v.literal("on_hold"),
-  v.literal("dropped")
+  v.literal("dropped"),
 );
 
 export const getSeriesStatus = query({
@@ -19,93 +27,11 @@ export const getSeriesStatus = query({
     return await ctx.db
       .query("userTvSeries")
       .withIndex("by_user_tv_series", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
       )
       .unique();
   },
 });
-
-// Helper to update TV series dates when a new episode is watched
-// Only fetches all episodes when unwatching (to recalculate bounds)
-// Creates the series record if it doesn't exist
-const updateSeriesDatesFromEpisodes = async (
-  ctx: MutationCtx,
-  userId: string,
-  tvSeriesId: number,
-  newEpisodeDate?: number // Pass the new episode's date when watching, undefined when unwatching
-): Promise<void> => {
-  const existing = await ctx.db
-    .query("userTvSeries")
-    .withIndex("by_user_tv_series", q =>
-      q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
-    )
-    .unique();
-
-  const now = Date.now();
-
-  // If series doesn't exist and we have a new episode date, create it as currently_watching
-  if (!existing && newEpisodeDate !== undefined) {
-    await ctx.db.insert("userTvSeries", {
-      userId,
-      tvSeriesId,
-      status: "currently_watching",
-      startedAt: newEpisodeDate,
-      lastWatchedAt: newEpisodeDate,
-      createdAt: now,
-      updatedAt: now,
-    });
-    return;
-  }
-
-  if (!existing) return;
-
-  // If we have a new episode date, just compare with existing dates (fast path)
-  if (newEpisodeDate !== undefined) {
-    const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
-      updatedAt: now,
-    };
-
-    // Update startedAt if this episode is earlier than current
-    if (!existing.startedAt || newEpisodeDate < existing.startedAt) {
-      updates.startedAt = newEpisodeDate;
-    }
-
-    // Update lastWatchedAt if this episode is later than current
-    if (!existing.lastWatchedAt || newEpisodeDate > existing.lastWatchedAt) {
-      updates.lastWatchedAt = newEpisodeDate;
-    }
-
-    await ctx.db.patch(existing._id, updates);
-    return;
-  }
-
-  // Slow path: when unwatching, we need to recalculate from all episodes
-  const episodes = await ctx.db
-    .query("userEpisodes")
-    .withIndex("by_user_tv", q =>
-      q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
-    )
-    .collect();
-
-  const dates = episodes
-    .filter(ep => ep.watchedDate !== undefined)
-    .map(ep => ep.watchedDate!);
-
-  const earliest = dates.length > 0 ? Math.min(...dates) : undefined;
-  const latest = dates.length > 0 ? Math.max(...dates) : undefined;
-
-  const updates: { startedAt?: number; lastWatchedAt?: number; updatedAt: number } = {
-    updatedAt: now,
-  };
-
-  // Update startedAt to the earliest episode date (or clear if no episodes)
-  updates.startedAt = earliest;
-
-  // Update lastWatchedAt to latest episode date
-  updates.lastWatchedAt = latest;
-
-  await ctx.db.patch(existing._id, updates);
-};
 
 export const setSeriesStatus = mutation({
   args: {
@@ -117,39 +43,22 @@ export const setSeriesStatus = mutation({
     if (!identity) throw new Error("Unauthorized");
     const now = Date.now();
 
-    // Get episode dates to derive startedAt and lastWatchedAt
-    const episodes = await ctx.db
-      .query("userEpisodes")
-      .withIndex("by_user_tv", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
-      )
-      .collect();
-
-    const dates = episodes
-      .filter(ep => ep.watchedDate !== undefined)
-      .map(ep => ep.watchedDate!);
-
-    const earliestEpisodeDate = dates.length > 0 ? Math.min(...dates) : undefined;
-    const latestEpisodeDate = dates.length > 0 ? Math.max(...dates) : undefined;
+    const dates = deriveWatchDates(
+      await getSeriesEpisodes(ctx, identity.subject, args.tvSeriesId),
+    );
 
     const existing = await ctx.db
       .query("userTvSeries")
       .withIndex("by_user_tv_series", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
       )
       .unique();
 
     if (existing) {
-      // Derive startedAt: prefer episode date, fallback to existing
-      let startedAt = earliestEpisodeDate !== undefined ? earliestEpisodeDate : existing.startedAt;
-      // Derive lastWatchedAt: prefer episode date, fallback to existing
-      let lastWatchedAt = latestEpisodeDate !== undefined ? latestEpisodeDate : existing.lastWatchedAt;
-
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        startedAt,
-        lastWatchedAt,
+        ...dates,
       });
     } else {
       // New series: derive dates from episodes (could be undefined)
@@ -157,8 +66,7 @@ export const setSeriesStatus = mutation({
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        startedAt: earliestEpisodeDate,
-        lastWatchedAt: latestEpisodeDate,
+        ...dates,
         createdAt: now,
         updatedAt: now,
       });
@@ -174,7 +82,7 @@ export const getSeasonEpisodesStatus = query({
     return await ctx.db
       .query("userEpisodes")
       .withIndex("by_user_season", q =>
-        q.eq("userId", identity.subject).eq("seasonId", args.seasonId)
+        q.eq("userId", identity.subject).eq("seasonId", args.seasonId),
       )
       .collect();
   },
@@ -195,16 +103,18 @@ export const toggleEpisodeWatched = mutation({
     const existing = await ctx.db
       .query("userEpisodes")
       .withIndex("by_user_episode", q =>
-        q.eq("userId", identity.subject).eq("episodeId", args.episodeId)
+        q.eq("userId", identity.subject).eq("episodeId", args.episodeId),
       )
       .unique();
+    validateWatchDate(args.watchedAt);
+    validateEpisodeIdentity(existing, args.tvSeriesId, args.seasonId);
     const now = Date.now();
 
     if (!args.isWatched) {
       if (existing) {
         await ctx.db.delete(existing._id);
         // Update the TV series dates after removing episode
-        await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId);
+        await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
       }
       return;
     }
@@ -230,8 +140,8 @@ export const toggleEpisodeWatched = mutation({
       });
     }
 
-    // Update the TV series dates with the new episode date (fast path)
-    await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId, args.watchedAt);
+    // Recompute after explicit individual date changes.
+    await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
   },
 });
 
@@ -239,7 +149,9 @@ export const bulkToggleSeasonEpisodes = mutation({
   args: {
     tvSeriesId: v.number(),
     seasonId: v.number(),
-    episodesInfo: v.array(v.object({ episodeId: v.number(), runtime: v.optional(v.number()) })),
+    episodesInfo: v.array(
+      v.object({ episodeId: v.number(), runtime: v.optional(v.number()) }),
+    ),
     isWatched: v.boolean(),
     watchedAt: v.optional(v.number()),
   },
@@ -248,13 +160,30 @@ export const bulkToggleSeasonEpisodes = mutation({
     if (!identity) throw new Error("Unauthorized");
     const now = Date.now();
 
-    const existing = await ctx.db
-      .query("userEpisodes")
-      .withIndex("by_user_season", q =>
-        q.eq("userId", identity.subject).eq("seasonId", args.seasonId)
-      )
-      .collect();
-    const existingMap = new Map(existing.map(e => [e.episodeId, e]));
+    validateWatchDate(args.watchedAt);
+    validateUniqueIds(
+      args.episodesInfo.map(ep => ep.episodeId),
+      "episode",
+    );
+    if (!args.episodesInfo.length) return;
+    // Resolve global episode identities before writing, including other seasons.
+    const records = await Promise.all(
+      args.episodesInfo.map(ep =>
+        ctx.db
+          .query("userEpisodes")
+          .withIndex("by_user_episode", q =>
+            q.eq("userId", identity.subject).eq("episodeId", ep.episodeId),
+          )
+          .unique(),
+      ),
+    );
+    for (const record of records)
+      validateEpisodeIdentity(record, args.tvSeriesId, args.seasonId);
+    const existingMap = new Map(
+      records
+        .filter(record => record !== null)
+        .map(record => [record.episodeId, record]),
+    );
 
     if (!args.isWatched) {
       for (const ep of args.episodesInfo) {
@@ -264,7 +193,7 @@ export const bulkToggleSeasonEpisodes = mutation({
         }
       }
       // Update the TV series dates after removing episodes
-      await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId);
+      await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
       return;
     }
 
@@ -274,7 +203,7 @@ export const bulkToggleSeasonEpisodes = mutation({
         await ctx.db.patch(rec._id, {
           runtime: ep.runtime ?? rec.runtime,
           isWatched: true,
-          watchedDate: args.watchedAt,
+          watchedDate: rec.isWatched ? rec.watchedDate : args.watchedAt,
           updatedAt: now,
         });
       } else {
@@ -292,8 +221,8 @@ export const bulkToggleSeasonEpisodes = mutation({
       }
     }
 
-    // Update the TV series dates with the bulk watched date (fast path)
-    await updateSeriesDatesFromEpisodes(ctx, identity.subject, args.tvSeriesId, args.watchedAt);
+    // Refresh once after all writes, including unknown dates.
+    await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
   },
 });
 
@@ -311,11 +240,13 @@ export const listUserTvSeries = query({
     const base = ctx.db.query("userTvSeries");
     const ordered = args.status
       ? base
-        .withIndex("by_user_status_updatedAt", q =>
-          q.eq("userId", identity.subject).eq("status", args.status!)
-        )
-        .order("desc")
-      : base.withIndex("by_user_updatedAt", q => q.eq("userId", identity.subject)).order("desc");
+          .withIndex("by_user_status_updatedAt", q =>
+            q.eq("userId", identity.subject).eq("status", args.status!),
+          )
+          .order("desc")
+      : base
+          .withIndex("by_user_updatedAt", q => q.eq("userId", identity.subject))
+          .order("desc");
 
     const page = await ordered.paginate(args.paginationOpts);
     return page;
@@ -341,16 +272,22 @@ export const getRecentTvByStatus = query({
         ctx.db
           .query("userTvSeries")
           .withIndex("by_user_status_updatedAt", q =>
-            q.eq("userId", identity.subject).eq("status", status)
+            q.eq("userId", identity.subject).eq("status", status),
           )
           .order("desc")
-          .take(max)
-      )
+          .take(max),
+      ),
     );
 
-    const items = groups.flat().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
+    const items = groups
+      .flat()
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, max);
 
-    return items.map(s => ({ tvSeriesId: s.tvSeriesId, updatedAt: s.updatedAt }));
+    return items.map(s => ({
+      tvSeriesId: s.tvSeriesId,
+      updatedAt: s.updatedAt,
+    }));
   },
 });
 
@@ -369,12 +306,12 @@ export const listAllTvStatuses = query({
       number,
       {
         status:
-        | "want_to_watch"
-        | "watched"
-        | "on_hold"
-        | "dropped"
-        | "currently_watching"
-        | "up_to_date";
+          | "want_to_watch"
+          | "watched"
+          | "on_hold"
+          | "dropped"
+          | "currently_watching"
+          | "up_to_date";
       }
     > = {};
 
@@ -395,7 +332,7 @@ export const deleteTvSeries = mutation({
     const existing = await ctx.db
       .query("userTvSeries")
       .withIndex("by_user_tv_series", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
       )
       .unique();
 
@@ -406,7 +343,7 @@ export const deleteTvSeries = mutation({
     const episodes = await ctx.db
       .query("userEpisodes")
       .withIndex("by_user_tv", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
       )
       .collect();
     for (const ep of episodes) {
@@ -419,23 +356,25 @@ export const deleteTvSeries = mutation({
 
 export const getUpToDateSeriesWithEpisodes = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
     const upToDateSeries = await ctx.db
       .query("userTvSeries")
       .withIndex("by_user_status_updatedAt", q =>
-        q.eq("userId", identity.subject).eq("status", "up_to_date")
+        q.eq("userId", identity.subject).eq("status", "up_to_date"),
       )
       .collect();
 
     const results = await Promise.all(
-      upToDateSeries.map(async (series) => {
+      upToDateSeries.map(async series => {
         const episodes = await ctx.db
           .query("userEpisodes")
           .withIndex("by_user_tv", q =>
-            q.eq("userId", identity.subject).eq("tvSeriesId", series.tvSeriesId)
+            q
+              .eq("userId", identity.subject)
+              .eq("tvSeriesId", series.tvSeriesId),
           )
           .collect();
 
@@ -447,7 +386,7 @@ export const getUpToDateSeriesWithEpisodes = query({
           tvSeriesId: series.tvSeriesId,
           watchedEpisodeIds,
         };
-      })
+      }),
     );
 
     return results;
