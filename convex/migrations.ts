@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import { deriveWatchDates, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchDates } from "./lib/tvWatchDates";
 
 // Two independent cursor passes. Read-only, and deployable on the old version
-// before any clearing write paths (see docs/runbooks/tv-watch-dates.md).
 export const preflightTvSeriesDates = internalQuery({
   args: {
     pass: v.union(v.literal("series"), v.literal("episodes")),
@@ -12,7 +11,7 @@ export const preflightTvSeriesDates = internalQuery({
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 1;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error("Page limit must be 1–10");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error("Page limit must be 1-500");
     const counts = {
       summaryOnlyDates: 0, mismatchedBounds: 0, emptyDateSummaries: 0,
       invalidSummaryDates: 0, invalidEpisodeDates: 0,
