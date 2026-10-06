@@ -50,6 +50,7 @@ export default function TvSeriesDetailsPage() {
   return (
     <div className="mx-auto">
       <TvHeroSection
+        seriesId={series.id}
         name={series.name}
         tagline={series.tagline}
         overview={series.overview}

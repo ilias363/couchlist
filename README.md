@@ -6,6 +6,7 @@ Track what you watch across movies and TV series. Browse trending/popular titles
 - Authenticated app with WorkOS AuthKit; public landing page at `/`
 - Movies and TV tracking with statuses: Want to Watch, Currently Watching (TV), Watched, On Hold, Dropped
 - Episode-level tracking with bulk mark/unmark for a season
+- Episode ratings drawer on TV series pages, with SeriesGraph embedded in the app
 - Home feed: Trending, Popular, Top Rated, Now Playing/Airing Today
 - Search (movie, TV, or both) with infinite scrolling
 - Stats dashboard: distributions, daily/weekly activity, streaks, and watch-time breakdown

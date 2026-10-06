@@ -7,8 +7,10 @@ import { BackdropImage, PosterImage } from "@/components/media/tmdb-image";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarCheck, Play, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EpisodeRatingsDrawer } from "@/components/tv-details/episode-ratings-drawer";
 
 interface TvHeroSectionProps {
+  seriesId: number;
   name: string;
   tagline?: string | null;
   overview: string;
@@ -32,6 +34,7 @@ interface TvHeroSectionProps {
 }
 
 export function TvHeroSection({
+  seriesId,
   name,
   tagline,
   overview,
@@ -129,11 +132,12 @@ export function TvHeroSection({
             </div>
 
             {/* Meta */}
-            <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground sm:justify-start font-medium">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground sm:justify-start font-medium">
               {hasRating && (
                 <span className="flex items-center gap-1.5 text-foreground">
                   <Star className="h-4 w-4 fill-primary text-primary" />
                   {voteAverage!.toFixed(1)}
+                  <span className="text-muted-foreground font-normal">TMDB</span>
                   {voteCount ? (
                     <span className="text-muted-foreground font-normal">
                       ({voteCount.toLocaleString()})
@@ -141,6 +145,7 @@ export function TvHeroSection({
                   ) : null}
                 </span>
               )}
+              <EpisodeRatingsDrawer key={seriesId} seriesId={seriesId} name={name} />
               {formattedDate && (
                 <span className="flex items-center gap-1.5">
                   {formattedDate}
