@@ -95,6 +95,8 @@ Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) a
 ## Install as an app
 Following the [Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps), `app/manifest.ts` enables installation with CouchList icons and a standalone window.
 
+Opening the installed icon starts at `/launch`, which restores the last app path and query parameters saved on this device for the signed-in account. First launches, invalid saved paths, and unavailable browser storage fall back to `/home`. Direct links and normal browser visits keep their requested destination. Scroll position and unsaved form state are not restored.
+
 Serve the app over HTTPS in production (localhost works for development). Use the browser's Install app option where supported; on iPhone or iPad, use Safari's Share menu and Add to Home Screen.
 
 The app still requires an internet connection. There is no service worker, offline cache, push notification setup.

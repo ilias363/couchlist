@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "CouchList",
     short_name: "CouchList",
     description: "Track your movies, TV shows, and watched episodes.",
-    start_url: "/home",
+    start_url: "/launch",
     scope: "/",
     display: "standalone",
     background_color: "#fdf9f6",

@@ -1,10 +1,15 @@
+import { Suspense } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { UserStatusProvider } from "@/components/providers/user-status-provider";
+import { LastPageTracker } from "@/components/last-page-tracker";
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
     <UserStatusProvider>
+      <Suspense fallback={null}>
+        <LastPageTracker />
+      </Suspense>
       <div className="min-h-screen flex flex-col relative">
         {/* Subtle ambient background */}
         <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none">
