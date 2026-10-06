@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
 import "@radix-ui/themes/styles.css";
 import "@workos-inc/widgets/styles.css";
@@ -28,6 +28,14 @@ export const metadata: Metadata = {
   description:
     "Your personal entertainment tracker. Discover, track, and analyze your viewing journey with CouchList.",
   keywords: ["movies", "tv shows", "tracking", "watchlist", "entertainment"],
+  appleWebApp: {
+    capable: true,
+    title: "CouchList",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

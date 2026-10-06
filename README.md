@@ -92,6 +92,13 @@ Stats are cached in the `userStats` table to reduce compute usage.
 ## Deployment
 Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) and [WorkOS environment docs](https://workos.com/docs/authkit/environments).
 
+## Install as an app
+Following the [Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps), `app/manifest.ts` enables installation with CouchList icons and a standalone window.
+
+Serve the app over HTTPS in production (localhost works for development). Use the browser's Install app option where supported; on iPhone or iPad, use Safari's Share menu and Add to Home Screen.
+
+The app still requires an internet connection. There is no service worker, offline cache, push notification setup.
+
 ## Attribution
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
