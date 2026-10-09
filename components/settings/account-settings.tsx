@@ -1,5 +1,7 @@
 "use client";
 
+import "@radix-ui/themes/styles.css";
+import "@workos-inc/widgets/styles.css";
 import { useState, type ComponentProps } from "react";
 import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
 import {

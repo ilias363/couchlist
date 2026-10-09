@@ -169,11 +169,11 @@ export function useTMDBSearchFeed(query: string, mode: SearchMode, options?: Que
       if (lastPage.page >= lastPage.total_pages) return undefined;
       return lastPage.page + 1;
     },
-    queryFn: ({ pageParam }) => {
+    queryFn: ({ pageParam, signal }) => {
       const p = pageParam as number;
-      if (mode === "movie") return tmdbClient.searchMovies(q, p);
-      if (mode === "tv") return tmdbClient.searchTVSeries(q, p);
-      return tmdbClient.searchMulti(q, p);
+      if (mode === "movie") return tmdbClient.searchMovies(q, p, signal);
+      if (mode === "tv") return tmdbClient.searchTVSeries(q, p, signal);
+      return tmdbClient.searchMulti(q, p, signal);
     },
     select: data => ({
       pageParams: data.pageParams,

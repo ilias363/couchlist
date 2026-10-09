@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
-import "@radix-ui/themes/styles.css";
-import "@workos-inc/widgets/styles.css";
 import "./globals.css";
 import ConvexClientProvider from "@/components/providers/convex-client-provider";
 import { RQProvider } from "@/components/providers/query-client-provider";

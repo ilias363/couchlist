@@ -129,7 +129,12 @@ export function SeasonEpisodes({
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Thumbnail */}
                 <div className="w-full sm:w-36 md:w-44 shrink-0 rounded-lg overflow-hidden relative group">
-                  <StillImage src={ep.still_path} alt={ep.name} size="w300" />
+                  <StillImage
+                    src={ep.still_path}
+                    alt={ep.name}
+                    size="w300"
+                    sizesAttr="(max-width: 639px) calc(100vw - 58px), (max-width: 767px) 144px, 176px"
+                  />
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-white font-bold text-lg">E{ep.episode_number}</span>
                   </div>

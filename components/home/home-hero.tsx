@@ -31,7 +31,6 @@ function HeroShell({
             priority
             sizes="100vw"
             className="object-cover object-top"
-            unoptimized
           />
         ) : (
           <div className="h-full w-full bg-linear-to-br from-primary/20 via-card to-background" />

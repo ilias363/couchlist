@@ -35,12 +35,14 @@ export default function HomePage() {
           subtitle="What everyone's watching this week"
           type="movie"
           category="trending"
+          defer
         />
         <CategorySection
           title="Trending TV Shows"
           subtitle="The hottest series right now"
           type="tv"
           category="trending"
+          defer
         />
       </div>
 

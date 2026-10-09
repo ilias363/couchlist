@@ -78,12 +78,17 @@ function BaseTMDBImage({
 
 export interface PosterImageProps extends Omit<
   BaseProps,
-  "size" | "aspect" | "fallback" | "sizesAttr"
+  "size" | "aspect" | "fallback"
 > {
   size?: PosterSize;
   fallbackType?: "movie" | "tv";
 }
-export function PosterImage({ size = "w500", fallbackType = "movie", ...rest }: PosterImageProps) {
+export function PosterImage({
+  size = "w500",
+  fallbackType = "movie",
+  sizesAttr = "(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw",
+  ...rest
+}: PosterImageProps) {
   return (
     <BaseTMDBImage
       {...rest}
@@ -92,7 +97,7 @@ export function PosterImage({ size = "w500", fallbackType = "movie", ...rest }: 
       fallback={
         fallbackType === "movie" ? <Film className="h-8 w-8" /> : <Tv className="h-8 w-8" />
       }
-      sizesAttr="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+      sizesAttr={sizesAttr}
     />
   );
 }
@@ -123,24 +128,23 @@ export function BackdropImage({ size = "w1280", gradient = "none", ...rest }: Ba
       aspect="aspect-[16/9]"
       sizesAttr="100vw"
       overlay={overlay}
-      unoptimized
     />
   );
 }
 
 export interface StillImageProps extends Omit<
   BaseProps,
-  "size" | "aspect" | "fallback" | "sizesAttr"
+  "size" | "aspect" | "fallback"
 > {
   size?: StillSize;
 }
-export function StillImage({ size = "w300", ...rest }: StillImageProps) {
+export function StillImage({ size = "w300", sizesAttr = "(max-width: 768px) 100vw, 50vw", ...rest }: StillImageProps) {
   return (
     <BaseTMDBImage
       {...rest}
       size={size}
       aspect="aspect-[16/9]"
-      sizesAttr="(max-width: 768px) 100vw, 50vw"
+      sizesAttr={sizesAttr}
     />
   );
 }

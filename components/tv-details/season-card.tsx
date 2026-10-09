@@ -40,7 +40,7 @@ export function SeasonCard({
       {/* Poster */}
       <div className="relative shrink-0 w-20 aspect-2/3 rounded-lg overflow-hidden bg-muted">
         {posterPath ? (
-          <PosterImage src={posterPath} alt={name} size="w185" />
+          <PosterImage src={posterPath} alt={name} size="w185" sizesAttr="80px" />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Film className="h-6 w-6" />

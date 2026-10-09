@@ -16,17 +16,13 @@ export class TMDBClient {
     this.apiKey = apiKey;
   }
 
-  private async makeRequest<T>(endpoint: string): Promise<T> {
+  private async makeRequest<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
     const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${this.apiKey}`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, { signal });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        // Rate limited, wait and retry
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return this.makeRequest<T>(endpoint);
-      }
+      // React Query owns the bounded retry policy, including rate-limit errors.
       throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
     }
 
@@ -37,9 +33,10 @@ export class TMDBClient {
     return results.map(r => ({ ...r, media_type: mediaType })) as TMDBSearchResult[];
   }
 
-  async searchMovies(query: string, page: number = 1): Promise<TMDBSearchResponse> {
+  async searchMovies(query: string, page: number = 1, signal?: AbortSignal): Promise<TMDBSearchResponse> {
     const resp: TMDBSearchResponse = await this.makeRequest(
-      `/search/movie?query=${encodeURIComponent(query)}&page=${page}`
+      `/search/movie?query=${encodeURIComponent(query)}&page=${page}`,
+      signal
     );
     return {
       ...resp,
@@ -47,9 +44,10 @@ export class TMDBClient {
     };
   }
 
-  async searchTVSeries(query: string, page: number = 1): Promise<TMDBSearchResponse> {
+  async searchTVSeries(query: string, page: number = 1, signal?: AbortSignal): Promise<TMDBSearchResponse> {
     const resp: TMDBSearchResponse = await this.makeRequest(
-      `/search/tv?query=${encodeURIComponent(query)}&page=${page}`
+      `/search/tv?query=${encodeURIComponent(query)}&page=${page}`,
+      signal
     );
     return {
       ...resp,
@@ -57,8 +55,8 @@ export class TMDBClient {
     };
   }
 
-  async searchMulti(query: string, page: number = 1): Promise<TMDBSearchResponse> {
-    return this.makeRequest(`/search/multi?query=${encodeURIComponent(query)}&page=${page}`);
+  async searchMulti(query: string, page: number = 1, signal?: AbortSignal): Promise<TMDBSearchResponse> {
+    return this.makeRequest(`/search/multi?query=${encodeURIComponent(query)}&page=${page}`, signal);
   }
 
   async getMovieDetails(movieId: number): Promise<TMDBMovie> {

@@ -27,7 +27,9 @@ export default function TvSeriesDetailsPage() {
 
   const onChangeStatus = async (status: string, watchedAt?: number) => {
     if (!seriesId || status === currentStatus) return;
-    const seasons = await fetchAllSeasons();
+    const seasons = status === "watched" && tvStatus.markEntireSeries
+      ? await fetchAllSeasons()
+      : undefined;
     await tvStatus.handleStatusChange(status, watchedAt, seasons);
   };
 

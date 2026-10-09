@@ -89,6 +89,7 @@ export function MovieHeroSection({
                 src={posterPath}
                 alt={title}
                 size="w500"
+                sizesAttr="(max-width: 639px) 192px, 288px"
                 fallbackType="movie"
                 priority
               />

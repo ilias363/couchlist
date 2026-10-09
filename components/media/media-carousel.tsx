@@ -51,10 +51,14 @@ export function MediaCarousel({
         {items.map((it, i) => (
           <div
             key={`${it.media_type}-${it.id}`}
-            className={cn("w-40 sm:w-44 lg:w-52 shrink-0 snap-start", i < 8 && "animate-fade-up")}
+            className={cn("w-40 sm:w-44 lg:w-52 shrink-0 snap-start", i < 8 && "sm:animate-fade-up")}
             style={i < 8 ? { animationDelay: `${i * 0.03}s` } : undefined}
           >
-            <MediaCard item={it} status={getStatus(it.id, it.media_type as "movie" | "tv")} />
+            <MediaCard
+              item={it}
+              status={getStatus(it.id, it.media_type as "movie" | "tv")}
+              posterSizes="(max-width: 639px) 160px, (max-width: 1023px) 176px, 208px"
+            />
           </div>
         ))}
         {hasNextPage && (

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { LogOut, Settings, UserRound } from "lucide-react";
-import { AccountSettingsDialog } from "@/components/settings/account-settings";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,12 +15,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const AccountSettingsDialog = lazy(() =>
+  import("@/components/settings/account-settings").then(module => ({
+    default: module.AccountSettingsDialog,
+  }))
+);
+
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const displayName = [user?.firstName, user?.lastName]
     .filter(Boolean)
     .join(" ");
   const [accountOpen, setAccountOpen] = useState(false);
+  const [accountRequested, setAccountRequested] = useState(false);
 
   return (
     <>
@@ -42,7 +49,10 @@ export function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => setAccountOpen(true)}>
+            <DropdownMenuItem onSelect={() => {
+              setAccountRequested(true);
+              setAccountOpen(true);
+            }}>
               <Settings />
               Account settings
             </DropdownMenuItem>
@@ -57,7 +67,18 @@ export function UserMenu() {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AccountSettingsDialog open={accountOpen} onOpenChange={setAccountOpen} />
+      {accountRequested && (
+        <Suspense fallback={
+          <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+            <DialogContent>
+              <DialogTitle>Account settings</DialogTitle>
+              <DialogDescription>Loading account settings…</DialogDescription>
+            </DialogContent>
+          </Dialog>
+        }>
+          <AccountSettingsDialog open={accountOpen} onOpenChange={setAccountOpen} />
+        </Suspense>
+      )}
     </>
   );
 }

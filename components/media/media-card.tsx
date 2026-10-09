@@ -2,7 +2,6 @@
 
 import {
   memo,
-  type CSSProperties,
   type ReactNode,
   useEffect,
   useRef,
@@ -33,17 +32,13 @@ import { MediaCardMenu } from "./media-card-menu";
 interface MediaCardProps {
   item: TMDBSearchResult;
   status?: WatchStatus | null;
+  posterSizes?: string;
   className?: string;
 }
 
 type MovieCardItem = Extract<TMDBSearchResult, { media_type: "movie" }>;
 type TvCardItem = Extract<TMDBSearchResult, { media_type: "tv" }>;
 type SupportedMediaCardItem = MovieCardItem | TvCardItem;
-
-const CARD_PERF_STYLE: CSSProperties = {
-  contentVisibility: "auto",
-  containIntrinsicSize: "320px 500px",
-};
 
 function getItemLink(id: number, mediaType: "movie" | "tv") {
   return mediaType === "movie" ? `/movies/${id}` : `/tv-series/${id}`;
@@ -86,6 +81,7 @@ interface MediaCardLayoutProps {
   watchedDialogDefaultMs?: number;
   watchedDialogChildren?: ReactNode;
   onLinkIntent: () => void;
+  posterSizes?: string;
   className?: string;
 }
 
@@ -108,6 +104,7 @@ function MediaCardLayout({
   watchedDialogDefaultMs,
   watchedDialogChildren,
   onLinkIntent,
+  posterSizes,
   className,
 }: MediaCardLayoutProps) {
   const isMovie = item.media_type === "movie";
@@ -121,7 +118,6 @@ function MediaCardLayout({
         "group relative h-full flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500",
         className,
       )}
-      style={CARD_PERF_STYLE}
     >
       <MediaCardMenu
         menuOpen={menuOpen}
@@ -149,6 +145,7 @@ function MediaCardLayout({
           <PosterImage
             src={item.poster_path}
             size="w780"
+            sizesAttr={posterSizes ?? "(max-width: 639px) calc(50vw - 24px), (max-width: 767px) calc(33.33vw - 27px), (max-width: 1023px) calc(25vw - 24px), (max-width: 1279px) calc(20vw - 26px), 190px"}
             alt={title ?? ""}
             className="w-full transition-transform duration-500 group-hover:scale-105"
             fallbackType={isMovie ? "movie" : "tv"}
@@ -211,10 +208,11 @@ function MediaCardLayout({
 interface MovieMediaCardProps {
   item: MovieCardItem;
   status?: WatchStatus | null;
+  posterSizes?: string;
   className?: string;
 }
 
-function MovieMediaCard({ item, status, className }: MovieMediaCardProps) {
+function MovieMediaCard({ item, status, posterSizes, className }: MovieMediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
   const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
@@ -310,6 +308,7 @@ function MovieMediaCard({ item, status, className }: MovieMediaCardProps) {
       onWatchedConfirm={onWatchedConfirm}
       watchedDialogDefaultMs={watchedDialogDefaultMs}
       onLinkIntent={onLinkIntent}
+      posterSizes={posterSizes}
       className={className}
     />
   );
@@ -318,10 +317,11 @@ function MovieMediaCard({ item, status, className }: MovieMediaCardProps) {
 interface TvMediaCardProps {
   item: TvCardItem;
   status?: WatchStatus | null;
+  posterSizes?: string;
   className?: string;
 }
 
-function TvMediaCard({ item, status, className }: TvMediaCardProps) {
+function TvMediaCard({ item, status, posterSizes, className }: TvMediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
   const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
@@ -433,6 +433,7 @@ function TvMediaCard({ item, status, className }: TvMediaCardProps) {
       watchedDialogDefaultMs={watchedDialogDefaultMs}
       watchedDialogChildren={watchedDialogChildren}
       onLinkIntent={onLinkIntent}
+      posterSizes={posterSizes}
       className={className}
     />
   );
@@ -461,6 +462,7 @@ function getComparableDate(item: TMDBSearchResult) {
 function areMediaCardPropsEqual(prev: MediaCardProps, next: MediaCardProps) {
   return (
     prev.className === next.className &&
+    prev.posterSizes === next.posterSizes &&
     prev.status === next.status &&
     prev.item.id === next.item.id &&
     prev.item.media_type === next.item.media_type &&
@@ -471,12 +473,12 @@ function areMediaCardPropsEqual(prev: MediaCardProps, next: MediaCardProps) {
   );
 }
 
-export const MediaCard = memo(function MediaCard({ item, status, className }: MediaCardProps) {
+export const MediaCard = memo(function MediaCard({ item, status, posterSizes, className }: MediaCardProps) {
   if (item.media_type === "movie") {
-    return <MovieMediaCard item={item} status={status} className={className} />;
+    return <MovieMediaCard item={item} status={status} posterSizes={posterSizes} className={className} />;
   }
   if (item.media_type === "tv") {
-    return <TvMediaCard item={item} status={status} className={className} />;
+    return <TvMediaCard item={item} status={status} posterSizes={posterSizes} className={className} />;
   }
   return null;
 }, areMediaCardPropsEqual);

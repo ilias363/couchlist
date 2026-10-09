@@ -1,10 +1,34 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useCatchUpData } from "@/hooks/use-catch-up-data";
 import { TMDBSearchResult } from "@/lib/tmdb/types";
 import { MediaCarousel } from "../media/media-carousel";
 
 export function CatchUpSection() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node || active) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setActive(true);
+    }, { rootMargin: "200px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [active]);
+
+  return (
+    <div ref={containerRef}>
+      {active ? <CatchUpSectionContent /> : (
+        <MediaCarousel title="Catch Up" subtitle="Check for new episodes" items={[]} isLoading />
+      )}
+    </div>
+  );
+}
+
+function CatchUpSectionContent() {
   const { catchUpItems, isLoading, totalUnwatchedEpisodes } = useCatchUpData();
 
   const items: TMDBSearchResult[] = catchUpItems.map(item => ({

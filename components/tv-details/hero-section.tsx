@@ -93,6 +93,7 @@ export function TvHeroSection({
                 src={posterPath}
                 alt={name}
                 size="w500"
+                sizesAttr="(max-width: 639px) 192px, 288px"
                 fallbackType="tv"
                 priority
               />
