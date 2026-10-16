@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useState } from "react";
+import { ComponentProps, ReactNode, useCallback, useState } from "react";
 import { ConvexProviderWithAuth, ConvexReactClient } from "convex/react";
 import {
   AuthKitProvider,
@@ -12,13 +12,19 @@ if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
   throw new Error("Missing NEXT_PUBLIC_CONVEX_URL in your .env file");
 }
 
-export default function ConvexClientProvider({ children }: { children: ReactNode }) {
+export default function ConvexClientProvider({
+  children,
+  initialAuth,
+}: {
+  children: ReactNode;
+  initialAuth: ComponentProps<typeof AuthKitProvider>["initialAuth"];
+}) {
   const [convex] = useState(
     () => new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL!),
   );
 
   return (
-    <AuthKitProvider>
+    <AuthKitProvider initialAuth={initialAuth}>
       <ConvexProviderWithAuth client={convex} useAuth={useAuthFromAuthKit}>
         {children}
       </ConvexProviderWithAuth>

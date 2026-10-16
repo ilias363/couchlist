@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans } from "next/font/google";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 import "./globals.css";
 import ConvexClientProvider from "@/components/providers/convex-client-provider";
 import { RQProvider } from "@/components/providers/query-client-provider";
@@ -36,18 +37,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Reuse the proxy-checked session instead of fetching it again on mount.
+  const { accessToken: _accessToken, ...initialAuth } = await withAuth();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${dmSans.variable} ${playfair.variable} font-sans antialiased`}
       >
         <ThemeProvider>
-          <ConvexClientProvider>
+          <ConvexClientProvider initialAuth={initialAuth}>
             <RQProvider>
               <div className="relative isolate z-0">{children}</div>
             </RQProvider>

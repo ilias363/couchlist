@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { syncLastPage } from "@/lib/last-page";
 
 export function LastPageTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { user, loading } = useAuth();
   const userId = user?.id;
   const query = searchParams.toString();
@@ -23,8 +22,9 @@ export function LastPageTracker() {
 
     const path = pathname + (query ? `?${query}` : "");
     const destination = syncLastPage(path, userId);
-    if (destination) router.replace(destination);
-  }, [pathname, query, router, userId, loading]);
+    // A document navigation also lets the auth proxy handle an expired session.
+    if (destination) window.location.replace(destination);
+  }, [pathname, query, userId, loading]);
 
   return null;
 }
