@@ -93,7 +93,11 @@ export default function TvSeriesDetailsPage() {
 
         <CastSection cast={series.credits?.cast} />
 
-        <SeasonsSection seriesId={series.id} seasons={series.seasons} />
+        <SeasonsSection
+          seriesId={series.id}
+          seasons={series.seasons}
+          seasonWatchedCounts={userSeries === null ? {} : userSeries?.seasonWatchedCounts}
+        />
 
         {series.recommendations.results.length > 0 ? (
           <MediaCarousel

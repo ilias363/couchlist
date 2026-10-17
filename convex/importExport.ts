@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { refreshSeriesWatchDates, validateUniqueIds, validateWatchDate } from "./lib/tvWatchDates";
+import { refreshSeriesWatchSummary, validateUniqueIds, validateWatchDate } from "./lib/tvWatchDates";
 
 export const exportData = query({
   args: {},
@@ -281,7 +281,7 @@ export const importData = mutation({
     // Imported series summaries are compatibility data, not watch evidence.
     // Derive once per affected series from the full resulting history.
     for (const tvSeriesId of affectedSeries) {
-      await refreshSeriesWatchDates(ctx, userId, tvSeriesId, true);
+      await refreshSeriesWatchSummary(ctx, userId, tvSeriesId, true);
     }
 
     return {

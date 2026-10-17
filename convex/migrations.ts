@@ -1,6 +1,7 @@
 import { mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { deriveWatchDates, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchDates } from "./lib/tvWatchDates";
+import { deriveWatchSummary, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchSummary } from "./lib/tvWatchDates";
+import { internal } from "./_generated/api";
 
 // Two independent cursor passes. Read-only, and deployable on the old version
 export const preflightTvSeriesDates = internalQuery({
@@ -28,7 +29,7 @@ export const preflightTvSeriesDates = internalQuery({
         if (matches.length > 1 && matches[0]._id === series._id) counts.duplicateSeriesGroups++;
         const episodes = await getSeriesEpisodes(ctx, series.userId, series.tvSeriesId);
         maxSeriesEpisodes = Math.max(maxSeriesEpisodes, episodes.length);
-        const dates = deriveWatchDates(episodes);
+        const dates = deriveWatchSummary(episodes);
         const hasSummary = series.startedAt !== undefined || series.lastWatchedAt !== undefined;
         if (hasSummary && dates.startedAt === undefined) {
           counts.emptyDateSummaries++;
@@ -88,7 +89,39 @@ export const repairTvSeriesDates = internalMutation({
       ).take(2);
       if (matches.length > 1) throw new Error("Repair blocked: duplicate episode identities; reconcile explicitly");
     }
-    return { result: await refreshSeriesWatchDates(ctx, args.userId, args.tvSeriesId, true), episodeCount: episodes.length };
+    return { result: await refreshSeriesWatchSummary(ctx, args.userId, args.tvSeriesId, true), episodeCount: episodes.length };
+  },
+});
+
+// Run once after deploying: bunx convex run migrations:backfillSeasonWatchedCounts
+// One series per transaction; rerunning safely skips summaries already populated.
+export const backfillSeasonWatchedCounts = internalMutation({
+  args: { cursor: v.optional(v.string()) },
+  handler: async (ctx, args): Promise<{
+    status: "running_in_background" | "completed";
+    message: string;
+  }> => {
+    const page = await ctx.db.query("userTvSeries").paginate({
+      cursor: args.cursor ?? null,
+      numItems: 1,
+    });
+    for (const series of page.page) {
+      if (series.seasonWatchedCounts === undefined) {
+        await refreshSeriesWatchSummary(ctx, series.userId, series.tvSeriesId, true);
+      }
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.migrations.backfillSeasonWatchedCounts, {
+        cursor: page.continueCursor,
+      });
+      return {
+        status: "running_in_background",
+        message: "Backfill is running in the background. Check Convex function logs for completion.",
+      };
+    }
+    const message = "Season watched-count backfill completed.";
+    console.info(message);
+    return { status: "completed", message };
   },
 });
 

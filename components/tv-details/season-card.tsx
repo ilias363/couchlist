@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Calendar, Film } from "lucide-react";
+import { Calendar, Check, Film } from "lucide-react";
 import { PosterImage } from "@/components/media/tmdb-image";
+import { STATUS_COLORS } from "@/lib/status-colors";
 import { cn } from "@/lib/utils";
 
 interface SeasonCardProps {
@@ -13,6 +14,7 @@ interface SeasonCardProps {
   posterPath: string | null;
   airDate: string | null;
   episodeCount: number;
+  watchedCount?: number;
   overview?: string;
   className?: string;
 }
@@ -24,10 +26,13 @@ export function SeasonCard({
   posterPath,
   airDate,
   episodeCount,
+  watchedCount,
   overview,
   className,
 }: SeasonCardProps) {
   const year = airDate ? new Date(airDate).getFullYear() : null;
+  const allWatched = episodeCount > 0 && watchedCount === episodeCount;
+  const hasProgress = episodeCount > 0 && watchedCount !== undefined && watchedCount > 0;
 
   return (
     <Link
@@ -52,14 +57,24 @@ export function SeasonCard({
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold group-hover:text-primary transition-colors">{name}</h3>
 
-        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
           {year && (
             <span className="flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               {year}
             </span>
           )}
-          <span>{episodeCount} episodes</span>
+          <span
+            className={cn("inline-flex items-center gap-1 tabular-nums", allWatched && STATUS_COLORS.watched.text)}
+            aria-label={hasProgress
+              ? allWatched
+                ? `All ${episodeCount} episodes watched`
+                : `${watchedCount} of ${episodeCount} episodes watched`
+              : undefined}
+          >
+            {allWatched && <Check className="size-3.5 shrink-0" aria-hidden="true" />}
+            {hasProgress ? <>{watchedCount}/{episodeCount} watched</> : <>{episodeCount} episodes</>}
+          </span>
         </div>
 
         {overview && <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{overview}</p>}

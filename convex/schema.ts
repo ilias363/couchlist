@@ -38,6 +38,7 @@ export default defineSchema({
     // New field names
     startedAt: v.optional(v.number()), // First valid recorded date among watched episodes
     lastWatchedAt: v.optional(v.number()), // Last valid recorded date among watched episodes
+    seasonWatchedCounts: v.optional(v.record(v.string(), v.number())), // TMDB season ID -> watched count
     // Old field names (to be removed after migration)
     // startedDate: v.optional(v.number()), // @deprecated - use startedAt
     // watchedDate: v.optional(v.number()), // @deprecated - use lastWatchedAt

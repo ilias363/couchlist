@@ -8,10 +8,11 @@ import type { BaseTMDBSeason } from "@/lib/tmdb/types";
 interface SeasonsSectionProps {
   seriesId: number;
   seasons: BaseTMDBSeason[];
+  seasonWatchedCounts?: Record<string, number>;
   className?: string;
 }
 
-export function SeasonsSection({ seriesId, seasons, className }: SeasonsSectionProps) {
+export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, className }: SeasonsSectionProps) {
   // Filter out specials (season 0) and sort by season number
   const regularSeasons = seasons
     .filter(s => s.season_number > 0)
@@ -32,6 +33,7 @@ export function SeasonsSection({ seriesId, seasons, className }: SeasonsSectionP
             posterPath={season.poster_path}
             airDate={season.air_date}
             episodeCount={season.episode_count}
+            watchedCount={seasonWatchedCounts === undefined ? undefined : (seasonWatchedCounts[String(season.id)] ?? 0)}
             overview={season.overview}
           />
         ))}

@@ -79,7 +79,7 @@ lib/
 
 ## Data Model (Convex)
 - userMovies: { userId, movieId, status, runtime?, watchedDate?, createdAt, updatedAt }
-- userTvSeries: { userId, tvSeriesId, status, startedAt?, lastWatchedAt?, createdAt, updatedAt }
+- userTvSeries: { userId, tvSeriesId, status, startedAt?, lastWatchedAt?, seasonWatchedCounts?, createdAt, updatedAt }
 - userEpisodes: { userId, tvSeriesId, seasonId, episodeId, isWatched, runtime?, watchedDate?, createdAt, updatedAt }
 
 Common statuses: want_to_watch | currently_watching (TV only) | watched | on_hold | dropped
@@ -92,6 +92,12 @@ Stats are cached in the `userStats` table to reduce compute usage.
 
 ## Deployment
 Refer to [Convex deployment docs](https://docs.convex.dev/production/hosting/) and [WorkOS environment docs](https://workos.com/docs/authkit/environments).
+
+After deploying season progress, run `bunx convex run migrations:backfillSeasonWatchedCounts` against that deployment (add `--prod` for production). It processes one existing series per transaction and schedules the remaining pages automatically.
+
+The CLI immediately returns `running_in_background` when more batches are scheduled. It returns `completed` only if the initial call finishes the backfill; it does not wait for scheduled batches. The final batch logs `Season watched-count backfill completed.` in Convex function logs.
+
+The backfill preserves library timestamps and safely skips populated summaries on reruns. Until a legacy series is backfilled, its cards omit watch progress. Future episode changes and imports rebuild the counts alongside the series watch dates; the series page needs no additional queries or TMDB episode requests.
 
 ## Install as an app
 Following the [Next.js PWA guide](https://nextjs.org/docs/app/guides/progressive-web-apps), `app/manifest.ts` enables installation with CouchList icons and a standalone window.

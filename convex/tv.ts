@@ -2,9 +2,9 @@ import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import {
-  deriveWatchDates,
+  deriveWatchSummary,
   getSeriesEpisodes,
-  refreshSeriesWatchDates,
+  refreshSeriesWatchSummary,
   validateWatchDate,
   validateUniqueIds,
   validateEpisodeIdentity,
@@ -43,7 +43,7 @@ export const setSeriesStatus = mutation({
     if (!identity) throw new Error("Unauthorized");
     const now = Date.now();
 
-    const dates = deriveWatchDates(
+    const summary = deriveWatchSummary(
       await getSeriesEpisodes(ctx, identity.subject, args.tvSeriesId),
     );
 
@@ -58,15 +58,15 @@ export const setSeriesStatus = mutation({
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        ...dates,
+        ...summary,
       });
     } else {
-      // New series: derive dates from episodes (could be undefined)
+      // Rebuild the summary from any existing episode history.
       await ctx.db.insert("userTvSeries", {
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        ...dates,
+        ...summary,
         createdAt: now,
         updatedAt: now,
       });
@@ -114,7 +114,7 @@ export const toggleEpisodeWatched = mutation({
       if (existing) {
         await ctx.db.delete(existing._id);
         // Update the TV series dates after removing episode
-        await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
+        await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
       }
       return;
     }
@@ -141,7 +141,7 @@ export const toggleEpisodeWatched = mutation({
     }
 
     // Recompute after explicit individual date changes.
-    await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
+    await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
   },
 });
 
@@ -193,7 +193,7 @@ export const bulkToggleSeasonEpisodes = mutation({
         }
       }
       // Update the TV series dates after removing episodes
-      await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
+      await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
       return;
     }
 
@@ -222,7 +222,7 @@ export const bulkToggleSeasonEpisodes = mutation({
     }
 
     // Refresh once after all writes, including unknown dates.
-    await refreshSeriesWatchDates(ctx, identity.subject, args.tvSeriesId);
+    await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
   },
 });
 

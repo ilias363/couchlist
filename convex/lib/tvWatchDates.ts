@@ -11,16 +11,22 @@ export function validateWatchDate(value: number | undefined): void {
   }
 }
 
-export function deriveWatchDates(episodes: Pick<Doc<"userEpisodes">, "isWatched" | "watchedDate">[]) {
+export function deriveWatchSummary(
+  episodes: Pick<Doc<"userEpisodes">, "seasonId" | "isWatched" | "watchedDate">[],
+) {
   let startedAt: number | undefined;
   let lastWatchedAt: number | undefined;
+  const seasonWatchedCounts: Record<string, number> = {};
   for (const episode of episodes) {
+    if (!episode.isWatched) continue;
+    const seasonId = String(episode.seasonId);
+    seasonWatchedCounts[seasonId] = (seasonWatchedCounts[seasonId] ?? 0) + 1;
     const date = episode.watchedDate;
-    if (!episode.isWatched || date === undefined || !isValidWatchDate(date)) continue;
+    if (date === undefined || !isValidWatchDate(date)) continue;
     if (startedAt === undefined || date < startedAt) startedAt = date;
     if (lastWatchedAt === undefined || date > lastWatchedAt) lastWatchedAt = date;
   }
-  return { startedAt, lastWatchedAt };
+  return { startedAt, lastWatchedAt, seasonWatchedCounts };
 }
 
 export function getSeriesEpisodes(ctx: QueryCtx, userId: string, tvSeriesId: number) {
@@ -30,8 +36,8 @@ export function getSeriesEpisodes(ctx: QueryCtx, userId: string, tvSeriesId: num
 }
 
 // Individual watching can explicitly clear a date. Bulk watching preserves dates
-// on already-watched rows; both recompute the bounds from the resulting history.
-export async function refreshSeriesWatchDates(
+// on already-watched rows; both rebuild the summary from the resulting history.
+export async function refreshSeriesWatchSummary(
   ctx: MutationCtx,
   userId: string,
   tvSeriesId: number,
@@ -41,12 +47,17 @@ export async function refreshSeriesWatchDates(
     q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
   ).unique();
   const episodes = await getSeriesEpisodes(ctx, userId, tvSeriesId);
-  const dates = deriveWatchDates(episodes);
+  const summary = deriveWatchSummary(episodes);
   if (existing) {
-    const changed = existing.startedAt !== dates.startedAt || existing.lastWatchedAt !== dates.lastWatchedAt;
+    const counts = existing.seasonWatchedCounts;
+    const changed = existing.startedAt !== summary.startedAt ||
+      existing.lastWatchedAt !== summary.lastWatchedAt ||
+      counts === undefined ||
+      Object.keys(counts).length !== Object.keys(summary.seasonWatchedCounts).length ||
+      Object.entries(summary.seasonWatchedCounts).some(([seasonId, count]) => counts[seasonId] !== count);
     if (!repair || changed) {
       // Convex patch removes fields explicitly set to undefined.
-      await ctx.db.patch(existing._id, { ...dates, ...(!repair ? { updatedAt: Date.now() } : {}) });
+      await ctx.db.patch(existing._id, { ...summary, ...(!repair ? { updatedAt: Date.now() } : {}) });
     }
     return changed ? "updated" : "unchanged";
   }
@@ -63,7 +74,7 @@ export async function refreshSeriesWatchDates(
     }
   }
   await ctx.db.insert("userTvSeries", {
-    userId, tvSeriesId, status: "currently_watching", ...dates, createdAt, updatedAt,
+    userId, tvSeriesId, status: "currently_watching", ...summary, createdAt, updatedAt,
   });
   return "created";
 }
