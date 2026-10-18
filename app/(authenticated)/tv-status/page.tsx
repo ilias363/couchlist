@@ -34,6 +34,8 @@ export default function TvStatusPage() {
 
   // Only hydrate titles from pages the user has requested.
   const { map: detailsMap, isLoading: loading } = useBatchTMDBTvSeries(seriesIds);
+  const initialLoading = paginationStatus === "LoadingFirstPage" ||
+    (loading && !series.some(record => detailsMap.get(record.tvSeriesId)));
 
   // Combine and filter data
   const tableData = useMemo(() => {
@@ -160,7 +162,7 @@ export default function TvStatusPage() {
       </div>
 
       {/* Content */}
-      {loading || paginationStatus === "LoadingFirstPage" ? (
+      {initialLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -289,6 +291,11 @@ export default function TvStatusPage() {
           </div>
         </>
       )}
+      {loading && !initialLoading && (
+        <p role="status" className="text-center text-sm text-muted-foreground">
+          Loading series details...
+        </p>
+      )}
       {(paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
         <div className="flex justify-center">
           <Button
@@ -296,7 +303,7 @@ export default function TvStatusPage() {
             disabled={loading || paginationStatus === "LoadingMore"}
             onClick={() => loadMore(30)}
           >
-            {paginationStatus === "LoadingMore" ? "Loading..." : "Load more series"}
+            {loading || paginationStatus === "LoadingMore" ? "Loading..." : "Load more series"}
           </Button>
         </div>
       )}

@@ -11,6 +11,7 @@ import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
 import { useMediaStatuses } from "@/hooks/use-media-statuses";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageTitle } from "@/components/layout/page-title";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 
 export default function SearchPage() {
   return (
@@ -22,6 +23,7 @@ export default function SearchPage() {
 
 function SearchView() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const [rawQuery, setRawQuery] = useState(() => searchParams.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(() => (searchParams.get("q") || "").trim());
@@ -58,7 +60,7 @@ function SearchView() {
   } = useTMDBSearchFeed(debouncedQuery, mode);
 
   const results = (data?.pages || []).flatMap(p => p.results);
-  const { getStatus } = useMediaStatuses(results);
+  const { getStatus } = useMediaStatuses(results, user?.id);
 
   useEffect(() => {
     return () => debouncedUpdate.cancel();

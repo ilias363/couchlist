@@ -4,6 +4,7 @@ import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "./media-card";
 import { useMediaStatuses } from "@/hooks/use-media-statuses";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 
 export type MediaCarouselItem = TMDBSearchResult & { watchStatus?: WatchStatus };
 
@@ -26,7 +27,8 @@ export function MediaCarousel({
   endRef,
   placeholderCount = 10,
 }: MediaCarouselProps) {
-  const { getStatus } = useMediaStatuses(items);
+  const { user } = useAuth();
+  const { getStatus } = useMediaStatuses(items, user?.id);
 
   return (
     <section className="space-y-5">

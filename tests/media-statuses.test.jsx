@@ -212,7 +212,7 @@ function renderStatuses(items, result) {
     },
   };
   // eslint-disable-next-line react-hooks/globals -- Capture the SSR hook result for assertions.
-  function Probe() { value = useMediaStatuses(items); return null; }
+  function Probe() { value = useMediaStatuses(items, "owner"); return null; }
   renderToStaticMarkup(<ConvexProvider client={client}><Probe /></ConvexProvider>);
   return { ...value, requests };
 }
