@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useUserStatuses } from "@/components/providers/user-status-provider";
 import {
   useBatchTMDBMovies,
   useBatchTMDBTvSeries,
@@ -42,6 +41,7 @@ interface Candidate {
   mediaType: "movie" | "tv";
   updatedAt: number;
   priority: number; // 0 = continue watching, 1 = watchlist
+  status: WatchStatus;
 }
 
 function yearFromDate(date?: string | null) {
@@ -131,14 +131,11 @@ function searchResultToFeature(item: TMDBSearchResult): HeroFeature | null {
  *
  * Priority: most recently updated "continue watching" item, then the most
  * recent watchlist item, then (for users with nothing active, or none at all)
- * a trending title. All of the underlying queries are already issued by the
- * home page's sections, so this adds no extra network cost.
+ * a trending title. Recent-item queries are shared with the home sections;
+ * the presence query reads at most one movie and one TV record.
  */
 export function useHomeHero(): { mode: HeroMode; feature: HeroFeature | null } {
-  const { movieStatuses, tvStatuses, getStatus, isLoading: statusesLoading } = useUserStatuses();
-
-  const hasAnyTracked =
-    Object.keys(movieStatuses).length > 0 || Object.keys(tvStatuses).length > 0;
+  const hasAnyTracked = useQuery(api.media.hasTrackedItems);
   const recentsArg = hasAnyTracked ? undefined : "skip";
 
   const continueMovies = useQuery(
@@ -161,13 +158,13 @@ export function useHomeHero(): { mode: HeroMode; feature: HeroFeature | null } {
   const candidates = useMemo<Candidate[]>(() => {
     const list: Candidate[] = [];
     for (const r of continueMovies ?? [])
-      list.push({ id: r.movieId, mediaType: "movie", updatedAt: r.updatedAt, priority: 0 });
+      list.push({ id: r.movieId, mediaType: "movie", updatedAt: r.updatedAt, priority: 0, status: r.status });
     for (const r of continueTv ?? [])
-      list.push({ id: r.tvSeriesId, mediaType: "tv", updatedAt: r.updatedAt, priority: 0 });
+      list.push({ id: r.tvSeriesId, mediaType: "tv", updatedAt: r.updatedAt, priority: 0, status: r.status });
     for (const r of watchlistMovies ?? [])
-      list.push({ id: r.movieId, mediaType: "movie", updatedAt: r.updatedAt, priority: 1 });
+      list.push({ id: r.movieId, mediaType: "movie", updatedAt: r.updatedAt, priority: 1, status: r.status });
     for (const r of watchlistTv ?? [])
-      list.push({ id: r.tvSeriesId, mediaType: "tv", updatedAt: r.updatedAt, priority: 1 });
+      list.push({ id: r.tvSeriesId, mediaType: "tv", updatedAt: r.updatedAt, priority: 1, status: r.status });
     list.sort((a, b) => a.priority - b.priority || b.updatedAt - a.updatedAt);
     return list.slice(0, MAX_CANDIDATES);
   }, [continueMovies, continueTv, watchlistMovies, watchlistTv]);
@@ -204,7 +201,7 @@ export function useHomeHero(): { mode: HeroMode; feature: HeroFeature | null } {
     let firstWithDetails: HeroFeature | null = null;
     for (const c of candidates) {
       const source: HeroSource = c.priority === 0 ? "continue" : "watchlist";
-      const status = getStatus(c.id, c.mediaType) ?? null;
+      const status = c.status;
       const feature =
         c.mediaType === "movie"
           ? (() => {
@@ -220,11 +217,11 @@ export function useHomeHero(): { mode: HeroMode; feature: HeroFeature | null } {
       if (feature.backdropPath) return feature;
     }
     return firstWithDetails;
-  }, [candidates, movieMap, tvMap, getStatus]);
+  }, [candidates, movieMap, tvMap]);
 
   // --- Resolve mode ---
 
-  if (statusesLoading) {
+  if (hasAnyTracked === undefined) {
     return { mode: "loading", feature: null };
   }
 

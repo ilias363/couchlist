@@ -118,29 +118,7 @@ export const getRecentMoviesByStatus = query({
 
     const items = groups.flat().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, max);
 
-    return items.map(m => ({ movieId: m.movieId, updatedAt: m.updatedAt }));
-  },
-});
-
-export const listAllMovieStatuses = query({
-  args: {},
-  handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return {};
-
-    const userMovies = await ctx.db
-      .query("userMovies")
-      .withIndex("by_user", q => q.eq("userId", identity.subject))
-      .collect();
-
-    const result: Record<number, { status: "want_to_watch" | "watched" | "on_hold" | "dropped" }> =
-      {};
-
-    for (const m of userMovies) {
-      result[m.movieId] = { status: m.status };
-    }
-
-    return result;
+    return items.map(m => ({ movieId: m.movieId, updatedAt: m.updatedAt, status: m.status }));
   },
 });
 

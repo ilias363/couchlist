@@ -8,9 +8,10 @@ import { Film, Tv, Search, SearchX, Sparkles, Loader2, TriangleAlert } from "luc
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
-import { useUserStatuses } from "@/components/providers/user-status-provider";
+import { useMediaStatuses } from "@/hooks/use-media-statuses";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageTitle } from "@/components/layout/page-title";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 
 export default function SearchPage() {
   return (
@@ -22,6 +23,7 @@ export default function SearchPage() {
 
 function SearchView() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
   const [rawQuery, setRawQuery] = useState(() => searchParams.get("q") || "");
   const [debouncedQuery, setDebouncedQuery] = useState(() => (searchParams.get("q") || "").trim());
@@ -32,8 +34,6 @@ function SearchView() {
 
   const router = useRouter();
   const pathname = usePathname();
-
-  const { getStatus } = useUserStatuses();
 
   const debouncedUpdate = useMemo(
     () =>
@@ -60,6 +60,7 @@ function SearchView() {
   } = useTMDBSearchFeed(debouncedQuery, mode);
 
   const results = (data?.pages || []).flatMap(p => p.results);
+  const { getStatus } = useMediaStatuses(results, user?.id);
 
   useEffect(() => {
     return () => debouncedUpdate.cancel();
