@@ -14,6 +14,7 @@ import type * as importExport from "../importExport.js";
 import type * as lib_backupFormat from "../lib/backupFormat.js";
 import type * as lib_dataOperationLock from "../lib/dataOperationLock.js";
 import type * as lib_tvWatchDates from "../lib/tvWatchDates.js";
+import type * as media from "../media.js";
 import type * as migrations from "../migrations.js";
 import type * as movie from "../movie.js";
 import type * as stats from "../stats.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   "lib/backupFormat": typeof lib_backupFormat;
   "lib/dataOperationLock": typeof lib_dataOperationLock;
   "lib/tvWatchDates": typeof lib_tvWatchDates;
+  media: typeof media;
   migrations: typeof migrations;
   movie: typeof movie;
   stats: typeof stats;

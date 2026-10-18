@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
 import { WATCH_STATUSES } from "@/lib/tmdb/utils";
+import type { WatchStatus } from "@/lib/tmdb/types";
 import { getStatusClasses } from "@/lib/status-colors";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ChevronRight } from "lucide-react";
@@ -21,23 +22,27 @@ const TMDB_STATUSES = [
 ];
 
 export default function TvStatusPage() {
-  const [watchStatusFilter, setWatchStatusFilter] = useState<string>("all");
+  const [watchStatusFilter, setWatchStatusFilter] = useState<WatchStatus | "all">("all");
   const [tmdbStatusFilter, setTmdbStatusFilter] = useState<string>("All");
 
-  // Get all user's TV series
-  const allSeries = useQuery(api.tv.listAllTvStatuses);
-  const seriesIds = useMemo(() => (allSeries ? Object.keys(allSeries).map(Number) : []), [allSeries]);
+  const { results: series, status: paginationStatus, loadMore } = usePaginatedQuery(
+    api.tv.listUserTvSeries,
+    { status: watchStatusFilter === "all" ? undefined : watchStatusFilter },
+    { initialNumItems: 30 },
+  );
+  const seriesIds = useMemo(() => series.map(item => item.tvSeriesId), [series]);
 
-  // Fetch TMDB details for all series
+  // Only hydrate titles from pages the user has requested.
   const { map: detailsMap, isLoading: loading } = useBatchTMDBTvSeries(seriesIds);
+  const initialLoading = paginationStatus === "LoadingFirstPage" ||
+    (loading && !series.some(record => detailsMap.get(record.tvSeriesId)));
 
   // Combine and filter data
   const tableData = useMemo(() => {
-    if (!allSeries) return [];
-
-    return seriesIds
-      .map(id => {
-        const userStatus = allSeries[id]?.status || "unknown";
+    return series
+      .map(record => {
+        const id = record.tvSeriesId;
+        const userStatus = record.status;
         const details = detailsMap.get(id);
         return {
           id,
@@ -49,23 +54,19 @@ export default function TvStatusPage() {
         };
       })
       .filter(item => {
-        if (watchStatusFilter !== "all" && item.userStatus !== watchStatusFilter) {
-          return false;
-        }
         if (tmdbStatusFilter !== "All" && item.tmdbStatus !== tmdbStatusFilter) {
           return false;
         }
         return true;
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allSeries, seriesIds, detailsMap, watchStatusFilter, tmdbStatusFilter]);
+  }, [series, detailsMap, tmdbStatusFilter]);
 
   const stats = useMemo(() => {
-    if (!allSeries) return null;
+    if (paginationStatus === "LoadingFirstPage") return null;
 
-    const all = seriesIds.map(id => ({
-      userStatus: allSeries[id]?.status,
-      tmdbStatus: detailsMap.get(id)?.status,
+    const all = series.map(record => ({
+      tmdbStatus: detailsMap.get(record.tvSeriesId)?.status,
     }));
 
     const byTmdbStatus: Record<string, number> = {};
@@ -75,7 +76,7 @@ export default function TvStatusPage() {
     }
 
     return { byTmdbStatus, total: all.length };
-  }, [allSeries, seriesIds, detailsMap]);
+  }, [series, detailsMap, paginationStatus]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
@@ -99,6 +100,11 @@ export default function TvStatusPage() {
       {stats && (
         <div className="p-3 sm:p-4 rounded-lg border bg-card">
           <h3 className="font-medium mb-2 text-sm sm:text-base">TMDB Status Distribution</h3>
+          {paginationStatus !== "Exhausted" && (
+            <p className="text-xs text-muted-foreground mb-2">
+              Distribution, TMDB status filters, and name sorting apply to loaded series. Load more to include the rest.
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {Object.entries(stats.byTmdbStatus)
               .sort(([, a], [, b]) => b - a)
@@ -128,7 +134,7 @@ export default function TvStatusPage() {
           <label className="block text-xs sm:text-sm font-medium mb-1">My Watch Status</label>
           <select
             value={watchStatusFilter}
-            onChange={e => setWatchStatusFilter(e.target.value)}
+            onChange={e => setWatchStatusFilter(e.target.value as WatchStatus | "all")}
             className="w-full sm:w-auto px-3 py-2 rounded-md border bg-background text-sm"
           >
             <option value="all">All Statuses</option>
@@ -156,7 +162,7 @@ export default function TvStatusPage() {
       </div>
 
       {/* Content */}
-      {loading || !allSeries ? (
+      {initialLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -230,7 +236,7 @@ export default function TvStatusPage() {
               </tbody>
             </table>
             <div className="px-4 py-3 bg-muted/30 text-sm text-muted-foreground">
-              Showing {tableData.length} of {seriesIds.length} series
+              Showing {tableData.length} of {seriesIds.length} loaded series
             </div>
           </div>
 
@@ -280,10 +286,26 @@ export default function TvStatusPage() {
               ))
             )}
             <div className="text-center text-xs text-muted-foreground pt-2">
-              Showing {tableData.length} of {seriesIds.length} series
+              Showing {tableData.length} of {seriesIds.length} loaded series
             </div>
           </div>
         </>
+      )}
+      {loading && !initialLoading && (
+        <p role="status" className="text-center text-sm text-muted-foreground">
+          Loading series details...
+        </p>
+      )}
+      {(paginationStatus === "CanLoadMore" || paginationStatus === "LoadingMore") && (
+        <div className="flex justify-center">
+          <Button
+            variant="outline"
+            disabled={loading || paginationStatus === "LoadingMore"}
+            onClick={() => loadMore(30)}
+          >
+            {loading || paginationStatus === "LoadingMore" ? "Loading..." : "Load more series"}
+          </Button>
+        </div>
       )}
     </div>
   );

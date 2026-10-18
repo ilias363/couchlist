@@ -5,14 +5,9 @@ import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
 import { TMDBTvSeries, TMDBSeason } from "@/lib/tmdb/types";
-import { useUserStatuses } from "@/components/providers/user-status-provider";
 import { CatchUpItem, CatchUpSeasonInfo } from "@/lib/catch-up-types";
 
 export function useCatchUpData() {
-  // Get quick count from already-loaded UserStatusProvider
-  const { tvStatuses } = useUserStatuses();
-  const quickUpToDateCount = Object.values(tvStatuses).filter(s => s.status === "up_to_date").length;
-
   // Get all "up to date" series with their watched episode IDs
   const upToDateData = useQuery(api.tv.getUpToDateSeriesWithEpisodes);
 
@@ -198,7 +193,7 @@ export function useCatchUpData() {
   return {
     catchUpItems,
     isLoading,
-    totalUpToDate: upToDateData?.length ?? quickUpToDateCount,
+    totalUpToDate: upToDateData?.length ?? 0,
     totalNeedingAttention: catchUpItems.length,
     totalUnwatchedEpisodes,
     totalUpcoming,

@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useBatchTMDBMovies, useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
-import { TMDBSearchResult, MovieWatchStatus, WatchStatus } from "@/lib/tmdb/types";
-import { MediaCarousel } from "../media/media-carousel";
+import { MovieWatchStatus, WatchStatus } from "@/lib/tmdb/types";
+import { MediaCarousel, type MediaCarouselItem } from "../media/media-carousel";
 
 interface UserMediaSectionProps {
   title: string;
@@ -48,14 +48,14 @@ export function UserMediaSection({
   const isLoading = convexLoading || tmdbLoading;
 
   const items = useMemo(() => {
-    const tagged: { item: TMDBSearchResult; updatedAt: number }[] = [];
+    const tagged: { item: MediaCarouselItem; updatedAt: number }[] = [];
 
     if (movieRecords) {
       for (const rec of movieRecords) {
         const movie = movieMap.get(rec.movieId);
         if (!movie) continue;
         tagged.push({
-          item: { ...movie, media_type: "movie" } as TMDBSearchResult,
+          item: { ...movie, media_type: "movie", watchStatus: rec.status },
           updatedAt: rec.updatedAt,
         });
       }
@@ -66,7 +66,7 @@ export function UserMediaSection({
         const series = tvMap.get(rec.tvSeriesId);
         if (!series) continue;
         tagged.push({
-          item: { ...series, media_type: "tv" } as TMDBSearchResult,
+          item: { ...series, media_type: "tv", watchStatus: rec.status },
           updatedAt: rec.updatedAt,
         });
       }
