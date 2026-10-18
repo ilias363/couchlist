@@ -3,7 +3,8 @@ import { authkitProxy } from "@workos-inc/authkit-nextjs";
 export default authkitProxy({
   middlewareAuth: {
     enabled: true,
-    unauthenticatedPaths: ["/", "/sign-in", "/sign-up"],
+    // The TMDB handler enforces auth itself and returns JSON 401 instead of a login redirect.
+    unauthenticatedPaths: ["/", "/sign-in", "/sign-up", "/api/tmdb/:path*"],
   },
 });
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { tmdbClient } from "@/lib/tmdb/client-api";
+import { tmdbServerClient } from "@/lib/tmdb/server-api";
 import { getTMDBImgUrl } from "@/lib/tmdb/utils";
 
 export async function generateMetadata({
@@ -9,7 +9,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tmdbId } = await params;
   try {
-    const series = await tmdbClient.getTVSeriesDetails(Number(tmdbId));
+    const series = await tmdbServerClient.getTVSeriesDetails(Number(tmdbId));
     const year = series.first_air_date ? ` (${series.first_air_date.slice(0, 4)})` : "";
     const title = `${series.name}${year}`;
     const description = series.overview || `Track ${series.name} on CouchList.`;

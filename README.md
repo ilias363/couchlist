@@ -38,6 +38,10 @@ Copy `.env.example` to `.env.local` and fill values.
 
 See `.env.example` for placeholders and notes.
 
+Set `TMDB_API_KEY` in the Next.js server environment. Browser requests use the authenticated `/api/tmdb/*` route; only the server contacts TMDB with the key. The route allows the metadata endpoints used by the app and caches upstream responses for five minutes. No rate limiting is configured.
+
+When upgrading from `NEXT_PUBLIC_TMDB_API_KEY`, rename it to `TMDB_API_KEY` locally and in your hosting environment, remove the public variable, and rebuild/redeploy. Rotate the previously exposed key in TMDB and set the replacement as `TMDB_API_KEY`; old browser bundles can still contain the old key.
+
 ## Local Development
 Prerequisites: Node 22.11+, bun, a WorkOS AuthKit environment, a TMDB API key, and the Convex CLI.
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { tmdbClient } from "@/lib/tmdb/client-api";
+import { tmdbServerClient } from "@/lib/tmdb/server-api";
 import { getTMDBImgUrl } from "@/lib/tmdb/utils";
 
 export async function generateMetadata({
@@ -9,7 +9,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tmdbId } = await params;
   try {
-    const movie = await tmdbClient.getMovieDetails(Number(tmdbId));
+    const movie = await tmdbServerClient.getMovieDetails(Number(tmdbId));
     const year = movie.release_date ? ` (${movie.release_date.slice(0, 4)})` : "";
     const title = `${movie.title}${year}`;
     const description = movie.overview || `Track ${movie.title} on CouchList.`;

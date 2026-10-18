@@ -1,7 +1,6 @@
 import {
   ExtendedTMDBMovie,
   ExtendedTMDBTvSeries,
-  TMDB_BASE_URL,
   TMDBMovie,
   TMDBSearchResponse,
   TMDBSearchResult,
@@ -10,16 +9,13 @@ import {
 } from "./types";
 
 export class TMDBClient {
-  private apiKey: string;
-
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
-  }
+  constructor(
+    private readonly request: (endpoint: string, signal?: AbortSignal) => Promise<Response> =
+      (endpoint, signal) => fetch(`/api/tmdb${endpoint}`, { signal }),
+  ) {}
 
   private async makeRequest<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
-    const url = `${TMDB_BASE_URL}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${this.apiKey}`;
-
-    const response = await fetch(url, { signal });
+    const response = await this.request(endpoint, signal);
 
     if (!response.ok) {
       // React Query owns the bounded retry policy, including rate-limit errors.
@@ -140,4 +136,4 @@ export class TMDBClient {
   }
 }
 
-export const tmdbClient = new TMDBClient(process.env.NEXT_PUBLIC_TMDB_API_KEY!);
+export const tmdbClient = new TMDBClient();
