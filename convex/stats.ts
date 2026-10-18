@@ -1,3 +1,4 @@
+import { assertDataWritable } from "./lib/dataOperationLock";
 import { mutation, MutationCtx } from "./_generated/server";
 
 async function calculateUserStats(db: MutationCtx["db"], userId: string) {
@@ -269,6 +270,7 @@ export const getUserStats = mutation({
       throw new Error("Unauthorized");
     }
     const userId = identity.subject;
+    await assertDataWritable(ctx, userId);
 
     // Try to get cached stats
     const cached = await ctx.db
@@ -306,6 +308,7 @@ export const refreshStats = mutation({
       throw new Error("Unauthorized");
     }
     const userId = identity.subject;
+    await assertDataWritable(ctx, userId);
 
     const stats = await calculateUserStats(ctx.db, userId);
 

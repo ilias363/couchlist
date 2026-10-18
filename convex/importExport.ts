@@ -1,306 +1,92 @@
 import { query, mutation } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
-import { refreshSeriesWatchSummary, validateUniqueIds, validateWatchDate } from "./lib/tvWatchDates";
+import { internal } from "./_generated/api";
+import { createOperation, ownedJob } from "./dataOperations";
+import { requireOwner } from "./lib/dataOperationLock";
+import { BATCH_SIZE, backupKind, backupRow, recordCounts, parseRow, rowKey } from "./lib/backupFormat";
 
+const jobArgs = { jobId: v.id("dataOperations") };
+export const startExport = mutation({
+  args: {}, returns: v.id("dataOperations"),
+  handler: async ctx => createOperation(ctx, await requireOwner(ctx), "export"),
+});
 export const exportData = query({
-  args: {},
-  handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
-    const userId = identity.subject;
-
-    const [movies, tvSeries, episodes] = await Promise.all([
-      ctx.db
-        .query("userMovies")
-        .withIndex("by_user", q => q.eq("userId", userId))
-        .collect(),
-      ctx.db
-        .query("userTvSeries")
-        .withIndex("by_user", q => q.eq("userId", userId))
-        .collect(),
-      ctx.db
-        .query("userEpisodes")
-        .withIndex("by_user_tv", q => q.eq("userId", userId))
-        .collect(),
-    ]);
-
-    const payload = {
-      schema: "couchlist.export",
-      version: 1,
-      exportedAt: Date.now(),
-      movies: movies.map(m => ({
-        movieId: m.movieId,
-        status: m.status,
-        watchedDate: m.watchedDate,
-        runtime: m.runtime,
-        createdAt: m.createdAt,
-        updatedAt: m.updatedAt,
-      })),
-      tvSeries: tvSeries.map(t => ({
-        tvSeriesId: t.tvSeriesId,
-        status: t.status,
-        startedAt: t.startedAt,
-        lastWatchedAt: t.lastWatchedAt,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
-      })),
-      episodes: episodes.map(e => ({
-        tvSeriesId: e.tvSeriesId,
-        seasonId: e.seasonId,
-        episodeId: e.episodeId,
-        isWatched: e.isWatched,
-        watchedDate: e.watchedDate,
-        runtime: e.runtime,
-        createdAt: e.createdAt,
-        updatedAt: e.updatedAt,
-      })),
-    };
-
-    return payload;
-  },
-});
-
-const MovieItem = v.object({
-  movieId: v.number(),
-  status: v.union(
-    v.literal("want_to_watch"),
-    v.literal("watched"),
-    v.literal("on_hold"),
-    v.literal("dropped")
-  ),
-  watchedDate: v.optional(v.number()),
-  runtime: v.optional(v.number()),
-  createdAt: v.optional(v.number()),
-  updatedAt: v.optional(v.number()),
-});
-
-const TvItem = v.object({
-  tvSeriesId: v.number(),
-  status: v.union(
-    v.literal("want_to_watch"),
-    v.literal("currently_watching"),
-    v.literal("watched"),
-    v.literal("up_to_date"),
-    v.literal("on_hold"),
-    v.literal("dropped")
-  ),
-  startedAt: v.optional(v.number()),
-  lastWatchedAt: v.optional(v.number()),
-  createdAt: v.optional(v.number()),
-  updatedAt: v.optional(v.number()),
-});
-
-const EpisodeItem = v.object({
-  tvSeriesId: v.number(),
-  seasonId: v.number(),
-  episodeId: v.number(),
-  isWatched: v.boolean(),
-  watchedDate: v.optional(v.number()),
-  runtime: v.optional(v.number()),
-  createdAt: v.optional(v.number()),
-  updatedAt: v.optional(v.number()),
-});
-
-export const importData = mutation({
-  args: {
-    payload: v.object({
-      schema: v.string(),
-      version: v.number(),
-      exportedAt: v.optional(v.number()),
-      movies: v.optional(v.array(MovieItem)),
-      tvSeries: v.optional(v.array(TvItem)),
-      episodes: v.optional(v.array(EpisodeItem)),
-    }),
-    mode: v.optional(v.union(v.literal("merge"), v.literal("replace"))),
-  },
+  args: { ...jobArgs, kind: backupKind, paginationOpts: paginationOptsValidator },
+  returns: v.object({ page: v.array(backupRow), isDone: v.boolean(), continueCursor: v.string() }),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
-
-    const userId = identity.subject;
-    const now = Date.now();
-
-    if (args.payload.schema !== "couchlist.export") {
-      throw new Error("Invalid backup schema");
-    }
-    if (args.payload.version !== 1) {
-      throw new Error(`Unsupported backup version: ${args.payload.version}`);
-    }
-
-    const mode = args.mode ?? "merge";
-
-    // Validate the entire backup before replace deletes or any merge writes.
-    validateUniqueIds((args.payload.movies ?? []).map(m => m.movieId), "movie");
-    validateUniqueIds((args.payload.tvSeries ?? []).map(t => t.tvSeriesId), "series");
-    validateUniqueIds((args.payload.episodes ?? []).map(e => e.episodeId), "episode");
-    for (const series of args.payload.tvSeries ?? []) {
-      validateWatchDate(series.startedAt);
-      validateWatchDate(series.lastWatchedAt);
-    }
-    for (const episode of args.payload.episodes ?? []) {
-      validateUniqueIds([episode.tvSeriesId], "series");
-      validateUniqueIds([episode.seasonId], "season");
-      validateWatchDate(episode.watchedDate);
-    }
-    const affectedSeries = new Set((args.payload.tvSeries ?? []).map(t => t.tvSeriesId));
-
-    // If replace, delete all existing user docs first.
-    if (mode === "replace") {
-      const [movies, series, episodes] = await Promise.all([
-        ctx.db
-          .query("userMovies")
-          .withIndex("by_user", q => q.eq("userId", userId))
-          .collect(),
-        ctx.db
-          .query("userTvSeries")
-          .withIndex("by_user", q => q.eq("userId", userId))
-          .collect(),
-        ctx.db
-          .query("userEpisodes")
-          .withIndex("by_user_tv", q => q.eq("userId", userId))
-          .collect(),
-      ]);
-      await Promise.all([
-        ...movies.map(m => ctx.db.delete(m._id)),
-        ...series.map(t => ctx.db.delete(t._id)),
-        ...episodes.map(e => ctx.db.delete(e._id)),
-      ]);
-    }
-
-    let moviesInserted = 0;
-    let moviesUpdated = 0;
-    let tvInserted = 0;
-    let tvUpdated = 0;
-    let epInserted = 0;
-    let epUpdated = 0;
-
-    // Upsert movies
-    for (const m of args.payload.movies ?? []) {
-      const existing =
-        mode === "replace"
-          ? null
-          : await ctx.db
-            .query("userMovies")
-            .withIndex("by_user_movie", q => q.eq("userId", userId).eq("movieId", m.movieId))
-            .unique();
-
-      if (existing) {
-        await ctx.db.patch(existing._id, {
-          status: m.status,
-          watchedDate: m.watchedDate ?? existing.watchedDate,
-          runtime: m.runtime ?? existing.runtime,
-          updatedAt: now,
-        });
-        moviesUpdated++;
-      } else {
-        await ctx.db.insert("userMovies", {
-          userId,
-          movieId: m.movieId,
-          status: m.status,
-          watchedDate: m.watchedDate,
-          runtime: m.runtime,
-          createdAt: m.createdAt ?? now,
-          updatedAt: m.updatedAt ?? now,
-        });
-        moviesInserted++;
+    const job = await ownedJob(ctx, args.jobId);
+    if (job.kind !== "export" || job.phase !== "export") throw new Error("Export expired. Start a new download.");
+    const opts = args.paginationOpts;
+    if (!Number.isInteger(opts.numItems) || opts.numItems < 1 || opts.numItems > BATCH_SIZE || !opts.maximumRowsRead || opts.maximumRowsRead > BATCH_SIZE || !opts.maximumBytesRead || opts.maximumBytesRead > 1024 * 1024) throw new Error("Export page exceeds budget");
+    const result = args.kind === "movies"
+      ? await ctx.db.query("userMovies").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(opts)
+      : args.kind === "tvSeries"
+        ? await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(opts)
+        : await ctx.db.query("userEpisodes").withIndex("by_user_tv", q => q.eq("userId", job.userId)).paginate(opts);
+    const page = result.page.map(doc => {
+      const { userId, _id, _creationTime, ...value } = doc;
+      void userId; void _id; void _creationTime;
+      if ("seasonWatchedCounts" in value) delete value.seasonWatchedCounts;
+      return parseRow(args.kind, value);
+    });
+    return { page, isDone: result.isDone, continueCursor: result.continueCursor };
+  },
+});
+export const finishExport = mutation({
+  args: jobArgs, returns: v.null(),
+  handler: async (ctx, args) => {
+    const job = await ownedJob(ctx, args.jobId);
+    if (job.kind !== "export") throw new Error("Not an export");
+    if (job.cancelled || (job.phase !== "export" && job.phase !== "complete")) throw new Error("Export expired. Start a new download.");
+    await ctx.db.patch(job._id, { phase: "complete" });
+    return null;
+  },
+});
+export const startImport = mutation({
+  args: { schema: v.literal("couchlist.export"), version: v.literal(1), mode: v.union(v.literal("merge"), v.literal("replace")), fingerprint: v.string(), expected: recordCounts },
+  returns: v.id("dataOperations"),
+  handler: async (ctx, args) => {
+    const userId = await requireOwner(ctx);
+    if (!/^[a-f0-9]{64}$/.test(args.fingerprint)) throw new Error("Invalid file fingerprint");
+    for (const count of Object.values(args.expected)) if (!Number.isSafeInteger(count) || count < 0) throw new Error("Invalid record count");
+    return createOperation(ctx, userId, "import", { mode: args.mode, fingerprint: args.fingerprint, expected: args.expected });
+  },
+});
+export const stageImport = mutation({
+  args: { ...jobArgs, offset: v.number(), rows: v.array(backupRow) }, returns: v.number(),
+  handler: async (ctx, args) => {
+    const job = await ownedJob(ctx, args.jobId);
+    if (job.kind !== "import" || job.phase !== "upload") throw new Error("This import is no longer accepting upload batches");
+    if (!Number.isSafeInteger(args.offset) || args.offset < 0 || args.rows.length < 1 || args.rows.length > BATCH_SIZE) throw new Error("Invalid upload batch");
+    const total = job.uploaded.movies + job.uploaded.tvSeries + job.uploaded.episodes;
+    if (args.offset > total || (args.offset < total && args.offset + args.rows.length > total)) throw new Error("Upload checkpoint mismatch. Reselect the same file to resume.");
+    for (const [i, input] of args.rows.entries()) {
+      const row = parseRow(input.kind, input.value);
+      const key = rowKey(row);
+      if (args.offset < total) {
+        const existing = await ctx.db.query("dataImportRows").withIndex("by_job_position", q => q.eq("jobId", job._id).eq("position", args.offset + i)).unique();
+        if (!existing || JSON.stringify(parseRow(existing.row.kind, existing.row.value)) !== JSON.stringify(row)) throw new Error("Retried batch differs from the staged file");
+        continue;
       }
+      const duplicate = await ctx.db.query("dataImportRows").withIndex("by_job_kind_key", q => q.eq("jobId", job._id).eq("kind", row.kind).eq("key", key)).unique();
+      if (duplicate) throw new Error(`Duplicate ${row.kind} identifier`);
+      if (++job.uploaded[row.kind] > job.expected[row.kind]) throw new Error("Upload exceeds declared record count");
+      await ctx.db.insert("dataImportRows", { jobId: job._id, position: args.offset + i, kind: row.kind, key, row });
     }
-
-    // Upsert tv series
-    for (const t of args.payload.tvSeries ?? []) {
-      const existing =
-        mode === "replace"
-          ? null
-          : await ctx.db
-            .query("userTvSeries")
-            .withIndex("by_user_tv_series", q =>
-              q.eq("userId", userId).eq("tvSeriesId", t.tvSeriesId)
-            )
-            .unique();
-      if (existing) {
-        await ctx.db.patch(existing._id, {
-          status: t.status,
-          updatedAt: now,
-        });
-        tvUpdated++;
-      } else {
-        await ctx.db.insert("userTvSeries", {
-          userId,
-          tvSeriesId: t.tvSeriesId,
-          status: t.status,
-          createdAt: t.createdAt ?? now,
-          updatedAt: t.updatedAt ?? now,
-        });
-        tvInserted++;
-      }
-    }
-
-    // Upsert episodes
-    for (const e of args.payload.episodes ?? []) {
-      affectedSeries.add(e.tvSeriesId);
-      const existing =
-        mode === "replace"
-          ? null
-          : await ctx.db
-            .query("userEpisodes")
-            .withIndex("by_user_episode", q =>
-              q.eq("userId", userId).eq("episodeId", e.episodeId)
-            )
-            .unique();
-
-      if (existing) {
-        affectedSeries.add(existing.tvSeriesId);
-        await ctx.db.patch(existing._id, {
-          tvSeriesId: e.tvSeriesId,
-          seasonId: e.seasonId,
-          isWatched: e.isWatched,
-          // Version 1 omission cannot clear a watched-to-watched date, even
-          // when moving parents. Transitions never resurrect unwatched dates.
-          watchedDate: e.watchedDate ?? (e.isWatched && existing.isWatched ? existing.watchedDate : undefined),
-          runtime: e.runtime ?? existing.runtime,
-          updatedAt: now,
-        });
-        epUpdated++;
-      } else {
-        await ctx.db.insert("userEpisodes", {
-          userId,
-          tvSeriesId: e.tvSeriesId,
-          seasonId: e.seasonId,
-          episodeId: e.episodeId,
-          isWatched: e.isWatched,
-          watchedDate: e.watchedDate,
-          runtime: e.runtime,
-          createdAt: e.createdAt ?? now,
-          updatedAt: e.updatedAt ?? now,
-        });
-        epInserted++;
-      }
-    }
-
-    // Imported series summaries are compatibility data, not watch evidence.
-    // Derive once per affected series from the full resulting history.
-    for (const tvSeriesId of affectedSeries) {
-      await refreshSeriesWatchSummary(ctx, userId, tvSeriesId, true);
-    }
-
-    return {
-      mode,
-      movies: {
-        inserted: moviesInserted,
-        updated: moviesUpdated,
-        total: (args.payload.movies ?? []).length,
-      },
-      tvSeries: {
-        inserted: tvInserted,
-        updated: tvUpdated,
-        total: (args.payload.tvSeries ?? []).length,
-      },
-      episodes: {
-        inserted: epInserted,
-        updated: epUpdated,
-        total: (args.payload.episodes ?? []).length,
-      },
-    };
+    await ctx.db.patch(job._id, { uploaded: job.uploaded, expiresAt: Date.now() + 24 * 60 * 60 * 1000 });
+    return args.offset < total ? total : total + args.rows.length;
+  },
+});
+export const sealImport = mutation({
+  args: jobArgs, returns: v.null(),
+  handler: async (ctx, args) => {
+    const job = await ownedJob(ctx, args.jobId);
+    if (job.kind !== "import") throw new Error("Not an import");
+    if (job.phase !== "upload") return null;
+    for (const kind of ["movies", "tvSeries", "episodes"] as const) if (job.uploaded[kind] !== job.expected[kind]) throw new Error("The full backup must be uploaded and validated before import can start");
+    await ctx.db.patch(job._id, { phase: "apply", revision: job.revision + 1 });
+    await ctx.scheduler.runAfter(0, internal.dataOperations.runBatch, { jobId: job._id, revision: job.revision + 1 });
+    return null;
   },
 });

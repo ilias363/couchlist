@@ -9,7 +9,10 @@
  */
 
 import type * as account from "../account.js";
+import type * as dataOperations from "../dataOperations.js";
 import type * as importExport from "../importExport.js";
+import type * as lib_backupFormat from "../lib/backupFormat.js";
+import type * as lib_dataOperationLock from "../lib/dataOperationLock.js";
 import type * as lib_tvWatchDates from "../lib/tvWatchDates.js";
 import type * as media from "../media.js";
 import type * as migrations from "../migrations.js";
@@ -25,7 +28,10 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   account: typeof account;
+  dataOperations: typeof dataOperations;
   importExport: typeof importExport;
+  "lib/backupFormat": typeof lib_backupFormat;
+  "lib/dataOperationLock": typeof lib_dataOperationLock;
   "lib/tvWatchDates": typeof lib_tvWatchDates;
   media: typeof media;
   migrations: typeof migrations;

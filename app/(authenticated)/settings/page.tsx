@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { useConvex, useMutation } from "convex/react";
+import { useConvex, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { ConfirmButton } from "@/components/common/confirm-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ImportedDataResult, ImportMode } from "@/lib/types";
+import { ImportMode } from "@/lib/types";
 import {
   Download,
   Upload,
@@ -24,18 +24,37 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
+import { parseBackup } from "@/convex/lib/backupFormat";
+import { downloadBackup, uploadBackup } from "@/lib/data-operations-client";
 import { PageTitle } from "@/components/layout/page-title";
+
+const phaseLabels = {
+  upload: "Validating backup", export: "Preparing backup", apply: "Restoring records",
+  prune_movies: "Removing old movies", prune_tv: "Removing old TV shows", prune_episodes: "Removing old episode history",
+  reset_summaries: "Updating watch history", summaries: "Updating watch history",
+  delete_movies: "Removing movies", delete_tv: "Removing TV shows", delete_episodes: "Removing episode history",
+  delete_stats: "Removing saved statistics", cleanup: "Finishing", complete: "Complete",
+  awaiting_identity: "Ready to finish account deletion",
+};
 
 export default function SettingsPage() {
   const convex = useConvex();
-  const importData = useMutation(api.importExport.importData);
+  const { isAuthenticated } = useConvexAuth();
+  const operation = useQuery(api.dataOperations.current, isAuthenticated ? {} : "skip");
+  const resume = useMutation(api.dataOperations.resume);
+  const cancelPreparation = useMutation(api.dataOperations.cancelPreparation);
   const clearMovies = useMutation(api.movie.clearAllMovies);
   const clearTv = useMutation(api.tv.clearAllTvData);
 
   const [mode, setMode] = useState<ImportMode>("merge");
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [result, setResult] = useState<ImportedDataResult | null>(null);
+  const [exportCount, setExportCount] = useState(0);
+  const active = operation && operation.phase !== "complete";
+  const locked = busy || exporting || operation === undefined || !!active;
+  const result = operation?.kind === "import" && operation.phase === "complete" && !operation.cancelled
+    ? { movies: { inserted: operation.inserted.movies, updated: operation.updated.movies }, tvSeries: { inserted: operation.inserted.tvSeries, updated: operation.updated.tvSeries }, episodes: { inserted: operation.inserted.episodes, updated: operation.updated.episodes } }
+    : null;
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -45,15 +64,9 @@ export default function SettingsPage() {
     setExporting(true);
     setError(null);
     setSuccessMessage(null);
-    setResult(null);
     try {
-      const data = await convex.query(api.importExport.exportData, {});
-      if (!data) {
-        throw new Error("Unable to export data. Are you signed in?");
-      }
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json;charset=utf-8",
-      });
+      setExportCount(0);
+      const blob = await downloadBackup(convex, setExportCount);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
@@ -89,17 +102,15 @@ export default function SettingsPage() {
     }
 
     setError(null);
-    setResult(null);
     setSuccessMessage(null);
     setBusy(true);
     try {
       const raw = await readFile(file);
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.schema !== "couchlist.export") {
-        throw new Error("This file doesn't look like a CouchList backup.");
-      }
-      const res = await importData({ payload: parsed, mode });
-      setResult(res);
+      // Validate every record before starting any server-side preparation.
+      const parsed = parseBackup(JSON.parse(raw));
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+      const fingerprint = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+      await uploadBackup(convex, parsed, fingerprint, operation?.phase === "upload" ? operation.mode! : mode);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -126,6 +137,49 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {exporting && <p role="status" className="mb-4">Exporting {exportCount.toLocaleString()} records...</p>}
+      {operation && active && (
+        <Card className="mb-6" aria-live="polite">
+          <CardHeader>
+            <CardTitle>Data operation in progress</CardTitle>
+            <CardDescription>
+              {phaseLabels[operation.phase]}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p>
+              {operation.kind === "import"
+                ? `${operation.uploaded.movies + operation.uploaded.tvSeries + operation.uploaded.episodes} of ${operation.expected.movies + operation.expected.tvSeries + operation.expected.episodes} records validated; ${operation.inserted.movies + operation.inserted.tvSeries + operation.inserted.episodes + operation.updated.movies + operation.updated.tvSeries + operation.updated.episodes} restored; `
+                : `${operation.processed.toLocaleString()} records processed; `}
+              {operation.deleted.toLocaleString()} removed.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {operation.phase === "upload"
+                ? "Your library is unchanged. Reselect the same file to resume the upload, or discard it. Inactive uploads expire after 24 hours."
+                : operation.phase === "export"
+                  ? "Library changes are paused for a consistent backup. Download again or discard the export."
+                  : operation.kind === "account"
+                    ? "Account data cleanup runs in the background. Open Account settings and retry Delete account to finish removing your identity."
+                    : "This continues in the background if you leave. Library changes are paused until completion. If progress stops, resume below."}
+            </p>
+            {operation.error && <p role="alert" className="text-destructive">{operation.error}</p>}
+            {(operation.phase === "upload" || operation.phase === "export") ? (
+              <Button variant="outline" disabled={busy || exporting} onClick={async () => {
+                try { await cancelPreparation({ jobId: operation._id }); }
+                catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              }}>Discard preparation</Button>
+            ) : operation.kind !== "account" && (
+              <Button variant="outline" onClick={async () => {
+                try { await resume({ jobId: operation._id }); }
+                catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              }}>Resume operation</Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {operation?.phase === "complete" && ["clear_movies", "clear_tv", "delete_series"].includes(operation.kind) && (
+        <p role="status" className="mb-4">Data deletion complete.</p>
+      )}      {operation?.phase === "complete" && operation.cancelled && (        <p role="status" className="mb-4">Preparation discarded. Your library was unchanged.</p>      )}
       <div className="flex flex-col gap-8">
         {/* Export Section */}
         <Card>
@@ -150,7 +204,7 @@ export default function SettingsPage() {
                 </div>
                 <Button
                   onClick={handleDownload}
-                  disabled={exporting}
+                  disabled={busy || exporting || operation === undefined || (!!active && operation?.phase !== "export")}
                   className="whitespace-nowrap"
                 >
                   {exporting ? (
@@ -213,7 +267,7 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={busy}
+                    disabled={busy || exporting || operation === undefined || (!!active && operation?.phase !== "upload")}
                     className="whitespace-nowrap"
                   >
                     {busy ? (
@@ -230,12 +284,12 @@ export default function SettingsPage() {
               <div className="rounded-lg border p-4 bg-muted/30">
                 <p className="text-sm font-medium mb-3">Import Mode</p>
                 <RadioGroup
-                  value={mode}
+                  value={operation?.phase === "upload" ? operation.mode ?? mode : mode}
                   onValueChange={v => setMode(v as ImportMode)}
                   className="flex flex-col sm:flex-row gap-4"
                 >
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="merge" disabled={busy} />
+                    <RadioGroupItem value="merge" disabled={locked} />
                     <div>
                       <span className="font-medium">Merge</span>
                       <p className="text-xs text-muted-foreground">
@@ -244,11 +298,11 @@ export default function SettingsPage() {
                     </div>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <RadioGroupItem value="replace" disabled={busy} />
+                    <RadioGroupItem value="replace" disabled={locked} />
                     <div>
                       <span className="font-medium">Replace</span>
                       <p className="text-xs text-muted-foreground">
-                        Delete all existing data first
+                        Safely restore the full backup, then remove old items
                       </p>
                     </div>
                   </label>
@@ -307,13 +361,12 @@ export default function SettingsPage() {
                 confirmText="Delete movies"
                 confirmPhrase="delete movies"
                 variant="destructive"
+                disabled={locked}
                 onConfirm={async () => {
-                  await clearMovies({});
                   setError(null);
-                  setResult(null);
-                  setSuccessMessage(
-                    "All movies have been cleared successfully.",
-                  );
+                  setSuccessMessage(null);
+                  try { await clearMovies({}); }
+                  catch (e) { setError(e instanceof Error ? e.message : String(e)); }
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -335,13 +388,12 @@ export default function SettingsPage() {
                 confirmText="Delete TV data"
                 confirmPhrase="delete tv"
                 variant="destructive"
+                disabled={locked}
                 onConfirm={async () => {
-                  await clearTv({});
                   setError(null);
-                  setResult(null);
-                  setSuccessMessage(
-                    "All TV series and episodes have been cleared successfully.",
-                  );
+                  setSuccessMessage(null);
+                  try { await clearTv({}); }
+                  catch (e) { setError(e instanceof Error ? e.message : String(e)); }
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />

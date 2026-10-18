@@ -39,6 +39,9 @@ type WorkOSDialogElement = NonNullable<
 type DeleteAccountResponse = {
   error?: string;
   reauthUrl?: string;
+  deleted?: boolean;
+  pending?: boolean;
+  processed?: number;
 };
 
 const accountViews = [
@@ -75,6 +78,8 @@ export function AccountSettingsDialog({
   const { user, sessionId } = useAuth();
   const [view, setView] = useState<AccountView>("profile");
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deletionProgress, setDeletionProgress] = useState<string | null>(null);
   const [widgetDialogContainer, setWidgetDialogContainer] =
     useState<HTMLDivElement | null>(null);
 
@@ -86,23 +91,34 @@ export function AccountSettingsDialog({
 
   const handleDeleteAccount = async () => {
     setError(null);
+    setDeleting(true);
 
     try {
-      const response = await fetch("/api/account", { method: "DELETE" });
-      const result = (await response.json()) as DeleteAccountResponse;
+      for (let attempt = 0; attempt < 90; attempt++) {
+        const response = await fetch("/api/account", { method: "DELETE" });
+        const result = (await response.json()) as DeleteAccountResponse;
 
-      if (result.reauthUrl) {
-        window.location.assign(result.reauthUrl);
+        if (result.reauthUrl) {
+          window.location.assign(result.reauthUrl);
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(result.error ?? "The account could not be deleted.");
+        }
+        if (response.status === 202 && result.pending) {
+          setDeletionProgress(`Removing CouchList data: ${(result.processed ?? 0).toLocaleString()} records processed. Your account will be removed after cleanup completes.`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        if (!result.deleted) throw new Error("Account deletion was not confirmed. Please retry.");
+        window.location.replace("/");
         return;
       }
-
-      if (!response.ok) {
-        throw new Error(result.error ?? "The account could not be deleted.");
-      }
-
-      window.location.replace("/");
+      setDeletionProgress("Data cleanup continues in the background. Retry Delete account to finish removing your account.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -166,6 +182,7 @@ export function AccountSettingsDialog({
                   {error}
                 </p>
               ) : null}
+              {deletionProgress && <p role="status" className="text-sm">{deletionProgress}</p>}
 
               <WorkOsWidgets
                 key={accessToken ?? "loading"}
@@ -222,6 +239,7 @@ export function AccountSettingsDialog({
                     confirmText="Delete account"
                     confirmPhrase="delete my account"
                     variant="destructive"
+                    disabled={deleting}
                     onConfirm={handleDeleteAccount}
                   >
                     <Trash2 data-icon="inline-start" />

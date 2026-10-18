@@ -1,6 +1,8 @@
 import { query, mutation } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { assertDataWritable } from "./lib/dataOperationLock";
+import { createOperation } from "./dataOperations";
 
 const movieStatusValidator = v.union(
   v.literal("want_to_watch"),
@@ -34,6 +36,7 @@ export const setMovieStatus = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    await assertDataWritable(ctx, identity.subject);
 
     const now = Date.now();
 
@@ -127,6 +130,7 @@ export const deleteMovie = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    await assertDataWritable(ctx, identity.subject);
 
     const existing = await ctx.db
       .query("userMovies")
@@ -142,20 +146,10 @@ export const deleteMovie = mutation({
 });
 
 export const clearAllMovies = mutation({
-  args: {},
+  args: {}, returns: v.id("dataOperations"),
   handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
-
-    const all = await ctx.db
-      .query("userMovies")
-      .withIndex("by_user", q => q.eq("userId", identity.subject))
-      .collect();
-
-    for (const m of all) {
-      await ctx.db.delete(m._id);
-    }
-
-    return { deleted: all.length };
+    return createOperation(ctx, identity.subject, "clear_movies");
   },
 });

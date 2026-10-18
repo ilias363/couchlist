@@ -1,4 +1,4 @@
-import { mutation, internalQuery, internalMutation } from "./_generated/server";
+import { internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { deriveWatchSummary, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchSummary } from "./lib/tvWatchDates";
 import { internal } from "./_generated/api";
@@ -125,7 +125,7 @@ export const backfillSeasonWatchedCounts = internalMutation({
   },
 });
 
-export const replaceUserId = mutation({
+export const replaceUserId = internalMutation({
   args: {
     oldUserId: v.string(),
     newUserId: v.string()

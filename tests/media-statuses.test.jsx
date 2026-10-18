@@ -15,7 +15,7 @@ import { tmdbKeys } from "../lib/tmdb/react-query";
 // Match the existing handler-test convention. Track indexed reads and disallow
 // status scans so a return to collect() fails even with a small fixture.
 function context(size = 0, subject = "owner") {
-  const tables = { userMovies: [], userTvSeries: [], userEpisodes: [] };
+  const tables = { dataOperations: [], userMovies: [], userTvSeries: [], userEpisodes: [] };
   for (let id = 1; id <= size; id++) {
     const common = { userId: "owner", status: "on_hold", createdAt: id, updatedAt: id };
     tables.userMovies.push({ ...common, _id: `movie:${id}`, movieId: id });
@@ -174,6 +174,26 @@ test("empty, signed-out, oversized, and invalid requests never scan a library", 
       .rejects.toThrow("positive integers");
   }
   expect(signedIn.reads.queries).toHaveLength(0);
+});
+
+test("bounded status reads remain available while bulk operations fence writes", async () => {
+  const { ctx, tables } = context(1025);
+  const items = [{ id: 1025, mediaType: "movie" }, { id: 1025, mediaType: "tv" }];
+  tables.dataOperations.push({ userId: "owner", phase: "apply" });
+  expect((await getStatuses._handler(ctx, { items })).map(item => item.status))
+    .toEqual(["on_hold", "on_hold"]);
+  await expect(setMovieStatus._handler(ctx, { movieId: 1025, status: "watched" }))
+    .rejects.toThrow("data operation is in progress");
+  await expect(setSeriesStatus._handler(ctx, { tvSeriesId: 1025, status: "watched" }))
+    .rejects.toThrow("data operation is in progress");
+  await expect(deleteMovie._handler(ctx, { movieId: 1025 }))
+    .rejects.toThrow("data operation is in progress");
+  tables.dataOperations[0].phase = "complete";
+  await setMovieStatus._handler(ctx, { movieId: 1025, status: "watched" });
+  expect(await getStatuses._handler(ctx, { items })).toEqual([
+    { id: 1025, mediaType: "movie", status: "watched" },
+    { id: 1025, mediaType: "tv", status: "on_hold" },
+  ]);
 });
 
 test("writes and removals are reflected by bounded status reads and recent rows", async () => {
