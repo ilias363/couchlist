@@ -1,14 +1,16 @@
 "use client";
 
-import { TMDBSearchResult } from "@/lib/tmdb/types";
+import { TMDBSearchResult, WatchStatus } from "@/lib/tmdb/types";
 import { MediaCard, MediaCardSkeleton } from "./media-card";
-import { useUserStatuses } from "@/components/providers/user-status-provider";
+import { useMediaStatuses } from "@/hooks/use-media-statuses";
 import { cn } from "@/lib/utils";
+
+export type MediaCarouselItem = TMDBSearchResult & { watchStatus?: WatchStatus };
 
 interface MediaCarouselProps {
   title: string;
   subtitle?: string;
-  items: TMDBSearchResult[];
+  items: MediaCarouselItem[];
   isLoading?: boolean;
   hasNextPage?: boolean;
   endRef?: React.RefObject<HTMLDivElement | null>;
@@ -24,7 +26,7 @@ export function MediaCarousel({
   endRef,
   placeholderCount = 10,
 }: MediaCarouselProps) {
-  const { getStatus } = useUserStatuses();
+  const { getStatus } = useMediaStatuses(items);
 
   return (
     <section className="space-y-5">

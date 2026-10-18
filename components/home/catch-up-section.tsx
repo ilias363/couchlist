@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCatchUpData } from "@/hooks/use-catch-up-data";
-import { TMDBSearchResult } from "@/lib/tmdb/types";
-import { MediaCarousel } from "../media/media-carousel";
+import { MediaCarousel, type MediaCarouselItem } from "../media/media-carousel";
 
 export function CatchUpSection() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +30,7 @@ export function CatchUpSection() {
 function CatchUpSectionContent() {
   const { catchUpItems, isLoading, totalUnwatchedEpisodes } = useCatchUpData();
 
-  const items: TMDBSearchResult[] = catchUpItems.map(item => ({
+  const items: MediaCarouselItem[] = catchUpItems.map(item => ({
     id: item.tvSeriesId,
     name: item.name,
     original_name: item.name,
@@ -50,6 +49,7 @@ function CatchUpSectionContent() {
     origin_country: [],
     adult: false,
     media_type: "tv" as const,
+    watchStatus: "up_to_date",
   }));
 
   if (!isLoading && items.length === 0) return null;

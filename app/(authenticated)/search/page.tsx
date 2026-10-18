@@ -8,7 +8,7 @@ import { Film, Tv, Search, SearchX, Sparkles, Loader2, TriangleAlert } from "luc
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
-import { useUserStatuses } from "@/components/providers/user-status-provider";
+import { useMediaStatuses } from "@/hooks/use-media-statuses";
 import { EmptyState } from "@/components/common/empty-state";
 import { PageTitle } from "@/components/layout/page-title";
 
@@ -32,8 +32,6 @@ function SearchView() {
 
   const router = useRouter();
   const pathname = usePathname();
-
-  const { getStatus } = useUserStatuses();
 
   const debouncedUpdate = useMemo(
     () =>
@@ -60,6 +58,7 @@ function SearchView() {
   } = useTMDBSearchFeed(debouncedQuery, mode);
 
   const results = (data?.pages || []).flatMap(p => p.results);
+  const { getStatus } = useMediaStatuses(results);
 
   useEffect(() => {
     return () => debouncedUpdate.cancel();
