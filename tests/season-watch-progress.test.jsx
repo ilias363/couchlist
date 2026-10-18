@@ -2,13 +2,12 @@ import { expect, spyOn, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { deriveWatchSummary, refreshSeriesWatchSummary } from "../convex/lib/tvWatchDates";
 import { bulkToggleSeasonEpisodes, getSeriesStatus, setSeriesStatus, toggleEpisodeWatched } from "../convex/tv";
-import { importData } from "../convex/importExport";
 import { backfillSeasonWatchedCounts } from "../convex/migrations";
 import { SeasonsSection } from "../components/tv-details/seasons-section";
 
 // Run the real mutation handlers against a small in-memory database.
 function context() {
-  const tables = { userTvSeries: [], userEpisodes: [], userMovies: [] };
+  const tables = { dataOperations: [], userTvSeries: [], userEpisodes: [], userMovies: [] };
   const scheduled = [];
   const reads = [];
   let sequence = 0;
@@ -111,28 +110,6 @@ test("bulk watches count once, preserve existing dates, and clear removed season
   await bulkToggleSeasonEpisodes._handler(ctx, { ...season, isWatched: false });
   expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({});
   expect(tables.userTvSeries[0].startedAt).toBeUndefined();
-});
-
-test("undated imports update counts even when dates do not change, including moved episodes", async () => {
-  const { ctx, tables } = context();
-  await setSeriesStatus._handler(ctx, { tvSeriesId: 1, status: "on_hold" });
-  const updatedAt = tables.userTvSeries[0].updatedAt;
-  const payload = { schema: "couchlist.export", version: 1 };
-  const episode = { tvSeriesId: 1, seasonId: 10, episodeId: 100, isWatched: true };
-  await importData._handler(ctx, { payload: { ...payload, episodes: [episode] } });
-  expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({ 10: 1 });
-  expect(tables.userTvSeries[0].updatedAt).toBe(updatedAt);
-  await importData._handler(ctx, {
-    payload: { ...payload, episodes: [{ ...episode, tvSeriesId: 2, seasonId: 20 }] },
-  });
-  expect(tables.userTvSeries.find(s => s.tvSeriesId === 1).seasonWatchedCounts).toEqual({});
-  expect(tables.userTvSeries.find(s => s.tvSeriesId === 2).seasonWatchedCounts).toEqual({ 20: 1 });
-  await importData._handler(ctx, {
-    mode: "replace",
-    payload: { ...payload, episodes: [{ ...episode, seasonId: 30 }] },
-  });
-  expect(tables.userTvSeries).toHaveLength(1);
-  expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({ 30: 1 });
 });
 
 test("repair detects count-only changes and is idempotent", async () => {

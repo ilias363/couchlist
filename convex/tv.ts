@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { assertDataWritable } from "./lib/dataOperationLock";
+import { createOperation } from "./dataOperations";
 import {
   deriveWatchSummary,
   getSeriesEpisodes,
@@ -41,6 +43,7 @@ export const setSeriesStatus = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    await assertDataWritable(ctx, identity.subject);
     const now = Date.now();
 
     const summary = deriveWatchSummary(
@@ -100,6 +103,7 @@ export const toggleEpisodeWatched = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    await assertDataWritable(ctx, identity.subject);
     const existing = await ctx.db
       .query("userEpisodes")
       .withIndex("by_user_episode", q =>
@@ -158,6 +162,7 @@ export const bulkToggleSeasonEpisodes = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
+    await assertDataWritable(ctx, identity.subject);
     const now = Date.now();
 
     validateWatchDate(args.watchedAt);
@@ -324,33 +329,12 @@ export const listAllTvStatuses = query({
 });
 
 export const deleteTvSeries = mutation({
-  args: { tvSeriesId: v.number() },
+  args: { tvSeriesId: v.number() }, returns: v.id("dataOperations"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
-
-    const existing = await ctx.db
-      .query("userTvSeries")
-      .withIndex("by_user_tv_series", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
-      )
-      .unique();
-
-    if (existing) {
-      await ctx.db.delete(existing._id);
-    }
-
-    const episodes = await ctx.db
-      .query("userEpisodes")
-      .withIndex("by_user_tv", q =>
-        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId),
-      )
-      .collect();
-    for (const ep of episodes) {
-      await ctx.db.delete(ep._id);
-    }
-
-    return { deletedSeries: !!existing, deletedEpisodes: episodes.length };
+    validateUniqueIds([args.tvSeriesId], "series");
+    return createOperation(ctx, identity.subject, "delete_series", { tvSeriesId: args.tvSeriesId });
   },
 });
 
@@ -394,29 +378,10 @@ export const getUpToDateSeriesWithEpisodes = query({
 });
 
 export const clearAllTvData = mutation({
-  args: {},
+  args: {}, returns: v.id("dataOperations"),
   handler: async ctx => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
-
-    const [series, episodes] = await Promise.all([
-      ctx.db
-        .query("userTvSeries")
-        .withIndex("by_user", q => q.eq("userId", identity.subject))
-        .collect(),
-      ctx.db
-        .query("userEpisodes")
-        .withIndex("by_user_tv", q => q.eq("userId", identity.subject))
-        .collect(),
-    ]);
-
-    for (const s of series) {
-      await ctx.db.delete(s._id);
-    }
-    for (const e of episodes) {
-      await ctx.db.delete(e._id);
-    }
-
-    return { deletedSeries: series.length, deletedEpisodes: episodes.length };
+    return createOperation(ctx, identity.subject, "clear_tv");
   },
 });

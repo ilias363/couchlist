@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
-import { useMutation } from "convex/react";
+import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WatchStatus, TMDBSeason } from "@/lib/tmdb/types";
+import { waitForDataOperation } from "@/lib/data-operations-client";
 
 export function useTvSeriesStatus(tvSeriesId: number) {
+  const convex = useConvex();
   const [updating, setUpdating] = useState(false);
   const [watchedDialogOpen, setWatchedDialogOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<WatchStatus | null>(null);
@@ -84,11 +86,12 @@ export function useTvSeriesStatus(tvSeriesId: number) {
   const handleRemove = useCallback(async () => {
     setUpdating(true);
     try {
-      await deleteTvSeries({ tvSeriesId });
+      const jobId = await deleteTvSeries({ tvSeriesId });
+      await waitForDataOperation(convex, jobId);
     } finally {
       setUpdating(false);
     }
-  }, [tvSeriesId, deleteTvSeries]);
+  }, [tvSeriesId, deleteTvSeries, convex]);
 
   return {
     updating,

@@ -1,8 +1,40 @@
 // convex/schema.js
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { backupRow, recordCounts } from "./lib/backupFormat";
 
 export default defineSchema({
+  // One current operation per account. This row is also the transaction fence
+  // read by normal writers. Import rows remain durable until recovery finishes.
+  dataOperations: defineTable({
+    userId: v.string(),
+    kind: v.union(v.literal("export"), v.literal("import"), v.literal("clear_movies"), v.literal("clear_tv"), v.literal("delete_series"), v.literal("account")),
+    phase: v.union(v.literal("upload"), v.literal("export"), v.literal("apply"), v.literal("prune_movies"), v.literal("prune_tv"), v.literal("prune_episodes"), v.literal("reset_summaries"), v.literal("summaries"), v.literal("delete_movies"), v.literal("delete_tv"), v.literal("delete_episodes"), v.literal("delete_stats"), v.literal("cleanup"), v.literal("complete"), v.literal("awaiting_identity")),
+    mode: v.optional(v.union(v.literal("merge"), v.literal("replace"))),
+    fingerprint: v.optional(v.string()),
+    expected: recordCounts,
+    uploaded: recordCounts,
+    inserted: recordCounts,
+    updated: recordCounts,
+    position: v.number(), revision: v.number(), processed: v.number(), deleted: v.number(),
+    startedAt: v.number(), expiresAt: v.number(),
+    cursor: v.union(v.string(), v.null()),
+    tvSeriesId: v.optional(v.number()),
+    error: v.optional(v.string()),
+    cancelled: v.optional(v.boolean()),
+    summary: v.optional(v.object({
+      tvSeriesId: v.number(), startedAt: v.optional(v.number()), lastWatchedAt: v.optional(v.number()),
+      counts: v.record(v.string(), v.number()), countsOverflow: v.boolean(),
+      createdAt: v.number(), updatedAt: v.number(),
+    })),
+  }).index("by_user", ["userId"]),
+  dataImportRows: defineTable({
+    jobId: v.id("dataOperations"), position: v.number(),
+    kind: v.union(v.literal("movies"), v.literal("tvSeries"), v.literal("episodes")),
+    key: v.number(), row: backupRow,
+  })
+    .index("by_job_position", ["jobId", "position"])
+    .index("by_job_kind_key", ["jobId", "kind", "key"]),
   // User Movie Tracking - tracks user's movie watch status
   userMovies: defineTable({
     userId: v.string(),

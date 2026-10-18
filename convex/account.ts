@@ -1,24 +1,12 @@
 import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+import { createOperation } from "./dataOperations";
+import { requireOwner } from "./lib/dataOperationLock";
 
+// Retain this minimal deletion fence after cleanup, including when WorkOS fails
+// or an old JWT is still valid. All library, stats and staging rows are removed
+// before awaiting_identity; the fence prevents data resurrection during retry.
 export const deleteAccountData = mutation({
-  args: {},
-  handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Unauthorized");
-
-    const userId = identity.subject;
-    const [movies, tvSeries, episodes, stats] = await Promise.all([
-      ctx.db.query("userMovies").withIndex("by_user", q => q.eq("userId", userId)).collect(),
-      ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", userId)).collect(),
-      ctx.db.query("userEpisodes").withIndex("by_user_tv", q => q.eq("userId", userId)).collect(),
-      ctx.db.query("userStats").withIndex("by_user", q => q.eq("userId", userId)).collect(),
-    ]);
-
-    const documents = [...movies, ...tvSeries, ...episodes, ...stats];
-    for (const document of documents) {
-      await ctx.db.delete(document._id);
-    }
-
-    return { deleted: documents.length };
-  },
+  args: {}, returns: v.id("dataOperations"),
+  handler: async ctx => createOperation(ctx, await requireOwner(ctx), "account"),
 });

@@ -35,10 +35,26 @@ export async function DELETE(request: NextRequest) {
   try {
     const convex = new ConvexHttpClient(convexUrl);
     convex.setAuth(accessToken);
-    await convex.mutation(api.account.deleteAccountData, {});
+    const jobId = await convex.mutation(api.account.deleteAccountData, {});
+    const job = await convex.query(api.dataOperations.status, { jobId });
+    if (job.phase !== "awaiting_identity") {
+      // Retry a failed checkpoint, without starting the deletion over. The
+      // worker continues after this request and after the browser disconnects.
+      if (job.error) await convex.mutation(api.dataOperations.resume, { jobId });
+      return NextResponse.json(
+        { pending: true, phase: job.phase, processed: job.processed, message: job.error ? "Retrying data cleanup. Please retry account deletion if progress stops." : "Deleting CouchList data before removing your account." },
+        { status: 202 },
+      );
+    }
     dataDeleted = true;
 
-    await getWorkOS().userManagement.deleteUser(user.id);
+    try {
+      await getWorkOS().userManagement.deleteUser(user.id);
+    } catch (error) {
+      // Concurrent retries or a lost successful response can reach WorkOS
+      // after the identity has already gone. Its 404 is a completed deletion.
+      if (!(error instanceof Error && "status" in error && error.status === 404)) throw error;
+    }
     const response = NextResponse.json({ deleted: true });
     response.cookies.delete({
       name: process.env.WORKOS_COOKIE_NAME ?? "wos-session",
