@@ -39,7 +39,7 @@ export function parseRow(kind: BackupKind, input: unknown): BackupRow {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error(`Invalid ${kind} record`);
   const obj = input as Record<string, unknown>;
   const fields = kind === "movies" ? movieItem.fields : kind === "tvSeries" ? tvItem.fields : episodeItem.fields;
-  if (Object.keys(obj).some(key => !Object.hasOwn(fields, key))) throw new Error(`Unexpected ${kind} field`);
+  if (Object.keys(obj).some(key => !Object.prototype.hasOwnProperty.call(fields, key))) throw new Error(`Unexpected ${kind} field`);
   const value: Record<string, number | string | boolean> = {};
   for (const [key, validator] of Object.entries(fields)) {
     const item = obj[key];
