@@ -150,7 +150,7 @@ test("TV pagination keeps existing table and rows mounted while the next page's 
   await act(() => client.publish(entry => entry.args.paginationOpts.cursor === "next", {
     page: [{ tvSeriesId: 2, status: "on_hold" }], isDone: true, continueCursor: "done",
   }));
-  expect(details).toHaveBeenCalledWith(2);
+  expect(details).toHaveBeenCalledWith(2, expect.any(AbortSignal));
   expect(view.container.querySelector("table") === table).toBe(true);
   expect(table.querySelector("tbody tr") === row).toBe(true);
   expect(row.textContent).toContain("First series");

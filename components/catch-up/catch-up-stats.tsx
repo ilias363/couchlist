@@ -6,6 +6,7 @@ interface CatchUpStatsProps {
   totalUnwatchedEpisodes: number;
   totalUpcoming: number;
   isLoading: boolean;
+  isPartial?: boolean;
 }
 
 export function CatchUpStats({
@@ -14,6 +15,7 @@ export function CatchUpStats({
   totalUnwatchedEpisodes,
   totalUpcoming,
   isLoading,
+  isPartial = false,
 }: CatchUpStatsProps) {
   return (
     <div
@@ -22,21 +24,24 @@ export function CatchUpStats({
     >
       {!isLoading ? (
         <>
-          <StatCard label="Up to Date" value={totalUpToDate} icon={Tv} accent="primary" />
+          <StatCard label="Up to Date" value={totalUpToDate} icon={Tv} accent="primary" isPartial={isPartial} />
           <StatCard
             label="Need Attention"
+            isPartial={isPartial}
             value={totalNeedingAttention}
             icon={AlertCircle}
             accent={totalNeedingAttention > 0 ? "amber" : "primary"}
           />
           <StatCard
             label="Unwatched"
+            isPartial={isPartial}
             value={totalUnwatchedEpisodes}
             icon={Eye}
             accent={totalUnwatchedEpisodes > 0 ? "amber" : "primary"}
           />
           <StatCard
             label="Upcoming"
+            isPartial={isPartial}
             value={totalUpcoming}
             icon={CalendarClock}
             accent={totalUpcoming > 0 ? "cyan" : "primary"}
@@ -61,11 +66,13 @@ function StatCard({
   value,
   icon: Icon,
   accent,
+  isPartial,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   accent: "primary" | "amber" | "cyan";
+  isPartial?: boolean;
 }) {
   const accentStyles = {
     primary: {
@@ -98,7 +105,7 @@ function StatCard({
         </span>
       </div>
       <p className={`text-2xl sm:text-3xl font-bold tracking-tight ${accentStyles.valueCn}`}>
-        {value}
+        {value}{isPartial ? "+" : ""}
       </p>
     </div>
   );

@@ -7,6 +7,7 @@ import {
   TMDBSeason,
   TMDBTvSeries,
 } from "./types";
+import { limitTMDBRequest } from "./request-limit";
 
 export class TMDBClient {
   constructor(
@@ -15,14 +16,14 @@ export class TMDBClient {
   ) {}
 
   private async makeRequest<T>(endpoint: string, signal?: AbortSignal): Promise<T> {
-    const response = await this.request(endpoint, signal);
-
-    if (!response.ok) {
-      // React Query owns the bounded retry policy, including rate-limit errors.
-      throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
+    return limitTMDBRequest(async () => {
+      const response = await this.request(endpoint, signal);
+      if (!response.ok) {
+        // React Query owns the bounded retry policy, including rate-limit errors.
+        throw new Error(`TMDB API Error: ${response.status} ${response.statusText}`);
+      }
+      return await response.json();
+    }, signal);
   }
 
   private addMediaTypeToResults(results: TMDBSearchResult[], mediaType: "movie" | "tv") {
@@ -65,8 +66,8 @@ export class TMDBClient {
     );
   }
 
-  async getTVSeriesDetails(seriesId: number): Promise<TMDBTvSeries> {
-    return this.makeRequest(`/tv/${seriesId}`);
+  async getTVSeriesDetails(seriesId: number, signal?: AbortSignal): Promise<TMDBTvSeries> {
+    return this.makeRequest(`/tv/${seriesId}`, signal);
   }
 
   async getExtendedTVSeriesDetails(seriesId: number): Promise<ExtendedTMDBTvSeries> {
@@ -75,8 +76,8 @@ export class TMDBClient {
     );
   }
 
-  async getSeasonDetails(seriesId: number, seasonNumber: number): Promise<TMDBSeason> {
-    return this.makeRequest(`/tv/${seriesId}/season/${seasonNumber}`);
+  async getSeasonDetails(seriesId: number, seasonNumber: number, signal?: AbortSignal): Promise<TMDBSeason> {
+    return this.makeRequest(`/tv/${seriesId}/season/${seasonNumber}`, signal);
   }
 
   async getTrendingMovies(page: number = 1): Promise<TMDBSearchResponse> {

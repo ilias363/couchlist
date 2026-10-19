@@ -6,8 +6,16 @@ import { Button } from "@/components/ui/button";
 import { useCatchUpData } from "@/hooks/use-catch-up-data";
 import { CatchUpStats } from "@/components/catch-up/catch-up-stats";
 import { CatchUpCard } from "@/components/catch-up/catch-up-card";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { CatchUpBoundary } from "@/components/catch-up/catch-up-boundary";
 
 export default function CatchUpPage() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <CatchUpBoundary key={user?.id}><CatchUpContent /></CatchUpBoundary>;
+}
+
+function CatchUpContent() {
   const {
     catchUpItems,
     isLoading,
@@ -15,6 +23,11 @@ export default function CatchUpPage() {
     totalNeedingAttention,
     totalUnwatchedEpisodes,
     totalUpcoming,
+    isComplete,
+    canLoadMore,
+    loadMore,
+    failedShows,
+    retry,
   } = useCatchUpData();
 
   return (
@@ -46,15 +59,30 @@ export default function CatchUpPage() {
         totalNeedingAttention={totalNeedingAttention}
         totalUnwatchedEpisodes={totalUnwatchedEpisodes}
         totalUpcoming={totalUpcoming}
-        isLoading={isLoading}
+        isLoading={isLoading && catchUpItems.length === 0}
+        isPartial={!isComplete}
       />
 
+      {!isComplete && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Partial totals for completed checks among {totalUpToDate} loaded shows.
+          {isLoading && " Checking for episodes…"}
+          {canLoadMore && " Load more shows to finish checking your library."}
+        </p>
+      )}
+      {failedShows > 0 && (
+        <div role="alert" className="flex items-center gap-3 text-sm text-muted-foreground">
+          <p>{failedShows} show{failedShows === 1 ? " could" : "s could"} not be checked. Results are incomplete.</p>
+          <Button variant="outline" size="sm" onClick={retry}>Retry failed checks</Button>
+        </div>
+      )}
+
       {/* Content */}
-      {isLoading ? (
+      {isLoading && catchUpItems.length === 0 ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : catchUpItems.length === 0 ? (
+      ) : isComplete && catchUpItems.length === 0 ? (
         <div
           className="animate-fade-up text-center py-20 space-y-4"
           style={{ animationDelay: "160ms" }}
@@ -79,6 +107,11 @@ export default function CatchUpPage() {
               <CatchUpCard item={item} />
             </div>
           ))}
+        </div>
+      )}
+      {canLoadMore && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore}>Load more shows</Button>
         </div>
       )}
     </div>

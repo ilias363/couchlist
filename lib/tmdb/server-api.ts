@@ -10,7 +10,7 @@ export function fetchTMDB(endpoint: string, signal?: AbortSignal) {
   const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
   url.searchParams.set("api_key", apiKey);
   return fetch(url, {
-    signal,
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
     redirect: "error",
     next: { revalidate: 300 },
   });

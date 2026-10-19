@@ -6,6 +6,7 @@ export interface CatchUpItem {
   totalEpisodes: number;
   watchedEpisodes: number;
   unwatchedEpisodes: number;
+  unknownDateEpisodes: number;
   unwatchedSeasons: CatchUpSeasonInfo[];
   upcomingSeasons: CatchUpSeasonInfo[];
 }
@@ -17,4 +18,5 @@ export interface CatchUpSeasonInfo {
   watchedCount: number;
   airDate: string | null;
   isUpcoming: boolean;
+  unknownDateEpisodes?: number;
 }
