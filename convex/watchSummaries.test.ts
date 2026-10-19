@@ -4,6 +4,7 @@ import { convexTest } from "convex-test";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 import { deriveWatchSummary } from "./lib/tvWatchDates";
+import { assertUserIdMigrationWritable } from "./lib/dataOperationLock";
 import type { Id } from "./_generated/dataModel";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -133,6 +134,32 @@ test("orphan repair recreates the parent from watched evidence without inventing
   const jobId = await t.mutation(internal.migrations.repairTvSeriesDates, { userId: "owner", tvSeriesId: 1 });
   await finish(t, jobId);
   expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({ status: "currently_watching", startedAt: -10, lastWatchedAt: -10, seasonWatchedCounts: { 10: 2 }, createdAt: 5, updatedAt: 25 });
+});
+
+test("watched orphan history with an unknown date still requires repair", async () => {
+  const { t, owner } = setup();
+  await t.run(ctx => ctx.db.insert("userEpisodes", {
+    userId: "owner", tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: true, createdAt: 1, updatedAt: 2,
+  }));
+  await expect(owner.mutation(api.tv.toggleEpisodeWatched, {
+    tvSeriesId: 1, seasonId: 10, episodeId: 2, isWatched: true, watchedAt: 0,
+  })).rejects.toThrow(/needs repair/);
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toBeNull();
+  expect((await owner.query(api.tv.getSeasonEpisodesStatus, { tvSeriesId: 1, seasonId: 10 })).map(ep => ep.episodeId)).toEqual([1]);
+});
+
+test.each(["owner", "other"])("ID migration guard fences an active repair on %s without running the migration", async busyUser => {
+  const { t, owner, other } = setup();
+  const client = busyUser === "owner" ? owner : other;
+  await client.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: true, watchedAt: 0 });
+  const jobId = await t.mutation(internal.migrations.repairTvSeriesDates, { userId: busyUser, tvSeriesId: 1 });
+  await step(t, jobId); // Summary committed, but the operation is still active.
+  const checkpoint = await client.query(api.dataOperations.status, { jobId });
+  await expect(t.run(ctx => assertUserIdMigrationWritable(ctx, "owner", "other"))).rejects.toThrow(/data operation is in progress/);
+  expect(await client.query(api.dataOperations.status, { jobId })).toEqual(checkpoint);
+  await finish(t, jobId);
+  await t.run(ctx => assertUserIdMigrationWritable(ctx, "owner", "other"));
+  expect(await client.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({ seasonWatchedCounts: { 10: 1 }, startedAt: 0, lastWatchedAt: 0 });
 });
 
 test("repair rejects duplicate identities and rolls back its batch before recording a resumable error", async () => {

@@ -53,8 +53,10 @@ export async function prepareSeriesWatchSummary(
     q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
   ).unique();
   if (existing && hasWatchSummary(existing)) return existing;
-  const episode = await ctx.db.query("userEpisodes").withIndex("by_user_tv", q =>
-    q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
+  // Unwatched-only history has a known empty summary, even without a parent.
+  // Include watched rows with unknown dates: those still represent progress.
+  const episode = await ctx.db.query("userEpisodes").withIndex("by_userId_tvSeriesId_isWatched_watchedDate", q =>
+    q.eq("userId", userId).eq("tvSeriesId", tvSeriesId).eq("isWatched", true)
   ).first();
   if (episode) {
     throw new Error("Watch progress needs repair before editing episodes. An administrator must repair this series; paused repairs can be resumed in Settings.");

@@ -165,6 +165,34 @@ test("merge preserves unknown dates/runtime, clears unwatched dates and repairs 
   expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 2 })).toMatchObject({ startedAt: 0, lastWatchedAt: 0, seasonWatchedCounts: { 20: 1 } });
 });
 
+test.each(["individual", "bulk"])("unwatched-only imports remain editable through %s writes after orphan repair", async mode => {
+  const { t, owner } = setup();
+  const jobId = await prepare(owner, Array.from({ length: 205 }, (_, i) => episode(i + 1, { isWatched: false, watchedDate: -10 })));
+  await owner.mutation(api.importExport.sealImport, { jobId });
+  await finish(t, owner, jobId);
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toBeNull();
+  const repairId = await t.mutation(internal.migrations.repairTvSeriesDates, { userId: "owner", tvSeriesId: 1 });
+  await finish(t, owner, repairId);
+
+  // The watched index must skip all 205 unwatched rows, not scan through them.
+  const write = () => owner.run(async ctx => {
+    const budget = { transactionLimits: { documentsRead: 8, databaseQueries: 8 } };
+    if (mode === "individual") await ctx.runMutation(api.tv.toggleEpisodeWatched, {
+      tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: true, watchedAt: 0,
+    }, budget);
+    else await ctx.runMutation(api.tv.bulkToggleSeasonEpisodes, {
+      tvSeriesId: 1, seasonId: 10, episodesInfo: [{ episodeId: 1 }], isWatched: true, watchedAt: 0,
+    }, budget);
+  });
+  await write();
+  await write();
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({
+    startedAt: 0, lastWatchedAt: 0, seasonWatchedCounts: { 10: 1 }, watchSummaryVersion: 1,
+  });
+  await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: false });
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({ seasonWatchedCounts: {} });
+});
+
 test("all public job endpoints are owner-scoped; operations fence overlaps and normal writes", async () => {
   const { t, owner, other } = setup();
   const jobId = await prepare(owner, [episode(1)]);

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { deriveWatchSummary, getSeriesEpisodes, hasWatchSummary, isValidWatchDate } from "./lib/tvWatchDates";
 import { internal } from "./_generated/api";
 import { createOperation } from "./dataOperations";
+import { assertUserIdMigrationWritable } from "./lib/dataOperationLock";
 
 // Two independent cursor passes. Read-only, and deployable on the old version
 export const preflightTvSeriesDates = internalQuery({
@@ -136,7 +137,14 @@ export const replaceUserId = internalMutation({
     oldUserId: v.string(),
     newUserId: v.string()
   },
+  returns: v.object({
+    success: v.boolean(), moviesUpdated: v.number(), tvSeriesUpdated: v.number(),
+    episodesUpdated: v.number(), statsUpdated: v.number(), totalUpdated: v.number(),
+  }),
   handler: async (ctx, { oldUserId, newUserId }) => {
+    // Both indexed fence reads participate in this transaction, so a repair,
+    // import or deletion cannot start between the checks and the ID writes.
+    await assertUserIdMigrationWritable(ctx, oldUserId, newUserId);
     console.log(`Starting userId migration from ${oldUserId} to ${newUserId}`);
 
     // Update userMovies

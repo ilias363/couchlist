@@ -51,9 +51,9 @@ export function useTvSeriesStatus(tvSeriesId: number) {
           tvSeriesId,
           status: newStatus as WatchStatus,
         });
+        setMarkEntireSeries(false);
       } finally {
         setUpdating(false);
-        setMarkEntireSeries(false);
       }
     },
     [tvSeriesId, markEntireSeries, setSeriesStatus, markAllEpisodesAsWatched]
