@@ -11,7 +11,9 @@ function show(seasons = [meta(0), ...Array.from({ length: 8 }, (_, i) => meta(i 
     last_episode_to_air: { season_number: 8, episode_number: 10, air_date: "2025-01-01" },
   } as TMDBTvSeries;
 }
-const summary = { tvSeriesId: 1, seasonWatchedCounts: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [String(101 + i), 10])) };
+const summary = { tvSeriesId: 1, seasonWatchedCounts: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [String(101 + i), 10])),
+  catchUpVerifiedSeasons: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [String(101 + i), { episodeCount: 10, airDate: "2020-01-01", watchedCount: 10 }])),
+};
 const episode = (id: number, air_date: string | null = "2020-01-01") => ({ id, air_date }) as SeasonEpisode;
 
 test("unchanged returning history skips every regular season; specials never affect counts", () => {
@@ -44,4 +46,15 @@ test("upcoming seasons need no detail request, mixed future and unknown dates st
   const airing = show([meta(8)]);
   airing.last_episode_to_air!.episode_number = 9;
   expect(seasonPlan(airing, summary, today)[0].kind).toBe("candidate");
+});
+
+test("a downward count revision cannot turn an unwatched gap into a completed season", () => {
+  const details = show([meta(1, 9)]);
+  // Watched IDs 1..9, TMDB removes watched ID 1; current ID 10 is still unwatched.
+  const row = { ...summary, seasonWatchedCounts: { "101": 9 } };
+  expect(seasonPlan(details, row, today)[0].kind).toBe("candidate");
+  expect(seasonPlan(details, { tvSeriesId: 1, seasonWatchedCounts: { "101": 9 } }, today)[0].kind).toBe("candidate");
+  const season = { ...meta(1, 9), _id: "season", episodes: Array.from({ length: 9 }, (_, i) => episode(i + 2)) } as TMDBSeason;
+  const item = buildCatchUpItem(details, row, today, new Map([[1, season]]), new Map([[101, new Set(Array.from({ length: 9 }, (_, i) => i + 1))]]));
+  expect(item).toMatchObject({ totalEpisodes: 9, watchedEpisodes: 8, unwatchedEpisodes: 1 });
 });

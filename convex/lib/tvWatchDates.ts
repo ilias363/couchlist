@@ -35,6 +35,16 @@ export function getSeriesEpisodes(ctx: QueryCtx, userId: string, tvSeriesId: num
   ).collect();
 }
 
+// Watch mutations add or remove IDs; retain evidence only for seasons whose
+// verified watched count still matches. An unwatch followed by a rewatch cannot
+// resurrect removed proof, even if both writes share the same timestamp.
+export function retainCatchUpVerifications(series: Doc<"userTvSeries">, counts: Record<string, number>) {
+  const proofs = Object.fromEntries(Object.entries(series.catchUpVerifiedSeasons ?? {}).filter(
+    ([seasonId, proof]) => proof.watchedCount !== null && proof.watchedCount === (counts[seasonId] ?? 0),
+  ));
+  return Object.keys(proofs).length ? proofs : undefined;
+}
+
 // Individual watching can explicitly clear a date. Bulk watching preserves dates
 // on already-watched rows; both rebuild the summary from the resulting history.
 export async function refreshSeriesWatchSummary(
@@ -57,7 +67,7 @@ export async function refreshSeriesWatchSummary(
       Object.entries(summary.seasonWatchedCounts).some(([seasonId, count]) => counts[seasonId] !== count);
     if (!repair || changed) {
       // Convex patch removes fields explicitly set to undefined.
-      await ctx.db.patch(existing._id, { ...summary, ...(!repair ? { updatedAt: Date.now() } : {}) });
+      await ctx.db.patch(existing._id, { ...summary, catchUpVerifiedSeasons: retainCatchUpVerifications(existing, summary.seasonWatchedCounts), ...(!repair ? { updatedAt: Date.now() } : {}) });
     }
     return changed ? "updated" : "unchanged";
   }

@@ -1,20 +1,28 @@
 import type { CatchUpItem, CatchUpSeasonInfo } from "./catch-up-types";
 import type { BaseTMDBSeason, TMDBSeason, TMDBTvSeries } from "./tmdb/types";
 
-export type CatchUpSummary = { tvSeriesId: number; seasonWatchedCounts?: Record<string, number> };
+export type CatchUpSummary = {
+  tvSeriesId: number;
+  seasonWatchedCounts?: Record<string, number>;
+  catchUpVerifiedSeasons?: Record<string, { episodeCount: number; airDate: string | null; watchedCount: number | null }>;
+};
+
+export function isFinishedSeason(series: TMDBTvSeries, season: BaseTMDBSeason, today: string) {
+  const last = series.last_episode_to_air;
+  return !!(season.air_date && season.air_date <= today && last?.air_date && last.air_date <= today &&
+    (last.season_number > season.season_number ||
+      (last.season_number === season.season_number && last.episode_number >= season.episode_count)));
+}
 
 export function seasonPlan(series: TMDBTvSeries, summary: CatchUpSummary, today: string) {
   return series.seasons.filter(season => season.season_number !== 0).map(season => {
     if (season.air_date && season.air_date > today) return { season, kind: "upcoming" as const };
-    const last = series.last_episode_to_air;
-    // A whole-series count hides old gaps. Match each season separately, and
-    // require airing metadata before trusting a fully watched count. Unknown /
-    // legacy summaries fall back to candidate-only ID checks, with no migration.
-    const finished = season.air_date && season.air_date <= today && last?.air_date && last.air_date <= today &&
-      (last.season_number > season.season_number ||
-        (last.season_number === season.season_number && last.episode_number >= season.episode_count));
-    const complete = finished && season.episode_count > 0 &&
-      summary.seasonWatchedCounts?.[String(season.id)] === season.episode_count;
+    const proof = summary.catchUpVerifiedSeasons?.[String(season.id)];
+    // Equality can be accidental after a count decrease removes a watched ID.
+    // Only skip an inventory previously verified complete at this exact count.
+    const count = summary.seasonWatchedCounts ? summary.seasonWatchedCounts[String(season.id)] ?? 0 : null;
+    const complete = isFinishedSeason(series, season, today) && season.episode_count > 0 &&
+      proof?.episodeCount === season.episode_count && proof.airDate === season.air_date && proof.watchedCount === count;
     return { season, kind: complete ? "complete" as const : "candidate" as const };
   });
 }

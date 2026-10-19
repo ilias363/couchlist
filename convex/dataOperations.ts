@@ -192,7 +192,7 @@ export const processBatch = internalMutation({
       }
     } else if (job.phase === "reset_summaries") {
       const page = await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
-      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {} });
+      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {}, catchUpVerifiedSeasons: undefined });
       job.processed += page.page.length;
       job.cursor = page.continueCursor;
       if (page.isDone) advance("summaries");

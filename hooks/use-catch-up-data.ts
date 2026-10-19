@@ -1,16 +1,22 @@
-import { useConvexAuth, usePaginatedQuery, useQueries as useConvexQueries } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery, useQueries as useConvexQueries, useQuery } from "convex/react";
 import { useQueries } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
-import { buildCatchUpItem, comparisonIds, seasonPlan } from "@/lib/catch-up";
+import { buildCatchUpItem, comparisonIds, isFinishedSeason, seasonPlan } from "@/lib/catch-up";
 import type { CatchUpItem } from "@/lib/catch-up-types";
 import type { TMDBSeason } from "@/lib/tmdb/types";
+import type { FunctionArgs } from "convex/server";
 
 export function useCatchUpData() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { results, status, loadMore } = usePaginatedQuery(api.catchUp.list, isAuthenticated ? {} : "skip", { initialNumItems: 25 });
+  const ready = useQuery(api.catchUp.isReady, isAuthenticated ? {} : "skip");
+  const isUpdating = ready === false || results.some(row => !row.summariesReady);
+  const rows = ready && !isUpdating ? results : [];
+  const verifySeasons = useMutation(api.catchUp.verifySeasons);
+  const submitted = useRef(new Set<string>());
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -20,13 +26,13 @@ export function useCatchUpData() {
 
   // Only public metadata enters the shared React Query cache. Private watched
   // IDs remain in authenticated, reactive Convex subscriptions.
-  const seriesQueries = useQueries({ queries: results.map(row => ({
+  const seriesQueries = useQueries({ queries: rows.map(row => ({
     queryKey: tmdbKeys.tv(row.tvSeriesId),
     queryFn: ({ signal }: { signal: AbortSignal }) => tmdbClient.getTVSeriesDetails(row.tvSeriesId, signal),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   })) });
-  const candidates = results.flatMap((row, i) => {
+  const candidates = rows.flatMap((row, i) => {
     const details = seriesQueries[i].data;
     return details ? seasonPlan(details, row, today).flatMap(plan =>
       plan.kind === "candidate" ? [{ row, season: plan.season, seriesUpdatedAt: seriesQueries[i].dataUpdatedAt }] : []) : [];
@@ -55,15 +61,16 @@ export function useCatchUpData() {
     const ids = comparisonIds(details, today);
     return Array.from({ length: Math.ceil(ids.length / 100) }, (_, chunk) => ({
       key: `${row.tvSeriesId}:${season.id}:${chunk}:${attempt}`,
-      args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100) },
+      args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100), retry: attempt },
     }));
   });
   const requests = Object.fromEntries(comparisons.map(({ key, args }) => [key, { query: api.catchUp.watchedIds, args }]));
   const watchedQueries = useConvexQueries(requests);
 
   const catchUpItems: CatchUpItem[] = [];
+  const verifications: FunctionArgs<typeof api.catchUp.verifySeasons>[] = [];
   let failedShows = 0;
-  for (const [i, row] of results.entries()) {
+  for (const [i, row] of rows.entries()) {
     const details = seriesQueries[i].data;
     const seasons = new Map<number, TMDBSeason>();
     const watched = new Map<number, Set<number>>();
@@ -85,9 +92,44 @@ export function useCatchUpData() {
     if (!details) continue;
     const item = buildCatchUpItem(details, row, today, seasons, watched);
     if (item) catchUpItems.push(item);
+    if (item === undefined) continue;
+    let batch: FunctionArgs<typeof api.catchUp.verifySeasons>["seasons"] = [];
+    let batchSize = 0;
+    const proofEligibleIds = new Set(details.seasons.filter(s => s.season_number !== 0).slice(0, 100).map(s => s.id));
+    for (const { season, kind } of seasonPlan(details, row, today)) {
+      const inventory = seasons.get(season.season_number);
+      const ids = watched.get(season.id);
+      if (kind !== "candidate" || !proofEligibleIds.has(season.id) || !inventory || !ids || !isFinishedSeason(details, season, today) ||
+        !inventory.episodes.length || inventory.episodes.length > 100 || inventory.episodes.length !== season.episode_count ||
+        !inventory.episodes.every(ep => ep.air_date && ep.air_date <= today && ids.has(ep.id))) continue;
+      if (batchSize + inventory.episodes.length > 100) {
+        verifications.push({ tvSeriesId: row.tvSeriesId, seasons: batch }); batch = []; batchSize = 0;
+      }
+      batch.push({ seasonId: season.id, airDate: season.air_date, episodeIds: inventory.episodes.map(ep => ep.id) });
+      batchSize += inventory.episodes.length;
+    }
+    if (batch.length) verifications.push({ tvSeriesId: row.tvSeriesId, seasons: batch });
   }
+  // Keep the persistence queue stable across unrelated observer renders.
+  const verificationPayload = JSON.stringify(verifications);
+  useEffect(() => {
+    // Persist only compact completeness evidence; the existing TMDB cache owns
+    // inventories. Recheck IDs atomically on the server before saving proof.
+    let cancelled = false;
+    void (async () => {
+      const work: FunctionArgs<typeof api.catchUp.verifySeasons>[] = JSON.parse(verificationPayload);
+      for (const verification of work) {
+        if (cancelled) break;
+        const key = `${attempt}:${JSON.stringify(verification)}`;
+        if (submitted.current.has(key)) continue;
+        submitted.current.add(key);
+        try { await verifySeasons(verification); } catch { /* A later visit/retry can verify again. */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [verificationPayload, verifySeasons, attempt]);
   catchUpItems.sort((a, b) => b.unwatchedEpisodes - a.unwatchedEpisodes || a.name.localeCompare(b.name));
-  const isLoading = authLoading || status === "LoadingFirstPage" || status === "LoadingMore" ||
+  const isLoading = authLoading || ready === undefined || isUpdating || status === "LoadingFirstPage" || status === "LoadingMore" ||
     seriesQueries.some(q => q.isPending || q.isFetching) || seasonQueries.some(q => q.isPending || q.isFetching) ||
     Object.values(watchedQueries).some(value => value === undefined);
   const refreshing = refreshNeeded.some((needed, i) => needed && !seasonQueries[i].isError);
@@ -97,7 +139,7 @@ export function useCatchUpData() {
     for (const q of [...seriesQueries, ...seasonQueries]) if (q.isError) void q.refetch();
   };
   return {
-    catchUpItems, isLoading: isLoading || refreshing, isComplete, failedShows, retry,
+    catchUpItems, isLoading: isLoading || refreshing, isComplete, isUpdating, failedShows, retry,
     canLoadMore: status === "CanLoadMore", loadMore: () => loadMore(25),
     totalUpToDate: results.length,
     totalNeedingAttention: catchUpItems.length,

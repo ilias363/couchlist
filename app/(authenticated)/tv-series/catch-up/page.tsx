@@ -28,6 +28,7 @@ function CatchUpContent() {
     loadMore,
     failedShows,
     retry,
+    isUpdating,
   } = useCatchUpData();
 
   return (
@@ -65,9 +66,11 @@ function CatchUpContent() {
 
       {!isComplete && (
         <p role="status" className="text-sm text-muted-foreground">
+          {isUpdating ? "Your library is being updated. Catch-up totals will be available when it finishes." : <>
           Partial totals for completed checks among {totalUpToDate} loaded shows.
           {isLoading && " Checking for episodes…"}
           {canLoadMore && " Load more shows to finish checking your library."}
+          </>}
         </p>
       )}
       {failedShows > 0 && (

@@ -33,7 +33,7 @@ export function CatchUpSection() {
 }
 
 function CatchUpSectionContent() {
-  const { catchUpItems, isLoading, totalUnwatchedEpisodes, isComplete, failedShows, retry } = useCatchUpData();
+  const { catchUpItems, isLoading, totalUnwatchedEpisodes, isComplete, isUpdating, failedShows, retry } = useCatchUpData();
 
   const items: MediaCarouselItem[] = catchUpItems.map(item => ({
     id: item.tvSeriesId,
@@ -70,7 +70,7 @@ function CatchUpSectionContent() {
       <MediaCarousel title="Catch Up" subtitle={subtitle} items={items} isLoading={isLoading} />
       {!isComplete && (
         <p role="status" className="text-center text-sm text-muted-foreground">
-          {failedShows ? "Some shows could not be checked. " : "Showing completed checks for recent shows. "}
+          {isUpdating ? "Your library is being updated. " : failedShows ? "Some shows could not be checked. " : "Showing completed checks for recent shows. "}
           <Link href="/tv-series/catch-up" className="underline">View all catch-up checks</Link>
           {failedShows > 0 && <Button variant="ghost" size="sm" onClick={retry}>Retry</Button>}
         </p>

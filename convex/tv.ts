@@ -7,6 +7,7 @@ import {
   deriveWatchSummary,
   getSeriesEpisodes,
   refreshSeriesWatchSummary,
+  retainCatchUpVerifications,
   validateWatchDate,
   validateUniqueIds,
   validateEpisodeIdentity,
@@ -61,6 +62,7 @@ export const setSeriesStatus = mutation({
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
+        catchUpVerifiedSeasons: retainCatchUpVerifications(existing, summary.seasonWatchedCounts),
         ...summary,
       });
     } else {

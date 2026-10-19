@@ -15,7 +15,7 @@ import { CatchUpSection } from "../components/home/catch-up-section";
 import { CatchUpBoundary } from "../components/catch-up/catch-up-boundary";
 
 function view(overrides: Partial<ReturnType<typeof useCatchUpData>> = {}) {
-  state.view = { catchUpItems: [], isLoading: false, isComplete: false, failedShows: 0, retry: vi.fn(),
+  state.view = { catchUpItems: [], isLoading: false, isComplete: false, isUpdating: false, failedShows: 0, retry: vi.fn(),
     canLoadMore: false, loadMore: vi.fn(), totalUpToDate: 25, totalNeedingAttention: 0,
     totalUnwatchedEpisodes: 0, totalUpcoming: 0, ...overrides };
   return renderToStaticMarkup(<CatchUpPage />);
@@ -28,6 +28,7 @@ test("loading, partial pagination and failure never announce caught up; complete
   const failed = view({ failedShows: 1 });
   expect(failed).toContain("Results are incomplete"); expect(failed).toContain("Retry failed checks");
   expect(failed).not.toContain("all caught up");
+  expect(view({ isUpdating: true, isLoading: true })).toContain("Your library is being updated");
   const progressive = view({ isLoading: true, catchUpItems: [{
     tvSeriesId: 1, name: "Ready show", posterPath: null, tmdbStatus: "Returning Series",
     totalEpisodes: 1, watchedEpisodes: 0, unwatchedEpisodes: 1, unknownDateEpisodes: 0, unwatchedSeasons: [], upcomingSeasons: [],
