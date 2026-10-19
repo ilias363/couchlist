@@ -141,6 +141,17 @@ test("merge preserves unknown dates/runtime, clears unwatched dates and repairs 
   const target = await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 2 });
   expect([target?.startedAt, target?.lastWatchedAt]).toEqual([50, 200]);
   expect(target?.seasonWatchedCounts).toEqual({ 20: 103, 30: 102 });
+  expect(target?.watchSummaryVersion).toBe(1);
+  // Finalization must leave both moved parents ready for incremental writes.
+  // No repair/rebuild is allowed on the next ordinary mutation.
+  await owner.run(async ctx => {
+    await ctx.runMutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 2, seasonId: 20, episodeId: 1, isWatched: true, watchedAt: -10 }, {
+      transactionLimits: { documentsRead: 8, databaseQueries: 8 },
+    });
+  });
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 2 })).toMatchObject({ startedAt: -10, lastWatchedAt: 50, seasonWatchedCounts: { 20: 103, 30: 102 } });
+  await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 10, episodeId: 9999, isWatched: true, watchedAt: 0 });
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({ startedAt: 0, lastWatchedAt: 0, seasonWatchedCounts: { 10: 1 }, status: "on_hold" });
   const mergedMovie = await owner.query(api.movie.getMovieStatus, { movieId: 77 });
   expect([mergedMovie?.watchedDate, mergedMovie?.runtime]).toEqual([123, 120]);
   jobId = await prepare(owner, [episode(1, { tvSeriesId: 2, seasonId: 20, isWatched: false })]);
@@ -150,6 +161,8 @@ test("merge preserves unknown dates/runtime, clears unwatched dates and repairs 
   await owner.mutation(api.importExport.sealImport, { jobId }); await finish(t, owner, jobId);
   const replacedMovie = await owner.query(api.movie.getMovieStatus, { movieId: 77 });
   expect([replacedMovie?.watchedDate, replacedMovie?.runtime]).toEqual([undefined, undefined]);
+  await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 2, seasonId: 20, episodeId: 1, isWatched: true, watchedAt: 0 });
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 2 })).toMatchObject({ startedAt: 0, lastWatchedAt: 0, seasonWatchedCounts: { 20: 1 } });
 });
 
 test("all public job endpoints are owner-scoped; operations fence overlaps and normal writes", async () => {
@@ -238,6 +251,33 @@ test("a failed batch rolls back its writes and resumes from the durable checkpoi
   expect((await owner.query(api.movie.getMovieStatus, { movieId: 2 }))?.runtime).toBe(90);
 });
 
+test("imports resume summary reset cursors created before the incremental rollout", async () => {
+  const { t, owner } = setup();
+  await t.run(async ctx => {
+    for (let i = 1; i <= 205; i++) await ctx.db.insert("userTvSeries", {
+      userId: "owner", tvSeriesId: i, status: "on_hold", seasonWatchedCounts: { 99: 1 },
+      startedAt: -1, lastWatchedAt: 0, createdAt: 10, updatedAt: 20,
+    });
+  });
+  const jobId = await prepare(owner, []);
+  await owner.mutation(api.importExport.sealImport, { jobId });
+  await step(t, owner, jobId);
+  // Reproduce the old by_user pagination/checkpoint, including the first
+  // already-committed reset page, rather than generating a new-index cursor.
+  await t.run(async ctx => {
+    const page = await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", "owner")).paginate({ cursor: null, numItems: 100 });
+    for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {} });
+    await ctx.db.patch(jobId, { cursor: page.continueCursor });
+  });
+  await owner.mutation(api.dataOperations.resume, { jobId });
+  await finish(t, owner, jobId);
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 205 })).toMatchObject({ seasonWatchedCounts: {}, status: "on_hold", createdAt: 10, updatedAt: 20 });
+  const exported = await downloadBackup({ mutation: owner.mutation, query: owner.query } as unknown as ConvexReactClient, () => {});
+  const backup = parseBackup(JSON.parse(await exported.text()));
+  expect(backup.tvSeries).toHaveLength(205);
+  expect(backup.tvSeries.some(row => "watchSummaryVersion" in row || "seasonWatchedCounts" in row)).toBe(false);
+});
+
 test("a pathological season-count map never crosses the 1024-field value limit", async () => {
   const { t, owner } = setup();
   for (let start = 1; start <= 1025; start += 400) await t.run(async ctx => {
@@ -258,4 +298,11 @@ test("a pathological season-count map never crosses the 1024-field value limit",
   const series = await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 });
   expect(series?.seasonWatchedCounts).toBeUndefined();
   expect([series?.startedAt, series?.lastWatchedAt, series?.createdAt, series?.updatedAt]).toEqual([1, 1025, 10, 20]);
-});
+  expect(series?.watchSummaryVersion).toBe(1);
+  await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 1, episodeId: 1, isWatched: false });
+  expect(await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 })).toMatchObject({ startedAt: 2, lastWatchedAt: 1025 });
+  // Overflow stays explicitly unknown until a repair can fit the entire map.
+  const repair = await t.mutation(internal.migrations.repairTvSeriesDates, { userId: "owner", tvSeriesId: 1 });
+  await finish(t, owner, repair);
+  expect(Object.keys((await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 }))!.seasonWatchedCounts!)).toHaveLength(1024);
+}, 120000);

@@ -33,13 +33,20 @@ export async function createOperation(
     throw new Error("Another data operation is in progress. Finish or resume it in Settings first.");
   }
   if (existing) await ctx.db.delete(existing._id);
-  const phase = kind === "export" ? "export" : kind === "import" ? "upload" : kind === "clear_movies" || kind === "account" ? "delete_movies" : "delete_episodes";
+  const repairSeries = kind === "repair_tv"
+    ? await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q => q.eq("userId", userId).eq("tvSeriesId", options.tvSeriesId!)).unique()
+    : null;
+  const phase = kind === "repair_tv" ? "summaries" : kind === "export" ? "export" : kind === "import" ? "upload" : kind === "clear_movies" || kind === "account" ? "delete_movies" : "delete_episodes";
   const now = Date.now();
   const jobId = await ctx.db.insert("dataOperations", {
     userId, kind, phase, ...options, expected: options.expected ?? emptyCounts(),
     uploaded: emptyCounts(), inserted: emptyCounts(), updated: emptyCounts(),
     position: -1, revision: 0, processed: 0, deleted: 0,
     startedAt: now, expiresAt: now + idleLifetime, cursor: null,
+    // A scoped repair publishes only after the complete history has been
+    // accumulated. Seed empty counts so an existing, now-empty series clears
+    // correctly too; orphan parents are still created only for watched rows.
+    ...(repairSeries ? { summary: { tvSeriesId: repairSeries.tvSeriesId, counts: {}, countsOverflow: false, createdAt: repairSeries.createdAt, updatedAt: repairSeries.updatedAt } } : {}),
   });
   if (phase === "upload" || phase === "export") {
     await ctx.scheduler.runAfter(idleLifetime, internal.dataOperations.expireIdle, { jobId });
@@ -147,7 +154,7 @@ async function flushSummary(ctx: MutationCtx, job: Job) {
   const s = job.summary;
   if (!s) return;
   const existing = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q => q.eq("userId", job.userId).eq("tvSeriesId", s.tvSeriesId)).unique();
-  const summary = { startedAt: s.startedAt, lastWatchedAt: s.lastWatchedAt, seasonWatchedCounts: s.countsOverflow ? undefined : s.counts };
+  const summary = { startedAt: s.startedAt, lastWatchedAt: s.lastWatchedAt, seasonWatchedCounts: s.countsOverflow ? undefined : s.counts, watchSummaryVersion: 1 as const };
   if (existing) await ctx.db.patch(existing._id, summary);
   else await ctx.db.insert("userTvSeries", { userId: job.userId, tvSeriesId: s.tvSeriesId, status: "currently_watching", ...summary, createdAt: s.createdAt, updatedAt: s.updatedAt });
 }
@@ -191,14 +198,25 @@ export const processBatch = internalMutation({
         else advance("delete_stats");
       }
     } else if (job.phase === "reset_summaries") {
+      // Preserve import's index so pre-rollout durable cursors remain valid.
       const page = await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
-      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {} });
+      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {}, watchSummaryVersion: 1 });
       job.processed += page.page.length;
       job.cursor = page.continueCursor;
       if (page.isDone) advance("summaries");
     } else if (job.phase === "summaries") {
-      const page = await ctx.db.query("userEpisodes").withIndex("by_user_tv", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
+      const page = await ctx.db.query("userEpisodes").withIndex("by_user_tv", q => job.tvSeriesId !== undefined
+        ? q.eq("userId", job.userId).eq("tvSeriesId", job.tvSeriesId) : q.eq("userId", job.userId)
+      ).paginate(pageOptions(job.cursor));
       for (const ep of page.page) {
+        // Preserve the old explicit repair's duplicate-identity guard, now in
+        // bounded pages. A failure keeps the fence and resumable checkpoint.
+        if (job.kind === "repair_tv") {
+          const matches = await ctx.db.query("userEpisodes").withIndex("by_user_episode", q =>
+            q.eq("userId", job.userId).eq("episodeId", ep.episodeId)
+          ).take(2);
+          if (matches.length > 1) throw new Error("Repair blocked: duplicate episode identities; reconcile explicitly");
+        }
         if (!ep.isWatched) continue;
         if (job.summary?.tvSeriesId !== ep.tvSeriesId) {
           await flushSummary(ctx, job);
@@ -234,6 +252,9 @@ export const processBatch = internalMutation({
     void _creationTime;
     await ctx.db.replace(_id, { ...fields, revision: job.revision + 1 });
     if (job.phase !== "complete" && job.phase !== "awaiting_identity") await ctx.scheduler.runAfter(0, internal.dataOperations.runBatch, { jobId: _id, revision: job.revision + 1 });
+    if (job.phase === "complete" && job.backfillCursor !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.migrations.backfillSeasonWatchedCounts, { cursor: job.backfillCursor });
+    }
     return null;
   },
 });
