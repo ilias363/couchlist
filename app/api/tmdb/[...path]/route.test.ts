@@ -97,6 +97,28 @@ test("metadata uses the server transport directly", async () => {
   expect(mocks.withAuth).not.toHaveBeenCalled();
 });
 
+test("TV details and season cancellation reaches the authenticated proxy and upstream fetch", async () => {
+  for (const season of [false, true]) {
+    const controller = new AbortController();
+    const pending = season ? tmdbClient.getSeasonDetails(42, 1, controller.signal) : tmdbClient.getTVSeriesDetails(42, controller.signal);
+    await pending;
+    const [browserUrl, options] = mocks.fetch.mock.calls.at(-1)!;
+    expect(options.signal).toBe(controller.signal);
+    let upstreamSignal!: AbortSignal;
+    mocks.fetch.mockImplementationOnce((_url: URL, { signal }: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+      upstreamSignal = signal;
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }));
+    const proxyRequest = GET(new NextRequest(`http://localhost${browserUrl}`, { signal: controller.signal }));
+    await vi.waitFor(() => expect(upstreamSignal).toBeDefined());
+    controller.abort();
+    expect(upstreamSignal.aborted).toBe(true);
+    const response = await proxyRequest;
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toContain("server-secret");
+  }
+});
+
 test("missing configuration and upstream failures never expose credentials", async () => {
   vi.stubEnv("TMDB_API_KEY", "");
   expect((await GET(request("/movie/42"))).status).toBe(503);

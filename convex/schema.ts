@@ -72,6 +72,12 @@ export default defineSchema({
     startedAt: v.optional(v.number()), // First valid recorded date among watched episodes
     lastWatchedAt: v.optional(v.number()), // Last valid recorded date among watched episodes
     seasonWatchedCounts: v.optional(v.record(v.string(), v.number())), // TMDB season ID -> watched count
+    // Bounded catch-up evidence, not a copy of TMDB inventories. Watch changes
+    // invalidate affected seasons; import summary resets clear the evidence.
+    catchUpVerifiedSeasons: v.optional(v.record(v.string(), v.object({
+      episodeCount: v.number(), airDate: v.union(v.string(), v.null()),
+      watchedCount: v.union(v.number(), v.null()),
+    }))),
     watchSummaryVersion: v.optional(v.literal(1)), // Includes intentionally unknown (>1024 season) counts.
     // Old field names (to be removed after migration)
     // startedDate: v.optional(v.number()), // @deprecated - use startedAt

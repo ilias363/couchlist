@@ -69,6 +69,7 @@ export function CatchUpCard({ item }: { item: CatchUpItem }) {
                   <Eye className="h-2.5 w-2.5 shrink-0" />
                   <span className="truncate">
                     S{season.seasonNumber}: {season.episodeCount - season.watchedCount} new episodes
+                    {!!season.unknownDateEpisodes && ` · ${season.unknownDateEpisodes} undated`}
                   </span>
                 </span>
               ))}
@@ -80,6 +81,7 @@ export function CatchUpCard({ item }: { item: CatchUpItem }) {
                   <CalendarClock className="h-2.5 w-2.5 shrink-0" />
                   <span className="truncate">
                     S{season.seasonNumber}
+                    {" · Upcoming"}
                     {season.airDate && (
                       <span className="opacity-70"> · {formatReleaseDate(season.airDate)}</span>
                     )}
@@ -87,6 +89,9 @@ export function CatchUpCard({ item }: { item: CatchUpItem }) {
                 </span>
               ))}
             </div>
+          )}
+          {item.unknownDateEpisodes > 0 && (
+            <p className="text-xs text-muted-foreground">Episodes with unknown air dates are excluded from aired totals.</p>
           )}
         </div>
       </div>

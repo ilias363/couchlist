@@ -1,201 +1,199 @@
-import { useQuery } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery, useQueries as useConvexQueries, useQuery } from "convex/react";
 import { useQueries } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
-import { TMDBTvSeries, TMDBSeason } from "@/lib/tmdb/types";
-import { CatchUpItem, CatchUpSeasonInfo } from "@/lib/catch-up-types";
+import { buildCatchUpItem, comparisonIds, isFinishedSeason, seasonPlan } from "@/lib/catch-up";
+import type { CatchUpSummary } from "@/lib/catch-up";
+import type { CatchUpItem } from "@/lib/catch-up-types";
+import type { TMDBSeason } from "@/lib/tmdb/types";
+import type { FunctionArgs } from "convex/server";
+
+function proofKey(tvSeriesId: number, seasonId: number, proof: NonNullable<CatchUpSummary["catchUpVerifiedSeasons"]>[string]) {
+  return JSON.stringify([tvSeriesId, seasonId, proof.episodeCount, proof.airDate, proof.watchedCount]);
+}
 
 export function useCatchUpData() {
-  // Get all "up to date" series with their watched episode IDs
-  const upToDateData = useQuery(api.tv.getUpToDateSeriesWithEpisodes);
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const { results, status, loadMore } = usePaginatedQuery(api.catchUp.list, isAuthenticated ? {} : "skip", { initialNumItems: 25 });
+  const ready = useQuery(api.catchUp.isReady, isAuthenticated ? {} : "skip");
+  const isUpdating = ready === false || results.some(row => !row.summariesReady);
+  const summaries = ready && !isUpdating ? results : [];
+  const verifySeasons = useMutation(api.catchUp.verifySeasons);
+  const revokeVerifications = useMutation(api.catchUp.revokeVerifications);
+  const submitted = useRef(new Set<string>());
+  const [revokedProofs, setRevokedProofs] = useState<Set<string>>(() => new Set());
+  const [retries, setRetries] = useState<Record<string, number>>({});
+  const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setToday(new Date().toISOString().slice(0, 10)), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const seriesIds = useMemo(() => upToDateData?.map(s => s.tvSeriesId) ?? [], [upToDateData]);
-
-  // Fetch TMDB details (shared cache with other pages)
-  const seriesQueries = useQueries({
-    queries: seriesIds.map(id => ({
-      queryKey: tmdbKeys.tv(id),
-      queryFn: () => tmdbClient.getTVSeriesDetails(id),
-      enabled: seriesIds.length > 0,
-      staleTime: 5 * 60 * 1000,
-    })),
-  });
-
-  const seriesMap = useMemo(() => {
-    const map = new Map<number, TMDBTvSeries>();
-    seriesQueries.forEach((q, i) => {
-      if (q.data) map.set(seriesIds[i], q.data);
+  // Only public metadata enters the shared React Query cache. Private watched
+  // IDs remain in authenticated, reactive Convex subscriptions.
+  const seriesQueries = useQueries({ queries: summaries.map(row => ({
+    queryKey: tmdbKeys.tv(row.tvSeriesId),
+    queryFn: ({ signal }: { signal: AbortSignal }) => tmdbClient.getTVSeriesDetails(row.tvSeriesId, signal),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  })) });
+  const revocations: FunctionArgs<typeof api.catchUp.revokeVerifications>[] = summaries.flatMap((row, i) => {
+    const details = seriesQueries[i].data;
+    if (!details) return [];
+    const seasons = Object.entries(row.catchUpVerifiedSeasons ?? {}).flatMap(([id, proof]) => {
+      const season = details.seasons.find(s => s.id === Number(id));
+      const count = row.seasonWatchedCounts ? row.seasonWatchedCounts[id] ?? 0 : null;
+      return !season || season.episode_count !== proof.episodeCount || season.air_date !== proof.airDate || count !== proof.watchedCount
+        ? [{ seasonId: Number(id), ...proof }] : [];
     });
-    return map;
-  }, [seriesQueries, seriesIds]);
-
-  // Only fetch season details for series that might have unwatched content
-  const seasonRequests = useMemo(() => {
-    const requests: { seriesId: number; seasonNumber: number }[] = [];
-    if (!upToDateData) return requests;
-
-    const watchedCounts = new Map(upToDateData.map(s => [s.tvSeriesId, s.watchedEpisodeIds.length]));
-    for (const [seriesId, details] of seriesMap) {
-      if (!details?.seasons) continue;
-      const watched = watchedCounts.get(seriesId) ?? 0;
-      if (watched >= details.number_of_episodes && details.status !== "Returning Series") continue;
-      for (const season of details.seasons) {
-        if (season.season_number !== 0) {
-          requests.push({ seriesId, seasonNumber: season.season_number });
-        }
-      }
-    }
-    return requests;
-  }, [upToDateData, seriesMap]);
-
-  // Fetch all seasons in parallel (shared cache)
-  const seasonQueries = useQueries({
-    queries: seasonRequests.map(({ seriesId, seasonNumber }) => ({
-      queryKey: tmdbKeys.season(seriesId, seasonNumber),
-      queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
-      enabled: seasonRequests.length > 0,
-      staleTime: 5 * 60 * 1000,
-    })),
+    return seasons.length ? [{ tvSeriesId: row.tvSeriesId, seasons }] : [];
   });
-
-  const seasonDataMap = useMemo(() => {
-    const map = new Map<number, Map<number, TMDBSeason>>();
+  // Remember contradicted evidence immediately, even if its old count returns
+  // before the revocation reaches Convex. The existing cache still owns TMDB data.
+  const rejected = new Set(revokedProofs);
+  for (const row of revocations) for (const proof of row.seasons) rejected.add(proofKey(row.tvSeriesId, proof.seasonId, proof));
+  const rows = summaries.map(row => ({ ...row, catchUpVerifiedSeasons: Object.fromEntries(
+    Object.entries(row.catchUpVerifiedSeasons ?? {}).filter(([id, proof]) => !rejected.has(proofKey(row.tvSeriesId, Number(id), proof))),
+  ) }));
+  const revocationPayload = JSON.stringify(revocations);
+  useEffect(() => {
+    const work: FunctionArgs<typeof api.catchUp.revokeVerifications>[] = JSON.parse(revocationPayload);
+    setRevokedProofs(previous => {
+      const keys = work.flatMap(row => row.seasons.map(proof => proofKey(row.tvSeriesId, proof.seasonId, proof)));
+      return keys.some(key => !previous.has(key)) ? new Set([...previous, ...keys]) : previous;
+    });
+    let cancelled = false;
+    void (async () => {
+      for (const revocation of work) {
+        if (cancelled) break;
+        const key = `revoke:${attempt}:${JSON.stringify(revocation)}`;
+        if (submitted.current.has(key)) continue;
+        submitted.current.add(key);
+        try { await revokeVerifications(revocation); } catch { /* Keep rejecting locally; a later visit/retry can revoke again. */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [revocationPayload, revokeVerifications, attempt]);
+  const candidates = rows.flatMap((row, i) => {
+    const details = seriesQueries[i].data;
+    return details ? seasonPlan(details, row, today).flatMap(plan =>
+      plan.kind === "candidate" ? [{ row, season: plan.season, seriesUpdatedAt: seriesQueries[i].dataUpdatedAt }] : []) : [];
+  });
+  const seasonQueries = useQueries({ queries: candidates.map(({ row, season }) => ({
+    queryKey: tmdbKeys.season(row.tvSeriesId, season.season_number),
+    queryFn: ({ signal }: { signal: AbortSignal }) => tmdbClient.getSeasonDetails(row.tvSeriesId, season.season_number, signal),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  })) });
+  // A fresh series response can revise a count while a season's shared cache
+  // is still fresh. Refresh that entry once, without inventing another key or
+  // cache. If TMDB itself remains inconsistent, show the missing dates below.
+  const refreshNeeded = candidates.map((candidate, i) => {
+    const q = seasonQueries[i];
+    return !!q.data && q.data.episodes.length !== candidate.season.episode_count && q.dataUpdatedAt < candidate.seriesUpdatedAt;
+  });
+  useEffect(() => {
     seasonQueries.forEach((q, i) => {
-      if (q.data) {
-        const req = seasonRequests[i];
-        if (!map.has(req.seriesId)) map.set(req.seriesId, new Map());
-        map.get(req.seriesId)!.set(req.seasonNumber, q.data);
-      }
+      if (refreshNeeded[i] && q.fetchStatus === "idle" && !q.isError) void q.refetch();
     });
-    return map;
-  }, [seasonQueries, seasonRequests]);
+  }, [seasonQueries, refreshNeeded]);
+  const comparisons = candidates.flatMap(({ row, season }, i) => {
+    const details = seasonQueries[i].data;
+    if (!details || refreshNeeded[i] || (row.seasonWatchedCounts && !row.seasonWatchedCounts[String(season.id)])) return [];
+    const ids = comparisonIds(details, today);
+    return Array.from({ length: Math.ceil(ids.length / 100) }, (_, chunk) => {
+      const key = `${row.tvSeriesId}:${season.id}:${chunk}`;
+      return { key, args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100), retry: retries[key] ?? 0 } };
+    });
+  });
+  const requests = Object.fromEntries(comparisons.map(({ key, args }) => [key, { query: api.catchUp.watchedIds, args }]));
+  const watchedQueries = useConvexQueries(requests);
 
-  const catchUpItems = useMemo(() => {
-    if (!upToDateData) return [] as CatchUpItem[];
-    const now = new Date();
-    const items: CatchUpItem[] = [];
-
-    for (const { tvSeriesId, watchedEpisodeIds } of upToDateData) {
-      const details = seriesMap.get(tvSeriesId);
-      if (!details) continue;
-
-      const watchedSet = new Set(watchedEpisodeIds);
-      const seasonsData = seasonDataMap.get(tvSeriesId);
-      if (!seasonsData) continue;
-
-      let totalEpisodes = 0;
-      let watchedCount = 0;
-      const unwatchedSeasons: CatchUpSeasonInfo[] = [];
-      const upcomingSeasons: CatchUpSeasonInfo[] = [];
-
-      for (const [seasonNumber, seasonData] of seasonsData) {
-        if (!seasonData.episodes) continue;
-
-        const airedEpisodes = seasonData.episodes.filter(ep => {
-          if (!ep.air_date) return false;
-          return new Date(ep.air_date) <= now;
-        });
-
-        const futureEpisodes = seasonData.episodes.filter(ep => {
-          if (!ep.air_date) return false;
-          return new Date(ep.air_date) > now;
-        });
-
-        const seasonWatchedCount = airedEpisodes.filter(ep =>
-          watchedSet.has(ep.id)
-        ).length;
-
-        totalEpisodes += airedEpisodes.length;
-        watchedCount += seasonWatchedCount;
-
-        const unwatchedInSeason = airedEpisodes.length - seasonWatchedCount;
-
-        const seasonMeta = details.seasons?.find(
-          s => s.season_number === seasonNumber
-        );
-        const isFullyUpcoming =
-          airedEpisodes.length === 0 &&
-          (seasonData.episodes.length > 0 ||
-            (seasonMeta?.air_date && new Date(seasonMeta.air_date) > now));
-
-        if (isFullyUpcoming) {
-          upcomingSeasons.push({
-            seasonNumber,
-            name: seasonMeta?.name ?? `Season ${seasonNumber}`,
-            episodeCount: seasonData.episodes.length || seasonMeta?.episode_count || 0,
-            watchedCount: 0,
-            airDate: seasonMeta?.air_date ?? null,
-            isUpcoming: true,
-          });
-        } else if (unwatchedInSeason > 0 || futureEpisodes.length > 0) {
-          unwatchedSeasons.push({
-            seasonNumber,
-            name: seasonMeta?.name ?? `Season ${seasonNumber}`,
-            episodeCount: airedEpisodes.length,
-            watchedCount: seasonWatchedCount,
-            airDate: seasonMeta?.air_date ?? null,
-            isUpcoming: false,
-          });
-        }
-      }
-
-      // Check for upcoming seasons in TMDB list not yet fetched
-      if (details.seasons) {
-        for (const season of details.seasons) {
-          if (season.season_number === 0) continue;
-          if (seasonsData.has(season.season_number)) continue;
-          if (season.air_date && new Date(season.air_date) > now) {
-            upcomingSeasons.push({
-              seasonNumber: season.season_number,
-              name: season.name,
-              episodeCount: season.episode_count,
-              watchedCount: 0,
-              airDate: season.air_date,
-              isUpcoming: true,
-            });
-          }
-        }
-      }
-
-      const unwatchedEpisodes = totalEpisodes - watchedCount;
-
-      if (unwatchedEpisodes > 0 || upcomingSeasons.length > 0) {
-        items.push({
-          tvSeriesId,
-          name: details.name,
-          posterPath: details.poster_path,
-          tmdbStatus: details.status,
-          totalEpisodes,
-          watchedEpisodes: watchedCount,
-          unwatchedEpisodes,
-          unwatchedSeasons,
-          upcomingSeasons,
-        });
+  const catchUpItems: CatchUpItem[] = [];
+  const verifications: FunctionArgs<typeof api.catchUp.verifySeasons>[] = [];
+  let failedShows = 0;
+  for (const [i, row] of rows.entries()) {
+    const details = seriesQueries[i].data;
+    const seasons = new Map<number, TMDBSeason>();
+    const watched = new Map<number, Set<number>>();
+    let failed = seriesQueries[i].isError;
+    for (const [j, candidate] of candidates.entries()) {
+      if (candidate.row.tvSeriesId !== row.tvSeriesId) continue;
+      const data = seasonQueries[j].data;
+      failed ||= seasonQueries[j].isError;
+      if (!data || refreshNeeded[j]) continue;
+      seasons.set(candidate.season.season_number, data);
+      const chunks = comparisons.filter(c => c.args.tvSeriesId === row.tvSeriesId && c.args.seasonId === candidate.season.id);
+      const values = chunks.map(c => watchedQueries[c.key] as number[] | Error | undefined);
+      failed ||= values.some(value => value instanceof Error);
+      if (values.every((value): value is number[] => Array.isArray(value))) {
+        watched.set(candidate.season.id, new Set(values.flat()));
       }
     }
-
-    items.sort(
-      (a, b) => b.unwatchedEpisodes - a.unwatchedEpisodes || a.name.localeCompare(b.name)
-    );
-
-    return items;
-  }, [upToDateData, seriesMap, seasonDataMap]);
-
-  const seriesLoading = seriesQueries.some(q => q.isLoading);
-  const seasonsLoading = seasonQueries.some(q => q.isLoading);
-  const isLoading = upToDateData === undefined || seriesLoading || seasonsLoading;
-
-  const totalUnwatchedEpisodes = catchUpItems.reduce((sum, item) => sum + item.unwatchedEpisodes, 0);
-  const totalUpcoming = catchUpItems.filter(item => item.upcomingSeasons.length > 0).length;
-
+    if (failed) { failedShows++; continue; }
+    if (!details) continue;
+    const item = buildCatchUpItem(details, row, today, seasons, watched);
+    if (item) catchUpItems.push(item);
+    if (item === undefined) continue;
+    let batch: FunctionArgs<typeof api.catchUp.verifySeasons>["seasons"] = [];
+    let batchSize = 0;
+    const proofEligibleIds = new Set(details.seasons.filter(s => s.season_number !== 0).slice(0, 100).map(s => s.id));
+    for (const { season, kind } of seasonPlan(details, row, today)) {
+      const inventory = seasons.get(season.season_number);
+      const ids = watched.get(season.id);
+      if (kind !== "candidate" || !proofEligibleIds.has(season.id) || !inventory || !ids || !isFinishedSeason(details, season, today) ||
+        !inventory.episodes.length || inventory.episodes.length > 100 || inventory.episodes.length !== season.episode_count ||
+        !inventory.episodes.every(ep => ep.air_date && ep.air_date <= today && ids.has(ep.id))) continue;
+      if (batchSize + inventory.episodes.length > 100) {
+        verifications.push({ tvSeriesId: row.tvSeriesId, seasons: batch }); batch = []; batchSize = 0;
+      }
+      batch.push({ seasonId: season.id, airDate: season.air_date, episodeIds: inventory.episodes.map(ep => ep.id) });
+      batchSize += inventory.episodes.length;
+    }
+    if (batch.length) verifications.push({ tvSeriesId: row.tvSeriesId, seasons: batch });
+  }
+  // Keep the persistence queue stable across unrelated observer renders.
+  const verificationPayload = JSON.stringify(verifications);
+  useEffect(() => {
+    // Persist only compact completeness evidence; the existing TMDB cache owns
+    // inventories. Recheck IDs atomically on the server before saving proof.
+    let cancelled = false;
+    void (async () => {
+      const work: FunctionArgs<typeof api.catchUp.verifySeasons>[] = JSON.parse(verificationPayload);
+      for (const verification of work) {
+        if (cancelled) break;
+        const key = `${attempt}:${JSON.stringify(verification)}`;
+        if (submitted.current.has(key)) continue;
+        submitted.current.add(key);
+        try { await verifySeasons(verification); } catch { /* A later visit/retry can verify again. */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [verificationPayload, verifySeasons, attempt]);
+  catchUpItems.sort((a, b) => b.unwatchedEpisodes - a.unwatchedEpisodes || a.name.localeCompare(b.name));
+  const isLoading = authLoading || ready === undefined || isUpdating || status === "LoadingFirstPage" || status === "LoadingMore" ||
+    seriesQueries.some(q => q.isPending || q.isFetching) || seasonQueries.some(q => q.isPending || q.isFetching) ||
+    Object.values(watchedQueries).some(value => value === undefined);
+  const refreshing = refreshNeeded.some((needed, i) => needed && !seasonQueries[i].isError);
+  const isComplete = isAuthenticated && status === "Exhausted" && !isLoading && !refreshing && failedShows === 0;
+  const retry = () => {
+    setRetries(previous => {
+      const next = { ...previous };
+      for (const { key } of comparisons) if (watchedQueries[key] instanceof Error) next[key] = (next[key] ?? 0) + 1;
+      return next;
+    });
+    setAttempt(value => value + 1);
+    for (const q of [...seriesQueries, ...seasonQueries]) if (q.isError) void q.refetch();
+  };
   return {
-    catchUpItems,
-    isLoading,
-    totalUpToDate: upToDateData?.length ?? 0,
+    catchUpItems, isLoading: isLoading || refreshing, isComplete, isUpdating, failedShows, retry,
+    canLoadMore: status === "CanLoadMore", loadMore: () => loadMore(25),
+    totalUpToDate: results.length,
     totalNeedingAttention: catchUpItems.length,
-    totalUnwatchedEpisodes,
-    totalUpcoming,
+    totalUnwatchedEpisodes: catchUpItems.reduce((sum, item) => sum + item.unwatchedEpisodes, 0),
+    totalUpcoming: catchUpItems.filter(item => item.upcomingSeasons.length > 0).length,
   };
 }

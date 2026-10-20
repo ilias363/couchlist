@@ -155,7 +155,7 @@ async function flushSummary(ctx: MutationCtx, job: Job) {
   if (!s) return;
   const existing = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q => q.eq("userId", job.userId).eq("tvSeriesId", s.tvSeriesId)).unique();
   const summary = { startedAt: s.startedAt, lastWatchedAt: s.lastWatchedAt, seasonWatchedCounts: s.countsOverflow ? undefined : s.counts, watchSummaryVersion: 1 as const };
-  if (existing) await ctx.db.patch(existing._id, summary);
+  if (existing) await ctx.db.patch(existing._id, { ...summary, catchUpVerifiedSeasons: undefined });
   else await ctx.db.insert("userTvSeries", { userId: job.userId, tvSeriesId: s.tvSeriesId, status: "currently_watching", ...summary, createdAt: s.createdAt, updatedAt: s.updatedAt });
 }
 
@@ -200,7 +200,7 @@ export const processBatch = internalMutation({
     } else if (job.phase === "reset_summaries") {
       // Preserve import's index so pre-rollout durable cursors remain valid.
       const page = await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
-      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {}, watchSummaryVersion: 1 });
+      for (const series of page.page) await ctx.db.patch(series._id, { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {}, watchSummaryVersion: 1, catchUpVerifiedSeasons: undefined });
       job.processed += page.page.length;
       job.cursor = page.continueCursor;
       if (page.isDone) advance("summaries");

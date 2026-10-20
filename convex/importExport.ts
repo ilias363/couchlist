@@ -28,6 +28,7 @@ export const exportData = query({
       const { userId, _id, _creationTime, ...value } = doc;
       void userId; void _id; void _creationTime;
       if ("seasonWatchedCounts" in value) delete value.seasonWatchedCounts;
+      if ("catchUpVerifiedSeasons" in value) delete value.catchUpVerifiedSeasons;
       if ("watchSummaryVersion" in value) delete value.watchSummaryVersion;
       return parseRow(args.kind, value);
     });

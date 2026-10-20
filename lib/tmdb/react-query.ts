@@ -50,7 +50,7 @@ export function useTMDBExtendedMovie(id: number, options?: QueryOptions) {
 export function useTMDBTvSeries(id: number, options?: QueryOptions) {
   return useQuery<TMDBTvSeries>({
     queryKey: tmdbKeys.tv(id),
-    queryFn: () => tmdbClient.getTVSeriesDetails(id),
+    queryFn: ({ signal }) => tmdbClient.getTVSeriesDetails(id, signal),
     enabled: options?.enabled ?? true,
   });
 }
@@ -66,7 +66,7 @@ export function useTMDBExtendedTvSeries(id: number, options?: QueryOptions) {
 export function useTMDBSeason(seriesId: number, seasonNumber: number, options?: QueryOptions) {
   return useQuery<TMDBSeason>({
     queryKey: tmdbKeys.season(seriesId, seasonNumber),
-    queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
+    queryFn: ({ signal }) => tmdbClient.getSeasonDetails(seriesId, seasonNumber, signal),
     enabled: options?.enabled ?? true,
   });
 }
@@ -104,7 +104,7 @@ export function useBatchTMDBTvSeries(ids: number[], options?: QueryOptions) {
   const queries = useQueries({
     queries: stableIds.map(id => ({
       queryKey: tmdbKeys.tv(id),
-      queryFn: () => tmdbClient.getTVSeriesDetails(id),
+      queryFn: ({ signal }) => tmdbClient.getTVSeriesDetails(id, signal),
       enabled,
     })),
   });
@@ -137,7 +137,7 @@ export function useBatchTMDBSeasons(
   const queries = useQueries({
     queries: stableSeasonNumbers.map(seasonNumber => ({
       queryKey: tmdbKeys.season(seriesId, seasonNumber),
-      queryFn: () => tmdbClient.getSeasonDetails(seriesId, seasonNumber),
+      queryFn: ({ signal }) => tmdbClient.getSeasonDetails(seriesId, seasonNumber, signal),
       enabled,
     })),
   });

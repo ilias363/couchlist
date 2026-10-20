@@ -84,7 +84,7 @@ function recordedDate(episode: EpisodeWatchState | null) {
 // writes, including remaining episodes tied at the old min/max.
 export async function applyEpisodeWatchChanges(
   ctx: MutationCtx,
-  series: Pick<Doc<"userTvSeries">, "_id" | "userId" | "tvSeriesId" | "startedAt" | "lastWatchedAt" | "seasonWatchedCounts">,
+  series: Pick<Doc<"userTvSeries">, "_id" | "userId" | "tvSeriesId" | "startedAt" | "lastWatchedAt" | "seasonWatchedCounts" | "catchUpVerifiedSeasons">,
   changes: WatchChange[],
 ) {
   let counts = series.seasonWatchedCounts === undefined ? undefined : { ...series.seasonWatchedCounts };
@@ -92,9 +92,12 @@ export async function applyEpisodeWatchChanges(
   let findStart = false;
   let findEnd = false;
   const deltas: Record<string, number> = {};
+  const changedSeasons = new Set<number>();
   for (const { before, after } of changes) {
     if (before?.isWatched) deltas[before.seasonId] = (deltas[before.seasonId] ?? 0) - 1;
     if (after?.isWatched) deltas[after.seasonId] = (deltas[after.seasonId] ?? 0) + 1;
+    if (before?.isWatched && (!after?.isWatched || before.seasonId !== after.seasonId)) changedSeasons.add(before.seasonId);
+    if (after?.isWatched && (!before?.isWatched || before.seasonId !== after.seasonId)) changedSeasons.add(after.seasonId);
     const oldDate = recordedDate(before);
     const newDate = recordedDate(after);
     if (oldDate !== undefined && oldDate !== newDate) {
@@ -127,7 +130,13 @@ export async function applyEpisodeWatchChanges(
   };
   if (findStart) startedAt = await boundary("asc");
   if (findEnd) lastWatchedAt = await boundary("desc");
-  await ctx.db.patch(series._id, { startedAt, lastWatchedAt, seasonWatchedCounts: counts, watchSummaryVersion: 1, updatedAt: Date.now() });
+  // Invalidate changed inventories even if a batch's net count is zero.
+  // Date-only edits and retries preserve proof for unchanged watched IDs.
+  const proofs = Object.fromEntries(Object.entries(series.catchUpVerifiedSeasons ?? {}).filter(
+    ([season, proof]) => !changedSeasons.has(Number(season)) && proof.watchedCount === (counts ? counts[season] ?? 0 : null),
+  ));
+  await ctx.db.patch(series._id, { startedAt, lastWatchedAt, seasonWatchedCounts: counts, watchSummaryVersion: 1,
+    catchUpVerifiedSeasons: Object.keys(proofs).length ? proofs : undefined, updatedAt: Date.now() });
 }
 
 export function validateUniqueIds(ids: number[], label: string): void {
