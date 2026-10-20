@@ -1,6 +1,6 @@
 import { useConvexAuth, useMutation, usePaginatedQuery, useQueries as useConvexQueries, useQuery } from "convex/react";
 import { useQueries } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
@@ -109,7 +109,13 @@ export function useCatchUpData() {
       return { key, args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100), retry: retries[key] ?? 0 } };
     });
   });
-  const requests = Object.fromEntries(comparisons.map(({ key, args }) => [key, { query: api.catchUp.watchedIds, args }]));
+  // Convex's subscription hook updates during render when its input identity
+  // changes. Keep even the empty object stable until IDs or retry args change.
+  const requestPayload = JSON.stringify(comparisons);
+  const requests = useMemo(() => {
+    const values: typeof comparisons = JSON.parse(requestPayload);
+    return Object.fromEntries(values.map(({ key, args }) => [key, { query: api.catchUp.watchedIds, args }]));
+  }, [requestPayload]);
   const watchedQueries = useConvexQueries(requests);
 
   const catchUpItems: CatchUpItem[] = [];
