@@ -5,26 +5,29 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { useCatchUpData } from "./use-catch-up-data";
 import type { CatchUpSummary } from "../lib/catch-up";
+import { getFunctionName } from "convex/server";
 
 const state = vi.hoisted(() => ({
   rows: [] as (CatchUpSummary & { summariesReady?: boolean })[],
   status: "Exhausted",
   watched: {} as Record<number, number[] | Error | undefined>,
-  requests: [] as { episodeIds: number[]; tvSeriesId: number; seasonId: number }[],
+  requests: [] as { episodeIds: number[]; tvSeriesId: number; seasonId: number; retry?: number }[],
+  pendingRetries: false,
   loadMore: vi.fn(),
   auth: { isAuthenticated: true, isLoading: false },
   ready: true as boolean | undefined,
   verify: vi.fn().mockResolvedValue(true),
+  revoke: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("convex/react", () => ({
   useConvexAuth: () => state.auth,
   useQuery: () => state.ready,
-  useMutation: () => state.verify,
+  useMutation: (ref: Parameters<typeof getFunctionName>[0]) => getFunctionName(ref).endsWith(":revokeVerifications") ? state.revoke : state.verify,
   usePaginatedQuery: () => ({ results: state.rows.map(row => ({ ...row, summariesReady: row.summariesReady ?? true })), status: state.status, loadMore: state.loadMore }),
-  useQueries: (queries: Record<string, { args: { episodeIds: number[]; tvSeriesId: number; seasonId: number } }>) => {
+  useQueries: (queries: Record<string, { args: { episodeIds: number[]; tvSeriesId: number; seasonId: number; retry?: number } }>) => {
     state.requests = Object.values(queries).map(q => q.args);
     return Object.fromEntries(Object.entries(queries).map(([key, { args }]) => [key,
-      args.seasonId in state.watched ? state.watched[args.seasonId] : args.episodeIds.filter(id => id % 10 !== 0),
+      state.pendingRetries && args.retry ? undefined : args.seasonId in state.watched ? state.watched[args.seasonId] : args.episodeIds.filter(id => id % 10 !== 0),
     ]));
   },
 }));
@@ -59,6 +62,7 @@ beforeEach(() => {
   state.rows = []; state.status = "Exhausted"; state.watched = {}; state.requests = []; state.loadMore.mockReset();
   state.auth = { isAuthenticated: true, isLoading: false };
   state.ready = true; state.verify.mockClear();
+  state.revoke.mockReset().mockResolvedValue(null); state.pendingRetries = false;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   element = document.createElement("div"); document.body.append(element); root = createRoot(element);
   fetchMock.mockReset(); vi.stubGlobal("fetch", fetchMock);
@@ -182,6 +186,47 @@ test("failed season/ID checks remain incomplete and can retry without hiding suc
   await until(() => expect(view.isComplete).toBe(true));
   expect(view.totalUnwatchedEpisodes).toBe(9);
   expect(state.requests[0]).toMatchObject({ retry: 1 });
+});
+
+test("retrying a failed ID subscription keeps successful cards and subscriptions intact", async () => {
+  state.rows = [{ tvSeriesId: 1, seasonWatchedCounts: { "101": 9 } }, { tvSeriesId: 2, seasonWatchedCounts: { "102": 9 } }];
+  state.watched[101] = Array.from({ length: 9 }, (_, i) => i + 11);
+  state.watched[102] = new Error("failed");
+  fetchMock.mockImplementation(async (url: string) => {
+    const match = url.match(/\/tv\/(\d+)(?:\/season\/(\d+))?$/)!;
+    const n = Number(match[1]);
+    return Response.json(match[2] ? { ...meta(n), episodes: Array.from({ length: 10 }, (_, i) => ({ id: n * 10 + i + 1, air_date: "2020-01-01" })) } : series(n, [meta(n)]));
+  });
+  await render(); await until(() => { expect(view.catchUpItems.map(i => i.tvSeriesId)).toEqual([1]); expect(view.failedShows).toBe(1); });
+  state.pendingRetries = true;
+  await act(async () => view.retry());
+  expect(view.catchUpItems.map(i => i.tvSeriesId)).toEqual([1]);
+  expect(view.isLoading).toBe(true); expect(view.isComplete).toBe(false);
+  expect(state.requests.map(({ tvSeriesId, retry }) => [tvSeriesId, retry])).toEqual([[1, 0], [2, 1]]);
+  state.pendingRetries = false; state.watched[102] = Array.from({ length: 9 }, (_, i) => i + 21);
+  await render(); await until(() => expect(view.isComplete).toBe(true));
+  expect(view.totalUnwatchedEpisodes).toBe(2);
+});
+
+test("observed metadata revisions cannot revive a proof while revocation is failing", async () => {
+  state.rows = [{ tvSeriesId: 1, seasonWatchedCounts: { "101": 10 }, catchUpVerifiedSeasons: { "101": proofs["101"] } }];
+  state.watched[101] = Array.from({ length: 10 }, (_, i) => i + 11);
+  state.revoke.mockRejectedValue(new Error("offline"));
+  fetchMock.mockImplementation(async (url: string) => Response.json(url.includes("/season/")
+    ? { ...meta(1, 11), episodes: Array.from({ length: 11 }, (_, i) => ({ id: i + 11, air_date: "2020-01-01" })) }
+    : series(1, [meta(1)])));
+  await render(); await until(() => expect(view.isComplete).toBe(true));
+  expect(view.catchUpItems).toEqual([]);
+  await act(async () => { client.setQueryData(["tmdb", "tv", 1], series(1, [meta(1, 11)])); });
+  await until(() => expect(view.totalUnwatchedEpisodes).toBe(1));
+  expect(state.revoke).toHaveBeenCalledWith({ tvSeriesId: 1, seasons: [{ seasonId: 101, ...proofs["101"] }] });
+  // TMDB removes watched ID11. Count10 matches the old proof, but ID21 remains.
+  await act(async () => {
+    client.setQueryData(["tmdb", "season", 1, 1], { ...meta(1), episodes: Array.from({ length: 10 }, (_, i) => ({ id: i + 12, air_date: "2020-01-01" })) });
+    client.setQueryData(["tmdb", "tv", 1], series(1, [meta(1)]));
+  });
+  await until(() => { expect(view.isComplete).toBe(true); expect(view.catchUpItems[0]).toMatchObject({ totalEpisodes: 10, watchedEpisodes: 9, unwatchedEpisodes: 1 }); });
+  expect(state.verify).not.toHaveBeenCalled();
 });
 
 test("TMDB failures stop loading, keep totals partial and retry successfully", async () => {

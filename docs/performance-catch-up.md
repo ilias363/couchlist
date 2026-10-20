@@ -20,6 +20,10 @@ at most 100 supplied episode IDs. Each map holds at most 100 seasons. Watch
 changes invalidate evidence for affected seasons; imports clear it. Count
 equality alone is never enough to skip: a downward TMDB count revision can
 otherwise remove a watched episode while leaving an older unwatched gap.
+Observed metadata contradictions revoke the exact saved evidence, so a count
+that later returns to its old value cannot revive it. The hook also rejects
+that evidence while revocation is pending or fails; stale revocations leave
+changed verification values intact.
 Seasons with more than 100 episodes and seasons beyond the first 100 regular
 seasons keep bounded comparison reads without persisting completeness evidence.
 
@@ -39,6 +43,8 @@ While an import or TV-data operation is applying/rebuilding, catch-up hides
 transitional results and announces that the library is being updated. Its
 backend list also withholds summary shortcuts. Explicit watched-ID retries
 change a validated query argument so Convex starts a fresh transport query.
+Only failed subscriptions change arguments; successful cards remain visible
+while another show's watched-ID check retries.
 
 ## Local evidence
 
@@ -59,12 +65,17 @@ change a validated query argument so Convex starts a fresh transport query.
 - A 100-ID proof write with an existing completed operation reads 103 documents
   using 102 indexed queries, including the series/operation rows and patch read.
   Proof storage is capped at 100 season entries.
+- Revoking up to 100 saved season proofs uses one indexed show lookup, with
+  two document reads including the patch read and no episode-history reads.
 - Regression checks cover gaps, new content, count revisions, future/unknown
   dates, legacy summaries, large seasons, pagination, progressive rendering,
   failures/retry, cancellation, viewport deferral and account isolation.
   New checks exercise real import batches between summary resets, same-time
   watch changes, count decreases, and the installed Convex observer/sync-state
   subscription deduplication rather than only a mocked retry.
+  Follow-up regressions cover `10 → 11 → 10` metadata revisions, failed
+  revocation, successful-card retention during retry, and version 1 exports
+  after completeness evidence has been saved.
 
 These are deterministic local fixtures. No production latency or speedup was
 measured. Verification uses Vitest, `bun test tests --timeout 30000`, app and
@@ -77,6 +88,8 @@ backfill is needed. Missing summaries/evidence fall back to bounded candidate-ID
 checks and the first verification populates evidence automatically. Metadata
 keeps the existing five-minute freshness window. Same-count TMDB inventory
 replacements cannot be detected from series-level metadata alone.
+Derived completeness evidence is excluded from version 1 backup exports,
+alongside watched-count summaries; the backup format is unchanged.
 Roll out the new backend queries with the updated frontend; older clients using
 the removed full-history query need to reload. Routine mutation logic remains
 unchanged except for targeted completeness-evidence invalidation in the existing

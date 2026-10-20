@@ -76,6 +76,36 @@ export const watchedIds = query({
   },
 });
 
+// Revoke the exact evidence contradicted by observed TMDB metadata. A stale
+// client must not remove a newer verification saved by another tab.
+export const revokeVerifications = mutation({
+  args: { tvSeriesId: v.number(), seasons: v.array(v.object({
+    seasonId: v.number(), episodeCount: v.number(), airDate: v.union(v.string(), v.null()),
+    watchedCount: v.union(v.number(), v.null()),
+  })) },
+  returns: v.null(),
+  handler: async (ctx, { tvSeriesId, seasons }) => {
+    if (!seasons.length || seasons.length > 100) throw new Error("Revoke between 1 and 100 seasons");
+    validateUniqueIds([tvSeriesId], "series");
+    validateUniqueIds(seasons.map(s => s.seasonId), "season");
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+    const series = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
+      q.eq("userId", identity.subject).eq("tvSeriesId", tvSeriesId)).unique();
+    if (!series?.catchUpVerifiedSeasons) return null;
+    const proofs = { ...series.catchUpVerifiedSeasons };
+    let changed = false;
+    for (const { seasonId, ...expected } of seasons) {
+      const proof = proofs[String(seasonId)];
+      if (proof && proof.episodeCount === expected.episodeCount && proof.airDate === expected.airDate && proof.watchedCount === expected.watchedCount) {
+        delete proofs[String(seasonId)]; changed = true;
+      }
+    }
+    if (changed) await ctx.db.patch(series._id, { catchUpVerifiedSeasons: proofs });
+    return null;
+  },
+});
+
 // A count alone cannot prove completeness after TMDB removes an episode. Save
 // small, per-user evidence only after rechecking the entire supplied inventory
 // atomically. Watch changes invalidate affected proof, including same-time writes.

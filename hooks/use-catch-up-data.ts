@@ -5,18 +5,26 @@ import { api } from "@/convex/_generated/api";
 import { tmdbClient } from "@/lib/tmdb/client-api";
 import { tmdbKeys } from "@/lib/tmdb/react-query";
 import { buildCatchUpItem, comparisonIds, isFinishedSeason, seasonPlan } from "@/lib/catch-up";
+import type { CatchUpSummary } from "@/lib/catch-up";
 import type { CatchUpItem } from "@/lib/catch-up-types";
 import type { TMDBSeason } from "@/lib/tmdb/types";
 import type { FunctionArgs } from "convex/server";
+
+function proofKey(tvSeriesId: number, seasonId: number, proof: NonNullable<CatchUpSummary["catchUpVerifiedSeasons"]>[string]) {
+  return JSON.stringify([tvSeriesId, seasonId, proof.episodeCount, proof.airDate, proof.watchedCount]);
+}
 
 export function useCatchUpData() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { results, status, loadMore } = usePaginatedQuery(api.catchUp.list, isAuthenticated ? {} : "skip", { initialNumItems: 25 });
   const ready = useQuery(api.catchUp.isReady, isAuthenticated ? {} : "skip");
   const isUpdating = ready === false || results.some(row => !row.summariesReady);
-  const rows = ready && !isUpdating ? results : [];
+  const summaries = ready && !isUpdating ? results : [];
   const verifySeasons = useMutation(api.catchUp.verifySeasons);
+  const revokeVerifications = useMutation(api.catchUp.revokeVerifications);
   const submitted = useRef(new Set<string>());
+  const [revokedProofs, setRevokedProofs] = useState<Set<string>>(() => new Set());
+  const [retries, setRetries] = useState<Record<string, number>>({});
   const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10));
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -26,12 +34,49 @@ export function useCatchUpData() {
 
   // Only public metadata enters the shared React Query cache. Private watched
   // IDs remain in authenticated, reactive Convex subscriptions.
-  const seriesQueries = useQueries({ queries: rows.map(row => ({
+  const seriesQueries = useQueries({ queries: summaries.map(row => ({
     queryKey: tmdbKeys.tv(row.tvSeriesId),
     queryFn: ({ signal }: { signal: AbortSignal }) => tmdbClient.getTVSeriesDetails(row.tvSeriesId, signal),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   })) });
+  const revocations: FunctionArgs<typeof api.catchUp.revokeVerifications>[] = summaries.flatMap((row, i) => {
+    const details = seriesQueries[i].data;
+    if (!details) return [];
+    const seasons = Object.entries(row.catchUpVerifiedSeasons ?? {}).flatMap(([id, proof]) => {
+      const season = details.seasons.find(s => s.id === Number(id));
+      const count = row.seasonWatchedCounts ? row.seasonWatchedCounts[id] ?? 0 : null;
+      return !season || season.episode_count !== proof.episodeCount || season.air_date !== proof.airDate || count !== proof.watchedCount
+        ? [{ seasonId: Number(id), ...proof }] : [];
+    });
+    return seasons.length ? [{ tvSeriesId: row.tvSeriesId, seasons }] : [];
+  });
+  // Remember contradicted evidence immediately, even if its old count returns
+  // before the revocation reaches Convex. The existing cache still owns TMDB data.
+  const rejected = new Set(revokedProofs);
+  for (const row of revocations) for (const proof of row.seasons) rejected.add(proofKey(row.tvSeriesId, proof.seasonId, proof));
+  const rows = summaries.map(row => ({ ...row, catchUpVerifiedSeasons: Object.fromEntries(
+    Object.entries(row.catchUpVerifiedSeasons ?? {}).filter(([id, proof]) => !rejected.has(proofKey(row.tvSeriesId, Number(id), proof))),
+  ) }));
+  const revocationPayload = JSON.stringify(revocations);
+  useEffect(() => {
+    const work: FunctionArgs<typeof api.catchUp.revokeVerifications>[] = JSON.parse(revocationPayload);
+    setRevokedProofs(previous => {
+      const keys = work.flatMap(row => row.seasons.map(proof => proofKey(row.tvSeriesId, proof.seasonId, proof)));
+      return keys.some(key => !previous.has(key)) ? new Set([...previous, ...keys]) : previous;
+    });
+    let cancelled = false;
+    void (async () => {
+      for (const revocation of work) {
+        if (cancelled) break;
+        const key = `revoke:${attempt}:${JSON.stringify(revocation)}`;
+        if (submitted.current.has(key)) continue;
+        submitted.current.add(key);
+        try { await revokeVerifications(revocation); } catch { /* Keep rejecting locally; a later visit/retry can revoke again. */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [revocationPayload, revokeVerifications, attempt]);
   const candidates = rows.flatMap((row, i) => {
     const details = seriesQueries[i].data;
     return details ? seasonPlan(details, row, today).flatMap(plan =>
@@ -59,10 +104,10 @@ export function useCatchUpData() {
     const details = seasonQueries[i].data;
     if (!details || refreshNeeded[i] || (row.seasonWatchedCounts && !row.seasonWatchedCounts[String(season.id)])) return [];
     const ids = comparisonIds(details, today);
-    return Array.from({ length: Math.ceil(ids.length / 100) }, (_, chunk) => ({
-      key: `${row.tvSeriesId}:${season.id}:${chunk}:${attempt}`,
-      args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100), retry: attempt },
-    }));
+    return Array.from({ length: Math.ceil(ids.length / 100) }, (_, chunk) => {
+      const key = `${row.tvSeriesId}:${season.id}:${chunk}`;
+      return { key, args: { tvSeriesId: row.tvSeriesId, seasonId: season.id, episodeIds: ids.slice(chunk * 100, (chunk + 1) * 100), retry: retries[key] ?? 0 } };
+    });
   });
   const requests = Object.fromEntries(comparisons.map(({ key, args }) => [key, { query: api.catchUp.watchedIds, args }]));
   const watchedQueries = useConvexQueries(requests);
@@ -135,6 +180,11 @@ export function useCatchUpData() {
   const refreshing = refreshNeeded.some((needed, i) => needed && !seasonQueries[i].isError);
   const isComplete = isAuthenticated && status === "Exhausted" && !isLoading && !refreshing && failedShows === 0;
   const retry = () => {
+    setRetries(previous => {
+      const next = { ...previous };
+      for (const { key } of comparisons) if (watchedQueries[key] instanceof Error) next[key] = (next[key] ?? 0) + 1;
+      return next;
+    });
     setAttempt(value => value + 1);
     for (const q of [...seriesQueries, ...seasonQueries]) if (q.isError) void q.refetch();
   };
