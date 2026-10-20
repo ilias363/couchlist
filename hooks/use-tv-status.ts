@@ -3,6 +3,7 @@ import { useConvex, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WatchStatus, TMDBSeason } from "@/lib/tmdb/types";
 import { waitForDataOperation } from "@/lib/data-operations-client";
+import { bulkToggleSeasonInBatches } from "@/lib/tv-watch-batches";
 
 export function useTvSeriesStatus(tvSeriesId: number) {
   const convex = useConvex();
@@ -17,21 +18,18 @@ export function useTvSeriesStatus(tvSeriesId: number) {
 
   const markAllEpisodesAsWatched = useCallback(
     async (seasons: TMDBSeason[], watchedAt?: number) => {
-      const mutations = seasons
-        .filter(s => s.episodes.length > 0)
-        .map(s =>
-          bulkToggle({
-            tvSeriesId,
-            seasonId: s.id,
-            episodesInfo: s.episodes.map(e => ({
-              episodeId: e.id,
-              runtime: e.runtime ?? undefined,
-            })),
-            isWatched: true,
-            watchedAt,
-          })
-        );
-      await Promise.all(mutations);
+      for (const s of seasons) {
+        await bulkToggleSeasonInBatches(bulkToggle, {
+          tvSeriesId,
+          seasonId: s.id,
+          episodesInfo: s.episodes.map(e => ({
+            episodeId: e.id,
+            runtime: e.runtime ?? undefined,
+          })),
+          isWatched: true,
+          watchedAt,
+        });
+      }
     },
     [tvSeriesId, bulkToggle]
   );
@@ -53,9 +51,9 @@ export function useTvSeriesStatus(tvSeriesId: number) {
           tvSeriesId,
           status: newStatus as WatchStatus,
         });
+        setMarkEntireSeries(false);
       } finally {
         setUpdating(false);
-        setMarkEntireSeries(false);
       }
     },
     [tvSeriesId, markEntireSeries, setSeriesStatus, markAllEpisodesAsWatched]

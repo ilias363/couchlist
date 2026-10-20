@@ -16,3 +16,9 @@ export async function assertDataWritable(ctx: MutationCtx, userId: string) {
     throw new Error("A data operation is in progress. Open Settings to finish or resume it before changing your library.");
   }
 }
+
+// Keep the guard separately testable without executing an account-ID migration.
+export async function assertUserIdMigrationWritable(ctx: MutationCtx, oldUserId: string, newUserId: string) {
+  await assertDataWritable(ctx, oldUserId);
+  await assertDataWritable(ctx, newUserId);
+}

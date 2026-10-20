@@ -3,11 +3,10 @@ import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { assertDataWritable } from "./lib/dataOperationLock";
 import { createOperation } from "./dataOperations";
+import { EPISODE_BATCH_SIZE } from "../lib/tv-watch-batches";
 import {
-  deriveWatchSummary,
-  getSeriesEpisodes,
-  refreshSeriesWatchSummary,
-  retainCatchUpVerifications,
+  applyEpisodeWatchChanges,
+  prepareSeriesWatchSummary,
   validateWatchDate,
   validateUniqueIds,
   validateEpisodeIdentity,
@@ -41,15 +40,12 @@ export const setSeriesStatus = mutation({
     tvSeriesId: v.number(),
     status: tvStatusValidator,
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     await assertDataWritable(ctx, identity.subject);
     const now = Date.now();
-
-    const summary = deriveWatchSummary(
-      await getSeriesEpisodes(ctx, identity.subject, args.tvSeriesId),
-    );
 
     const existing = await ctx.db
       .query("userTvSeries")
@@ -62,20 +58,23 @@ export const setSeriesStatus = mutation({
       await ctx.db.patch(existing._id, {
         status: args.status,
         updatedAt: now,
-        catchUpVerifiedSeasons: retainCatchUpVerifications(existing, summary.seasonWatchedCounts),
-        ...summary,
       });
     } else {
-      // Rebuild the summary from any existing episode history.
+      // A missing parent can have orphan history. Leave that progress unknown
+      // until explicit repair; only an indexed empty-history probe permits {}.
+      const episode = await ctx.db.query("userEpisodes").withIndex("by_user_tv", q =>
+        q.eq("userId", identity.subject).eq("tvSeriesId", args.tvSeriesId)
+      ).first();
       await ctx.db.insert("userTvSeries", {
         userId: identity.subject,
         tvSeriesId: args.tvSeriesId,
         status: args.status,
-        ...summary,
+        ...(!episode ? { seasonWatchedCounts: {}, watchSummaryVersion: 1 as const } : {}),
         createdAt: now,
         updatedAt: now,
       });
     }
+    return null;
   },
 });
 
@@ -102,6 +101,7 @@ export const toggleEpisodeWatched = mutation({
     isWatched: v.boolean(),
     watchedAt: v.optional(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
@@ -118,13 +118,14 @@ export const toggleEpisodeWatched = mutation({
 
     if (!args.isWatched) {
       if (existing) {
+        const series = await prepareSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
         await ctx.db.delete(existing._id);
-        // Update the TV series dates after removing episode
-        await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
+        await applyEpisodeWatchChanges(ctx, series, [{ before: existing, after: null }]);
       }
-      return;
+      return null;
     }
 
+    const series = await prepareSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
     if (existing) {
       await ctx.db.patch(existing._id, {
         runtime: args.runtime ?? existing.runtime,
@@ -146,8 +147,11 @@ export const toggleEpisodeWatched = mutation({
       });
     }
 
-    // Recompute after explicit individual date changes.
-    await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
+    await applyEpisodeWatchChanges(ctx, series, [{
+      before: existing,
+      after: { seasonId: args.seasonId, isWatched: true, watchedDate: args.watchedAt },
+    }]);
+    return null;
   },
 });
 
@@ -161,18 +165,20 @@ export const bulkToggleSeasonEpisodes = mutation({
     isWatched: v.boolean(),
     watchedAt: v.optional(v.number()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized");
     await assertDataWritable(ctx, identity.subject);
     const now = Date.now();
 
+    if (args.episodesInfo.length > EPISODE_BATCH_SIZE) throw new Error(`At most ${EPISODE_BATCH_SIZE} episodes per batch`);
     validateWatchDate(args.watchedAt);
     validateUniqueIds(
       args.episodesInfo.map(ep => ep.episodeId),
       "episode",
     );
-    if (!args.episodesInfo.length) return;
+    if (!args.episodesInfo.length) return null;
     // Resolve global episode identities before writing, including other seasons.
     const records = await Promise.all(
       args.episodesInfo.map(ep =>
@@ -186,26 +192,21 @@ export const bulkToggleSeasonEpisodes = mutation({
     );
     for (const record of records)
       validateEpisodeIdentity(record, args.tvSeriesId, args.seasonId);
-    const existingMap = new Map(
-      records
-        .filter(record => record !== null)
-        .map(record => [record.episodeId, record]),
-    );
+    if (!args.isWatched && records.every(record => record === null)) return null;
+    const series = await prepareSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
 
     if (!args.isWatched) {
-      for (const ep of args.episodesInfo) {
-        const rec = existingMap.get(ep.episodeId);
+      for (const rec of records) {
         if (rec) {
           await ctx.db.delete(rec._id);
         }
       }
-      // Update the TV series dates after removing episodes
-      await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
-      return;
+      await applyEpisodeWatchChanges(ctx, series, records.map(before => ({ before, after: null })));
+      return null;
     }
 
-    for (const ep of args.episodesInfo) {
-      const rec = existingMap.get(ep.episodeId);
+    for (const [i, ep] of args.episodesInfo.entries()) {
+      const rec = records[i];
       if (rec) {
         await ctx.db.patch(rec._id, {
           runtime: ep.runtime ?? rec.runtime,
@@ -228,8 +229,11 @@ export const bulkToggleSeasonEpisodes = mutation({
       }
     }
 
-    // Refresh once after all writes, including unknown dates.
-    await refreshSeriesWatchSummary(ctx, identity.subject, args.tvSeriesId);
+    await applyEpisodeWatchChanges(ctx, series, records.map(before => ({
+      before,
+      after: { seasonId: args.seasonId, isWatched: true, watchedDate: before?.isWatched ? before.watchedDate : args.watchedAt },
+    })));
+    return null;
   },
 });
 

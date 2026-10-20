@@ -8,7 +8,7 @@ export default defineSchema({
   // read by normal writers. Import rows remain durable until recovery finishes.
   dataOperations: defineTable({
     userId: v.string(),
-    kind: v.union(v.literal("export"), v.literal("import"), v.literal("clear_movies"), v.literal("clear_tv"), v.literal("delete_series"), v.literal("account")),
+    kind: v.union(v.literal("export"), v.literal("import"), v.literal("clear_movies"), v.literal("clear_tv"), v.literal("delete_series"), v.literal("account"), v.literal("repair_tv")),
     phase: v.union(v.literal("upload"), v.literal("export"), v.literal("apply"), v.literal("prune_movies"), v.literal("prune_tv"), v.literal("prune_episodes"), v.literal("reset_summaries"), v.literal("summaries"), v.literal("delete_movies"), v.literal("delete_tv"), v.literal("delete_episodes"), v.literal("delete_stats"), v.literal("cleanup"), v.literal("complete"), v.literal("awaiting_identity")),
     mode: v.optional(v.union(v.literal("merge"), v.literal("replace"))),
     fingerprint: v.optional(v.string()),
@@ -20,6 +20,7 @@ export default defineSchema({
     startedAt: v.number(), expiresAt: v.number(),
     cursor: v.union(v.string(), v.null()),
     tvSeriesId: v.optional(v.number()),
+    backfillCursor: v.optional(v.string()), // Continue the legacy global backfill only after this repair completes.
     error: v.optional(v.string()),
     cancelled: v.optional(v.boolean()),
     summary: v.optional(v.object({
@@ -77,6 +78,7 @@ export default defineSchema({
       episodeCount: v.number(), airDate: v.union(v.string(), v.null()),
       watchedCount: v.union(v.number(), v.null()),
     }))),
+    watchSummaryVersion: v.optional(v.literal(1)), // Includes intentionally unknown (>1024 season) counts.
     // Old field names (to be removed after migration)
     // startedDate: v.optional(v.number()), // @deprecated - use startedAt
     // watchedDate: v.optional(v.number()), // @deprecated - use lastWatchedAt
@@ -103,6 +105,7 @@ export default defineSchema({
     .index("by_user_tv", ["userId", "tvSeriesId"])
     .index("by_user_season", ["userId", "seasonId"])
     .index("by_user_episode", ["userId", "episodeId"])
+    .index("by_userId_tvSeriesId_isWatched_watchedDate", ["userId", "tvSeriesId", "isWatched", "watchedDate"])
     .index("by_user_watched", ["userId", "isWatched"]),
 
   // User Stats Caching - stores computed stats to reduce compute

@@ -29,64 +29,114 @@ export function deriveWatchSummary(
   return { startedAt, lastWatchedAt, seasonWatchedCounts };
 }
 
+// Explicit read-only preflight diagnostic only. Mutations and bounded repairs
+// must not use this full-history scan.
 export function getSeriesEpisodes(ctx: QueryCtx, userId: string, tvSeriesId: number) {
   return ctx.db.query("userEpisodes").withIndex("by_user_tv", q =>
     q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
   ).collect();
 }
 
-// Watch mutations add or remove IDs; retain evidence only for seasons whose
-// verified watched count still matches. An unwatch followed by a rewatch cannot
-// resurrect removed proof, even if both writes share the same timestamp.
-export function retainCatchUpVerifications(series: Doc<"userTvSeries">, counts: Record<string, number>) {
-  const proofs = Object.fromEntries(Object.entries(series.catchUpVerifiedSeasons ?? {}).filter(
-    ([seasonId, proof]) => proof.watchedCount !== null && proof.watchedCount === (counts[seasonId] ?? 0),
-  ));
-  return Object.keys(proofs).length ? proofs : undefined;
+// Populated pre-incremental summaries are already authoritative. The version
+// also distinguishes a repaired >1024-season map (intentionally unknown) from
+// a legacy summary that must not be treated as empty.
+export function hasWatchSummary(series: Doc<"userTvSeries">) {
+  return series.seasonWatchedCounts !== undefined || series.watchSummaryVersion === 1;
 }
 
-// Individual watching can explicitly clear a date. Bulk watching preserves dates
-// on already-watched rows; both rebuild the summary from the resulting history.
-export async function refreshSeriesWatchSummary(
+export async function prepareSeriesWatchSummary(
   ctx: MutationCtx,
   userId: string,
   tvSeriesId: number,
-  repair = false,
 ) {
   const existing = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
     q.eq("userId", userId).eq("tvSeriesId", tvSeriesId)
   ).unique();
-  const episodes = await getSeriesEpisodes(ctx, userId, tvSeriesId);
-  const summary = deriveWatchSummary(episodes);
+  if (existing && hasWatchSummary(existing)) return existing;
+  // Unwatched-only history has a known empty summary, even without a parent.
+  // Include watched rows with unknown dates: those still represent progress.
+  const episode = await ctx.db.query("userEpisodes").withIndex("by_userId_tvSeriesId_isWatched_watchedDate", q =>
+    q.eq("userId", userId).eq("tvSeriesId", tvSeriesId).eq("isWatched", true)
+  ).first();
+  if (episode) {
+    throw new Error("Watch progress needs repair before editing episodes. An administrator must repair this series; paused repairs can be resumed in Settings.");
+  }
+  const summary = { startedAt: undefined, lastWatchedAt: undefined, seasonWatchedCounts: {}, watchSummaryVersion: 1 as const };
   if (existing) {
-    const counts = existing.seasonWatchedCounts;
-    const changed = existing.startedAt !== summary.startedAt ||
-      existing.lastWatchedAt !== summary.lastWatchedAt ||
-      counts === undefined ||
-      Object.keys(counts).length !== Object.keys(summary.seasonWatchedCounts).length ||
-      Object.entries(summary.seasonWatchedCounts).some(([seasonId, count]) => counts[seasonId] !== count);
-    if (!repair || changed) {
-      // Convex patch removes fields explicitly set to undefined.
-      await ctx.db.patch(existing._id, { ...summary, catchUpVerifiedSeasons: retainCatchUpVerifications(existing, summary.seasonWatchedCounts), ...(!repair ? { updatedAt: Date.now() } : {}) });
-    }
-    return changed ? "updated" : "unchanged";
+    await ctx.db.patch(existing._id, summary);
+    return { ...existing, ...summary };
   }
-  const watched = episodes.filter(ep => ep.isWatched);
-  if (!watched.length) return "unchanged";
-  let createdAt = Date.now();
-  let updatedAt = createdAt;
-  if (repair) {
-    createdAt = watched[0].createdAt;
-    updatedAt = watched[0].updatedAt;
-    for (const episode of watched) {
-      createdAt = Math.min(createdAt, episode.createdAt);
-      updatedAt = Math.max(updatedAt, episode.updatedAt);
+  const now = Date.now();
+  const doc = { userId, tvSeriesId, status: "currently_watching" as const, ...summary, createdAt: now, updatedAt: now };
+  const _id = await ctx.db.insert("userTvSeries", doc);
+  return { ...doc, _id };
+}
+
+type EpisodeWatchState = Pick<Doc<"userEpisodes">, "seasonId" | "isWatched" | "watchedDate">;
+type WatchChange = { before: EpisodeWatchState | null; after: EpisodeWatchState | null };
+function recordedDate(episode: EpisodeWatchState | null) {
+  const date = episode?.watchedDate;
+  return episode?.isWatched && date !== undefined && isValidWatchDate(date) ? date : undefined;
+}
+
+// Call once AFTER the episode writes, in the same transaction. The parent read
+// and patch serialize cross-tab edits; boundary reads see all of this batch's
+// writes, including remaining episodes tied at the old min/max.
+export async function applyEpisodeWatchChanges(
+  ctx: MutationCtx,
+  series: Pick<Doc<"userTvSeries">, "_id" | "userId" | "tvSeriesId" | "startedAt" | "lastWatchedAt" | "seasonWatchedCounts" | "catchUpVerifiedSeasons">,
+  changes: WatchChange[],
+) {
+  let counts = series.seasonWatchedCounts === undefined ? undefined : { ...series.seasonWatchedCounts };
+  let { startedAt, lastWatchedAt } = series;
+  let findStart = false;
+  let findEnd = false;
+  const deltas: Record<string, number> = {};
+  const changedSeasons = new Set<number>();
+  for (const { before, after } of changes) {
+    if (before?.isWatched) deltas[before.seasonId] = (deltas[before.seasonId] ?? 0) - 1;
+    if (after?.isWatched) deltas[after.seasonId] = (deltas[after.seasonId] ?? 0) + 1;
+    if (before?.isWatched && (!after?.isWatched || before.seasonId !== after.seasonId)) changedSeasons.add(before.seasonId);
+    if (after?.isWatched && (!before?.isWatched || before.seasonId !== after.seasonId)) changedSeasons.add(after.seasonId);
+    const oldDate = recordedDate(before);
+    const newDate = recordedDate(after);
+    if (oldDate !== undefined && oldDate !== newDate) {
+      findStart ||= oldDate === series.startedAt;
+      findEnd ||= oldDate === series.lastWatchedAt;
+    }
+    if (newDate !== undefined) {
+      startedAt = Math.min(startedAt ?? newDate, newDate);
+      lastWatchedAt = Math.max(lastWatchedAt ?? newDate, newDate);
     }
   }
-  await ctx.db.insert("userTvSeries", {
-    userId, tvSeriesId, status: "currently_watching", ...summary, createdAt, updatedAt,
-  });
-  return "created";
+  if (counts !== undefined) {
+    for (const [season, delta] of Object.entries(deltas)) {
+      const count = (counts[season] ?? 0) + delta;
+      if (count < 0) throw new Error("Watch progress is inconsistent; repair this series before editing episodes.");
+      if (count === 0) delete counts[season];
+      else counts[season] = count;
+    }
+    // Match batched import's existing unknown-progress fallback at the Convex
+    // object limit. A later explicit repair can recover the map if it fits.
+    if (Object.keys(counts).length > 1024) counts = undefined;
+  }
+  const boundary = async (order: "asc" | "desc") => {
+    const episode = await ctx.db.query("userEpisodes")
+      .withIndex("by_userId_tvSeriesId_isWatched_watchedDate", q =>
+        q.eq("userId", series.userId).eq("tvSeriesId", series.tvSeriesId).eq("isWatched", true)
+          .gte("watchedDate", -8.64e15).lte("watchedDate", 8.64e15)
+      ).order(order).first();
+    return episode?.watchedDate;
+  };
+  if (findStart) startedAt = await boundary("asc");
+  if (findEnd) lastWatchedAt = await boundary("desc");
+  // Invalidate changed inventories even if a batch's net count is zero.
+  // Date-only edits and retries preserve proof for unchanged watched IDs.
+  const proofs = Object.fromEntries(Object.entries(series.catchUpVerifiedSeasons ?? {}).filter(
+    ([season, proof]) => !changedSeasons.has(Number(season)) && proof.watchedCount === (counts ? counts[season] ?? 0 : null),
+  ));
+  await ctx.db.patch(series._id, { startedAt, lastWatchedAt, seasonWatchedCounts: counts, watchSummaryVersion: 1,
+    catchUpVerifiedSeasons: Object.keys(proofs).length ? proofs : undefined, updatedAt: Date.now() });
 }
 
 export function validateUniqueIds(ids: number[], label: string): void {

@@ -13,7 +13,7 @@ const modules = import.meta.glob("./**/*.ts");
 test("verified shows still export and round-trip the version 1 backup format", async () => {
   const t = convexTest(schema, modules); const owner = t.withIdentity({ subject: "owner" });
   await t.run(async ctx => {
-    await ctx.db.insert("userTvSeries", { userId: "owner", tvSeriesId: 1, status: "up_to_date", seasonWatchedCounts: { "10": 1 }, createdAt: 1, updatedAt: 1 });
+    await ctx.db.insert("userTvSeries", { userId: "owner", tvSeriesId: 1, status: "up_to_date", seasonWatchedCounts: { "10": 1 }, watchSummaryVersion: 1, createdAt: 1, updatedAt: 1 });
     await ctx.db.insert("userEpisodes", { userId: "owner", tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: true, createdAt: 1, updatedAt: 1 });
   });
   expect(await owner.mutation(api.catchUp.verifySeasons, { tvSeriesId: 1, seasons: [{ seasonId: 10, airDate: "2020-01-01", episodeIds: [1] }] })).toBe(true);
@@ -140,6 +140,15 @@ test("completeness evidence is verified, isolated, bounded and invalidated by sa
     expect(await owner.mutation(api.catchUp.verifySeasons, verification)).toBe(true);
     let row = (await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } })).page[0];
     expect(row.catchUpVerifiedSeasons?.["10"]).toEqual({ episodeCount: 3, airDate: "2020-01-01", watchedCount: 3 });
+    // Master's incremental path must retain proof on retries/date-only edits,
+    // and stay bounded even when catch-up evidence is present.
+    await owner.run(ctx => ctx.runMutation(api.tv.toggleEpisodeWatched, {
+      tvSeriesId: 1, seasonId: 10, episodeId: 1, isWatched: true, watchedAt: 0,
+    }, { transactionLimits: { documentsRead: 8, databaseQueries: 8 } }));
+    await owner.mutation(api.tv.bulkToggleSeasonEpisodes, {
+      tvSeriesId: 1, seasonId: 10, episodesInfo: [1, 2, 3].map(episodeId => ({ episodeId })), isWatched: true,
+    });
+    expect((await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } })).page[0].catchUpVerifiedSeasons?.["10"]).toBeDefined();
     await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 10, episodeId: 3, isWatched: false });
     await owner.mutation(api.tv.toggleEpisodeWatched, { tvSeriesId: 1, seasonId: 10, episodeId: 4, isWatched: true });
     row = (await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } })).page[0];
@@ -152,8 +161,43 @@ test("completeness evidence is verified, isolated, bounded and invalidated by sa
     expect(await owner.mutation(api.catchUp.verifySeasons, current)).toBe(true);
     await owner.mutation(api.tv.setSeriesStatus, { tvSeriesId: 1, status: "up_to_date" });
     expect((await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } })).page[0].catchUpVerifiedSeasons?.["10"]).toBeDefined();
+    await owner.mutation(api.tv.bulkToggleSeasonEpisodes, { tvSeriesId: 1, seasonId: 10, episodesInfo: [{ episodeId: 1 }, { episodeId: 2 }], isWatched: false });
+    row = (await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } })).page[0];
+    expect(row.catchUpVerifiedSeasons?.["10"]).toBeUndefined();
+    expect(row.catchUpVerifiedSeasons?.["20"]).toBeDefined();
     await expect(owner.mutation(api.catchUp.verifySeasons, { tvSeriesId: 1, seasons: [{ seasonId: 10, airDate: null, episodeIds: Array.from({ length: 101 }, (_, i) => i + 1) }] })).rejects.toThrow(/100 episodes/);
     await expect(owner.query(api.catchUp.watchedIds, { tvSeriesId: 1, seasonId: 10, episodeIds: [1], retry: -1 })).rejects.toThrow(/Invalid retry/);
+  } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+});
+
+test("scoped summary repair hides intermediate proof and clears only the repaired show's evidence", async () => {
+  vi.useFakeTimers();
+  const t = convexTest(schema, modules); const owner = t.withIdentity({ subject: "owner" });
+  try {
+    await t.run(async ctx => {
+      for (const tvSeriesId of [1, 2]) await ctx.db.insert("userTvSeries", {
+        userId: "owner", tvSeriesId, status: "up_to_date", seasonWatchedCounts: { "10": 2 }, watchSummaryVersion: 1,
+        catchUpVerifiedSeasons: { "10": { episodeCount: 2, watchedCount: 2, airDate: "2020-01-01" } }, createdAt: 1, updatedAt: 1,
+      });
+      for (const episodeId of [1, 3]) await ctx.db.insert("userEpisodes", {
+        userId: "owner", tvSeriesId: 1, seasonId: 10, episodeId, isWatched: true, createdAt: 1, updatedAt: 1,
+      });
+    });
+    const jobId = await t.mutation(internal.migrations.repairTvSeriesDates, { userId: "owner", tvSeriesId: 1 });
+    expect(await owner.query(api.catchUp.isReady, {})).toBe(false);
+    const during = await owner.query(api.catchUp.list, { paginationOpts: { cursor: null, numItems: 25 } });
+    expect(during.page.every(row => !row.summariesReady && !row.catchUpVerifiedSeasons)).toBe(true);
+    for (let i = 0; i < 10; i++) {
+      const job = await owner.query(api.dataOperations.status, { jobId });
+      if (job.phase === "complete") break;
+      expect(job.error).toBeUndefined();
+      await t.mutation(internal.dataOperations.runBatch, { jobId, revision: job.revision });
+    }
+    expect(await owner.query(api.catchUp.isReady, {})).toBe(true);
+    const repaired = await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 1 });
+    expect(repaired).toMatchObject({ watchSummaryVersion: 1, seasonWatchedCounts: { "10": 2 }, status: "up_to_date", createdAt: 1, updatedAt: 1 });
+    expect(repaired?.catchUpVerifiedSeasons).toBeUndefined();
+    expect((await owner.query(api.tv.getSeriesStatus, { tvSeriesId: 2 }))?.catchUpVerifiedSeasons?.["10"]).toBeDefined();
   } finally { vi.clearAllTimers(); vi.useRealTimers(); }
 });
 

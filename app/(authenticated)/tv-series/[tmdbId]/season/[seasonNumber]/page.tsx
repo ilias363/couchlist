@@ -14,6 +14,7 @@ import { ArrowLeft, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { EpisodeStatus } from "@/lib/types";
+import { bulkToggleSeasonInBatches } from "@/lib/tv-watch-batches";
 
 export default function SeasonDetailsPage() {
   const { tmdbId, seasonNumber } = useParams<{ tmdbId: string; seasonNumber: string }>();
@@ -61,7 +62,7 @@ export default function SeasonDetailsPage() {
       if (!season) return;
       try {
         setBulkUpdating(true);
-        await bulkToggle({
+        await bulkToggleSeasonInBatches(bulkToggle, {
           tvSeriesId: seriesId,
           seasonId: season.id,
           episodesInfo: episodesInfo,
@@ -79,7 +80,7 @@ export default function SeasonDetailsPage() {
     if (!season) return;
     try {
       setBulkUpdating(true);
-      await bulkToggle({
+      await bulkToggleSeasonInBatches(bulkToggle, {
         tvSeriesId: seriesId,
         seasonId: season.id,
         episodesInfo: episodesInfo,

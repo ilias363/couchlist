@@ -88,11 +88,12 @@ backfill is needed. Missing summaries/evidence fall back to bounded candidate-ID
 checks and the first verification populates evidence automatically. Metadata
 keeps the existing five-minute freshness window. Same-count TMDB inventory
 replacements cannot be detected from series-level metadata alone.
-Derived completeness evidence is excluded from version 1 backup exports,
-alongside watched-count summaries; the backup format is unchanged.
+Derived completeness evidence and watch-summary versions are excluded from
+version 1 backup exports, alongside watched-count summaries; the backup format
+is unchanged.
 Roll out the new backend queries with the updated frontend; older clients using
-the removed full-history query need to reload. Routine mutation logic remains
-unchanged except for targeted completeness-evidence invalidation in the existing
-summary helper/status write and clearing evidence during import summary reset.
-Incremental summary maintenance remains with audit issue 4.
+the removed full-history query need to reload. Episode mutations keep issue 4's
+incremental summary updates and invalidate affected completeness evidence in
+the same write. Date-only edits and retries retain evidence; imports and
+explicit scoped repairs clear it without changing library timestamps.
 No shared deployment or real user data was changed during verification.

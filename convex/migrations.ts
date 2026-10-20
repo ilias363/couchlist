@@ -1,7 +1,9 @@
 import { internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { deriveWatchSummary, getSeriesEpisodes, isValidWatchDate, refreshSeriesWatchSummary } from "./lib/tvWatchDates";
+import { deriveWatchSummary, getSeriesEpisodes, hasWatchSummary, isValidWatchDate } from "./lib/tvWatchDates";
 import { internal } from "./_generated/api";
+import { createOperation } from "./dataOperations";
+import { assertUserIdMigrationWritable } from "./lib/dataOperationLock";
 
 // Two independent cursor passes. Read-only, and deployable on the old version
 export const preflightTvSeriesDates = internalQuery({
@@ -73,30 +75,26 @@ export const preflightTvSeriesDates = internalQuery({
   },
 });
 
-// One series per transaction: current reads and writes conflict with concurrent
-// episode mutations. A stale discovery cannot recreate deleted watch history.
+// Explicit bounded repair. Reuse import's account fence, durable accumulator,
+// failure rollback and resume endpoint rather than scanning a show in one tx.
 export const repairTvSeriesDates = internalMutation({
   args: { userId: v.string(), tvSeriesId: v.number() },
+  returns: v.id("dataOperations"),
   handler: async (ctx, args) => {
     const series = await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
       q.eq("userId", args.userId).eq("tvSeriesId", args.tvSeriesId)
     ).take(2);
     if (series.length > 1) throw new Error("Repair blocked: duplicate series identities; reconcile explicitly");
-    const episodes = await getSeriesEpisodes(ctx, args.userId, args.tvSeriesId);
-    for (const episode of episodes) {
-      const matches = await ctx.db.query("userEpisodes").withIndex("by_user_episode", q =>
-        q.eq("userId", args.userId).eq("episodeId", episode.episodeId)
-      ).take(2);
-      if (matches.length > 1) throw new Error("Repair blocked: duplicate episode identities; reconcile explicitly");
-    }
-    return { result: await refreshSeriesWatchSummary(ctx, args.userId, args.tvSeriesId, true), episodeCount: episodes.length };
+    return createOperation(ctx, args.userId, "repair_tv", { tvSeriesId: args.tvSeriesId });
   },
 });
 
 // Run once after deploying: bunx convex run migrations:backfillSeasonWatchedCounts
-// One series per transaction; rerunning safely skips summaries already populated.
+// Discover one series per transaction. Repairs continue in bounded batches and
+// schedule the next discovery only after completion (including after resume).
 export const backfillSeasonWatchedCounts = internalMutation({
   args: { cursor: v.optional(v.string()) },
+  returns: v.object({ status: v.union(v.literal("running_in_background"), v.literal("completed")), message: v.string() }),
   handler: async (ctx, args): Promise<{
     status: "running_in_background" | "completed";
     message: string;
@@ -106,8 +104,17 @@ export const backfillSeasonWatchedCounts = internalMutation({
       numItems: 1,
     });
     for (const series of page.page) {
-      if (series.seasonWatchedCounts === undefined) {
-        await refreshSeriesWatchSummary(ctx, series.userId, series.tvSeriesId, true);
+      if (!hasWatchSummary(series)) {
+        // Fail before queuing work if the legacy identity is ambiguous.
+        await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q =>
+          q.eq("userId", series.userId).eq("tvSeriesId", series.tvSeriesId)
+        ).unique();
+        const jobId = await createOperation(ctx, series.userId, "repair_tv", { tvSeriesId: series.tvSeriesId });
+        await ctx.db.patch(jobId, { backfillCursor: page.continueCursor });
+        return {
+          status: "running_in_background",
+          message: "Backfill is running in the background. Check Convex function logs for completion; resume a paused repair in Settings.",
+        };
       }
     }
     if (!page.isDone) {
@@ -130,7 +137,14 @@ export const replaceUserId = internalMutation({
     oldUserId: v.string(),
     newUserId: v.string()
   },
+  returns: v.object({
+    success: v.boolean(), moviesUpdated: v.number(), tvSeriesUpdated: v.number(),
+    episodesUpdated: v.number(), statsUpdated: v.number(), totalUpdated: v.number(),
+  }),
   handler: async (ctx, { oldUserId, newUserId }) => {
+    // Both indexed fence reads participate in this transaction, so a repair,
+    // import or deletion cannot start between the checks and the ID writes.
+    await assertUserIdMigrationWritable(ctx, oldUserId, newUserId);
     console.log(`Starting userId migration from ${oldUserId} to ${newUserId}`);
 
     // Update userMovies

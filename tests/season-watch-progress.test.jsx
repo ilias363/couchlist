@@ -1,8 +1,8 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { deriveWatchSummary, refreshSeriesWatchSummary } from "../convex/lib/tvWatchDates";
+import { deriveWatchSummary } from "../convex/lib/tvWatchDates";
 import { bulkToggleSeasonEpisodes, getSeriesStatus, setSeriesStatus, toggleEpisodeWatched } from "../convex/tv";
-import { backfillSeasonWatchedCounts } from "../convex/migrations";
+import { bulkToggleSeasonInBatches } from "../lib/tv-watch-batches";
 import { SeasonsSection } from "../components/tv-details/seasons-section";
 
 // Run the real mutation handlers against a small in-memory database.
@@ -10,6 +10,7 @@ function context() {
   const tables = { dataOperations: [], userTvSeries: [], userEpisodes: [], userMovies: [] };
   const scheduled = [];
   const reads = [];
+  const readRows = [];
   let sequence = 0;
   const ctx = {
     auth: { getUserIdentity: async () => ({ subject: "user" }) },
@@ -18,16 +19,36 @@ function context() {
       query(table) {
         reads.push(table);
         const filters = [];
-        const rows = () => tables[table].filter(row => filters.every(([key, value]) => row[key] === value));
+        let fields = [];
+        let direction = 1;
+        const rows = () => tables[table].filter(row => filters.every(match => match(row))).sort((a, b) => {
+          for (const field of fields) {
+            if (a[field] < b[field]) return -direction;
+            if (a[field] > b[field]) return direction;
+          }
+          return 0;
+        });
+        const record = matches => {
+          readRows.push(...matches.map(row => ({ table, id: row._id })));
+          return structuredClone(matches);
+        };
         const query = {
-          withIndex(_index, build) {
-            const range = { eq: (key, value) => { filters.push([key, value]); return range; } };
+          withIndex(index, build) {
+            fields = index === "by_userId_tvSeriesId_isWatched_watchedDate" ? ["userId", "tvSeriesId", "isWatched", "watchedDate"] : [];
+            const range = {
+              eq: (key, value) => { filters.push(row => row[key] === value); return range; },
+              gte: (key, value) => { filters.push(row => row[key] >= value); return range; },
+              lte: (key, value) => { filters.push(row => row[key] <= value); return range; },
+            };
             build(range);
             return query;
           },
-          collect: async () => rows(),
+          order: order => { direction = order === "desc" ? -1 : 1; return query; },
+          collect: async () => record(rows()),
+          first: async () => record(rows().slice(0, 1))[0] ?? null,
+          take: async n => record(rows().slice(0, n)),
           unique: async () => {
-            const matches = rows();
+            const matches = record(rows());
             if (matches.length > 1) throw new Error("Duplicate record");
             return matches[0] ?? null;
           },
@@ -35,7 +56,7 @@ function context() {
             const all = rows();
             const offset = Number(cursor ?? 0);
             return {
-              page: all.slice(offset, offset + numItems),
+              page: record(all.slice(offset, offset + numItems)),
               isDone: offset + numItems >= all.length,
               continueCursor: String(offset + numItems),
             };
@@ -63,7 +84,7 @@ function context() {
       },
     },
   };
-  return { ctx, tables, reads, scheduled };
+  return { ctx, tables, reads, readRows, scheduled };
 }
 
 test("summary counts watched episodes even without valid dates", () => {
@@ -103,7 +124,7 @@ test("bulk watches count once, preserve existing dates, and clear removed season
     tvSeriesId: 1, seasonId: 10, episodesInfo: [{ episodeId: 100 }, { episodeId: 101 }], isWatched: true,
   };
   await bulkToggleSeasonEpisodes._handler(ctx, season);
-  await bulkToggleSeasonEpisodes._handler(ctx, season);
+  await bulkToggleSeasonEpisodes._handler(ctx, { ...season, watchedAt: 9999 });
   expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({ 10: 2 });
   expect(tables.userEpisodes.find(ep => ep.episodeId === 100).watchedDate).toBe(1000);
   expect(tables.userEpisodes.find(ep => ep.episodeId === 101).watchedDate).toBeUndefined();
@@ -112,59 +133,152 @@ test("bulk watches count once, preserve existing dates, and clear removed season
   expect(tables.userTvSeries[0].startedAt).toBeUndefined();
 });
 
-test("repair detects count-only changes and is idempotent", async () => {
-  const { ctx, tables } = context();
-  await toggleEpisodeWatched._handler(ctx, { tvSeriesId: 1, seasonId: 10, episodeId: 100, isWatched: true });
-  tables.userTvSeries[0].seasonWatchedCounts = { 99: 1 };
-  expect(await refreshSeriesWatchSummary(ctx, "user", 1, true)).toBe("updated");
-  expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({ 10: 1 });
-  expect(await refreshSeriesWatchSummary(ctx, "user", 1, true)).toBe("unchanged");
-});
-
-test("backfill reports background work clearly and logs completion only after the last batch", async () => {
-  const { ctx, tables, reads, scheduled } = context();
-  for (const tvSeriesId of [1, 2]) {
-    await ctx.db.insert("userTvSeries", {
-      userId: "user", tvSeriesId, status: "on_hold", createdAt: 10, updatedAt: 20,
-    });
-  }
-  await ctx.db.insert("userEpisodes", {
-    userId: "user", tvSeriesId: 1, seasonId: 10, episodeId: 100, isWatched: true,
+function seedHistory(size) {
+  const state = context();
+  state.tables.userEpisodes = Array.from({ length: size }, (_, i) => ({
+    _id: `history:${i}`, userId: "user", tvSeriesId: 1, seasonId: 10,
+    episodeId: i + 1, isWatched: true, watchedDate: i, createdAt: 1, updatedAt: 2,
+  }));
+  state.tables.userTvSeries.push({
+    _id: "series", userId: "user", tvSeriesId: 1, status: "on_hold", createdAt: 1, updatedAt: 2,
+    ...deriveWatchSummary(state.tables.userEpisodes),
   });
-  const log = spyOn(console, "info").mockImplementation(() => {});
-  try {
-    const first = await backfillSeasonWatchedCounts._handler(ctx, {});
-    expect(first).toEqual({
-      status: "running_in_background",
-      message: expect.stringContaining("Convex function logs"),
-    });
-    expect(tables.userTvSeries[1].seasonWatchedCounts).toBeUndefined();
-    expect(scheduled).toEqual([{ cursor: "1" }]);
-    expect(log).not.toHaveBeenCalled();
-    const last = await backfillSeasonWatchedCounts._handler(ctx, scheduled.shift());
-    expect(last).toEqual({ status: "completed", message: "Season watched-count backfill completed." });
-    expect(log.mock.calls).toEqual([[last.message]]);
-    expect(scheduled).toEqual([]);
-    expect(tables.userTvSeries.map(s => s.seasonWatchedCounts)).toEqual([{ 10: 1 }, {}]);
-    expect(tables.userTvSeries.map(s => [s.createdAt, s.updatedAt])).toEqual([[10, 20], [10, 20]]);
-    reads.length = 0;
-    expect((await backfillSeasonWatchedCounts._handler(ctx, {})).status).toBe("running_in_background");
-    expect(reads).toEqual(["userTvSeries"]);
-  } finally {
-    log.mockRestore();
+  state.episodeReads = () => state.readRows.filter(r => r.table === "userEpisodes").length;
+  state.check = () => {
+    const summary = deriveWatchSummary(state.tables.userEpisodes);
+    for (const field of ["startedAt", "lastWatchedAt", "seasonWatchedCounts"]) {
+      expect(state.tables.userTvSeries[0][field]).toEqual(summary[field]);
+    }
+  };
+  return state;
+}
+
+test("episode read counts stay bounded at 20 and 1000 rows; status edits read zero episodes", async () => {
+  const results = [];
+  for (const size of [20, 1000]) {
+    const state = seedHistory(size);
+    const { ctx, readRows } = state;
+    const change = { tvSeriesId: 1, seasonId: 10, episodeId: 10, isWatched: true, watchedAt: 5 };
+    await toggleEpisodeWatched._handler(ctx, change);
+    state.check();
+    const ordinary = state.episodeReads();
+    readRows.length = 0;
+    await toggleEpisodeWatched._handler(ctx, { ...change, episodeId: 1, isWatched: false });
+    state.check();
+    const boundary = state.episodeReads();
+    readRows.length = 0;
+    await setSeriesStatus._handler(ctx, { tvSeriesId: 1, status: "watched" });
+    state.check();
+    results.push({ size, ordinary, boundary, status: state.episodeReads() });
+  }
+  expect(results).toEqual([
+    { size: 20, ordinary: 1, boundary: 2, status: 0 },
+    { size: 1000, ordinary: 1, boundary: 2, status: 0 },
+  ]);
+});
+
+test("min/max changes, ties, zero/negative dates, clears and unknown dates match the history oracle", async () => {
+  const state = seedHistory(0);
+  const episode = { tvSeriesId: 1, seasonId: 10, isWatched: true };
+  for (const [episodeId, watchedAt] of [[1, -10], [2, -10], [3, 0], [4, 0], [5, undefined]]) {
+    await toggleEpisodeWatched._handler(state.ctx, { ...episode, episodeId, watchedAt });
+    state.check();
+  }
+  for (const [episodeId, watchedAt] of [[1, 20], [2, undefined], [1, -20], [3, undefined]]) {
+    state.readRows.length = 0;
+    await toggleEpisodeWatched._handler(state.ctx, { ...episode, episodeId, watchedAt });
+    state.check();
+    expect(state.episodeReads()).toBeLessThanOrEqual(3);
+  }
+  for (const episodeId of [4, 1, 5, 2, 3]) {
+    await toggleEpisodeWatched._handler(state.ctx, { ...episode, episodeId, isWatched: false });
+    state.check();
   }
 });
 
-test("empty backfills report completion immediately without scheduling more work", async () => {
-  const { ctx, scheduled } = context();
-  const log = spyOn(console, "info").mockImplementation(() => {});
-  try {
-    expect((await backfillSeasonWatchedCounts._handler(ctx, {})).status).toBe("completed");
-    expect(log.mock.calls).toEqual([["Season watched-count backfill completed."]]);
-    expect(scheduled).toEqual([]);
-  } finally {
-    log.mockRestore();
+test("ten fresh 20-episode seasons read no episodes for rebuilds, and retries read only their own rows", async () => {
+  const { ctx, tables, readRows } = context();
+  const episodeReads = () => readRows.filter(row => row.table === "userEpisodes").length;
+  const seasons = Array.from({ length: 10 }, (_, i) => ({
+    tvSeriesId: 1, seasonId: i + 10, isWatched: true, watchedAt: 0,
+    episodesInfo: Array.from({ length: 20 }, (_, j) => ({ episodeId: i * 20 + j + 1 })),
+  }));
+  for (const season of seasons) await bulkToggleSeasonEpisodes._handler(ctx, season);
+  await setSeriesStatus._handler(ctx, { tvSeriesId: 1, status: "watched" });
+  expect(episodeReads()).toBe(0);
+  readRows.length = 0;
+  for (const season of seasons) await bulkToggleSeasonEpisodes._handler(ctx, { ...season, watchedAt: 100 });
+  expect(episodeReads()).toBe(200);
+  expect(tables.userTvSeries[0]).toMatchObject({ status: "watched", startedAt: 0, lastWatchedAt: 0 });
+  expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual(Object.fromEntries(seasons.map(s => [s.seasonId, 20])));
+  readRows.length = 0;
+  for (const season of seasons) await bulkToggleSeasonEpisodes._handler(ctx, { ...season, isWatched: false });
+  expect(episodeReads()).toBeLessThanOrEqual(220);
+  expect(tables.userTvSeries[0]).toMatchObject({ status: "watched", seasonWatchedCounts: {} });
+  expect(tables.userTvSeries[0].startedAt).toBeUndefined();
+});
+
+test("season bulk retries/removals read only that batch and boundaries at 20 and 1000 history rows", async () => {
+  for (const size of [20, 1000]) {
+    const state = seedHistory(size);
+    const args = { tvSeriesId: 1, seasonId: 20, isWatched: true, watchedAt: -1,
+      episodesInfo: Array.from({ length: 20 }, (_, i) => ({ episodeId: size + i + 1 })),
+    };
+    await bulkToggleSeasonEpisodes._handler(state.ctx, args);
+    state.check();
+    expect(state.episodeReads()).toBe(0);
+    state.readRows.length = 0;
+    await bulkToggleSeasonEpisodes._handler(state.ctx, { ...args, watchedAt: 10000 });
+    state.check();
+    expect(state.episodeReads()).toBe(20);
+    state.readRows.length = 0;
+    await bulkToggleSeasonEpisodes._handler(state.ctx, { ...args, isWatched: false });
+    state.check();
+    expect(state.episodeReads()).toBe(21);
   }
+});
+
+test("legacy and orphan history is preserved by status edits and refuses episode edits until repaired", async () => {
+  for (const missingParent of [false, true]) {
+    const { ctx, tables, readRows, episodeReads } = seedHistory(1000);
+    if (missingParent) tables.userTvSeries.length = 0;
+    else delete tables.userTvSeries[0].seasonWatchedCounts;
+    await setSeriesStatus._handler(ctx, { tvSeriesId: 1, status: "dropped" });
+    expect(tables.userTvSeries[0].seasonWatchedCounts).toBeUndefined();
+    expect(episodeReads()).toBe(missingParent ? 1 : 0);
+    if (!missingParent) expect(tables.userTvSeries[0].lastWatchedAt).toBe(999);
+    const snapshot = structuredClone(tables);
+    readRows.length = 0;
+    await expect(toggleEpisodeWatched._handler(ctx, { tvSeriesId: 1, seasonId: 10, episodeId: 10, isWatched: false })).rejects.toThrow("needs repair");
+    expect(tables).toEqual(snapshot);
+    expect(episodeReads()).toBe(2);
+  }
+});
+
+test("oversized season actions are chunked sequentially, retries preserve dates, and failures stop later batches", async () => {
+  const { ctx, tables } = context();
+  const args = { tvSeriesId: 1, seasonId: 10, isWatched: true, watchedAt: -1,
+    episodesInfo: Array.from({ length: 205 }, (_, i) => ({ episodeId: i + 1 })),
+  };
+  await expect(bulkToggleSeasonEpisodes._handler(ctx, args)).rejects.toThrow("100");
+  expect(tables.userEpisodes).toEqual([]);
+  const sizes = [];
+  const mutate = async batch => { sizes.push(batch.episodesInfo.length); await bulkToggleSeasonEpisodes._handler(ctx, batch); };
+  await bulkToggleSeasonInBatches(mutate, args);
+  expect(sizes).toEqual([100, 100, 5]);
+  expect(tables.userTvSeries[0].seasonWatchedCounts).toEqual({ 10: 205 });
+  await bulkToggleSeasonInBatches(mutate, { ...args, watchedAt: 999 });
+  expect(tables.userTvSeries[0].startedAt).toBe(-1);
+  let calls = 0;
+  await expect(bulkToggleSeasonInBatches(async () => {
+    if (++calls === 2) throw new Error("offline");
+  }, args)).rejects.toThrow("offline");
+  expect(calls).toBe(2);
+  calls = 0;
+  await expect(bulkToggleSeasonInBatches(async () => { calls++; }, {
+    ...args, episodesInfo: [...args.episodesInfo, { episodeId: 1 }],
+  })).rejects.toThrow("Duplicate");
+  expect(calls).toBe(0);
 });
 
 test("series cards use season IDs, distinguish unknown progress, and require a positive matching total", () => {
