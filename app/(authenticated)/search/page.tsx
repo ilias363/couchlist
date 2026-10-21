@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import debounce from "lodash/debounce";
 import { Film, Tv, Search, SearchX, Sparkles, Loader2, TriangleAlert } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { MediaCard, MediaCardSkeleton } from "@/components/media/media-card";
 import { SearchMode, useTMDBSearchFeed } from "@/lib/tmdb/react-query";
 import { useMediaStatuses } from "@/hooks/use-media-statuses";
@@ -25,28 +25,41 @@ function SearchView() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  const [rawQuery, setRawQuery] = useState(() => searchParams.get("q") || "");
-  const [debouncedQuery, setDebouncedQuery] = useState(() => (searchParams.get("q") || "").trim());
-  const [mode, setMode] = useState<SearchMode>(() => {
-    const m = searchParams.get("mode") as SearchMode | null;
-    return m === "movie" || m === "tv" || m === "multi" ? m : "multi";
-  });
-
-  const router = useRouter();
-  const pathname = usePathname();
+  const query = searchParams.get("q") || "";
+  const [{ urlQuery, rawQuery }, setQuery] = useState({ urlQuery: query, rawQuery: query });
+  if (urlQuery !== query) {
+    setQuery({ urlQuery: query, rawQuery: query });
+  }
+  const debouncedQuery = query.trim();
+  const modeParam = searchParams.get("mode");
+  const mode: SearchMode = modeParam === "movie" || modeParam === "tv" ? modeParam : "multi";
 
   const debouncedUpdate = useMemo(
     () =>
       debounce((value: string) => {
         const trimmed = value.trim();
-        setDebouncedQuery(trimmed);
+        const url = new URL(window.location.href);
+        if ((url.searchParams.get("q") || "") === trimmed) return;
+        if (trimmed) url.searchParams.set("q", trimmed);
+        else url.searchParams.delete("q");
+        window.history.replaceState(null, "", url);
       }, 500),
     [],
   );
 
+  const setMode = (newMode: SearchMode) => {
+    const url = new URL(window.location.href);
+    if (newMode === "multi" ? !url.searchParams.has("mode") : url.searchParams.get("mode") === newMode) return;
+    if (newMode === "multi") url.searchParams.delete("mode");
+    else url.searchParams.set("mode", newMode);
+    if (url.href !== window.location.href) {
+      window.history.replaceState(null, "", url);
+    }
+  };
+
   const onChangeQuery = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
-    setRawQuery(v);
+    setQuery({ urlQuery: query, rawQuery: v });
     debouncedUpdate(v);
   };
 
@@ -59,27 +72,27 @@ function SearchView() {
     fetchNextPage,
   } = useTMDBSearchFeed(debouncedQuery, mode);
 
-  const results = (data?.pages || []).flatMap(p => p.results);
+  const results = useMemo(() => (data?.pages || []).flatMap(p => p.results), [data?.pages]);
   const { getStatus } = useMediaStatuses(results, user?.id);
 
+  // URL changes (including same-page links) invalidate pending input.
   useEffect(() => {
-    return () => debouncedUpdate.cancel();
-  }, [debouncedUpdate]);
+    debouncedUpdate.cancel();
+  }, [query, debouncedUpdate]);
 
-  // Track if we've made any changes from initial URL state
-  const isInitialMount = useRef(true);
   useEffect(() => {
-    // Skip the first render to avoid unnecessary URL update
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    const sp = new URLSearchParams();
-    if (debouncedQuery) sp.set("q", debouncedQuery);
-    if (mode !== "multi") sp.set("mode", mode);
-    const qs = sp.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-  }, [debouncedQuery, mode, pathname, router]);
+    // Cancel even when Back/Forward restores the same q with a different mode.
+    const onPopState = () => {
+      debouncedUpdate.cancel();
+      const restoredQuery = new URLSearchParams(window.location.search).get("q") || "";
+      setQuery({ urlQuery: restoredQuery, rawQuery: restoredQuery });
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      debouncedUpdate.cancel();
+    };
+  }, [debouncedUpdate]);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
