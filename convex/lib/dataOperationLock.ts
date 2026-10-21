@@ -1,4 +1,5 @@
 import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { invalidateStatsPass } from "./statsFence";
 
 export async function currentOperation(ctx: QueryCtx, userId: string) {
   return ctx.db.query("dataOperations").withIndex("by_user", q => q.eq("userId", userId)).unique();
@@ -15,6 +16,7 @@ export async function assertDataWritable(ctx: MutationCtx, userId: string) {
   if (job && job.phase !== "complete") {
     throw new Error("A data operation is in progress. Open Settings to finish or resume it before changing your library.");
   }
+  await invalidateStatsPass(ctx, userId);
 }
 
 // Keep the guard separately testable without executing an account-ID migration.
