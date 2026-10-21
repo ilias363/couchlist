@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import debounce from "lodash/debounce";
@@ -42,9 +42,13 @@ function SearchView() {
         if ((url.searchParams.get("q") || "") === trimmed) return;
         if (trimmed) url.searchParams.set("q", trimmed);
         else url.searchParams.delete("q");
-        window.history.replaceState(null, "", url);
+        // Commit the URL and its source together without replacing the typed draft.
+        startTransition(() => {
+          setQuery(current => ({ ...current, urlQuery: trimmed }));
+          window.history.replaceState(null, "", url);
+        });
       }, 500),
-    [],
+    [setQuery],
   );
 
   const setMode = (newMode: SearchMode) => {
@@ -59,7 +63,7 @@ function SearchView() {
 
   const onChangeQuery = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
-    setQuery({ urlQuery: query, rawQuery: v });
+    setQuery(current => ({ ...current, rawQuery: v }));
     debouncedUpdate(v);
   };
 

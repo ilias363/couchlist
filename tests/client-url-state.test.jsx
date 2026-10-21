@@ -1,5 +1,5 @@
 import { afterEach, expect, mock, setSystemTime, spyOn, test } from "bun:test";
-import { act, StrictMode } from "react";
+import { act, startTransition, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Window } from "happy-dom";
 import { ConvexProvider } from "convex/react";
@@ -75,7 +75,7 @@ async function mount(Page, path) {
   const nativeReplace = window.history.replaceState.bind(window.history);
   const replace = spyOn(window.history, "replaceState").mockImplementation((...args) => {
     nativeReplace(...args);
-    render();
+    startTransition(render);
   });
   window.addEventListener("popstate", render);
   cleanups.push(async () => {
@@ -135,6 +135,7 @@ test("search debounces q, keeps pending input on mode changes, and replaces only
   await view.click("Movies");
   expect(view.input().value).toBe("  alien  ");
   await view.wait(550);
+  expect(view.input().value).toBe("  alien  ");
   expect(new URLSearchParams(window.location.search).get("q")).toBe("alien");
   expect(new URLSearchParams(window.location.search).get("mode")).toBe("movie");
   expect(new URLSearchParams(window.location.search).get("source")).toBe("a b");
@@ -152,6 +153,18 @@ test("search debounces q, keeps pending input on mode changes, and replaces only
   await view.click("All");
   expect(window.location.search).toBe("?source=a+b");
   expect(window.location.hash).toBe("#results");
+});
+
+test("search keeps the space between words across a debounced URL commit", async () => {
+  const view = await mount(SearchPage, "/search");
+  await view.type("star ");
+  await view.wait(550);
+  expect(view.input().value).toBe("star ");
+  expect(view.window.location.search).toBe("?q=star");
+  await view.type(view.input().value + "wars");
+  await view.wait(550);
+  expect(view.input().value).toBe("star wars");
+  expect(view.window.location.search).toBe("?q=star+wars");
 });
 
 test("search Back/Forward and same-page links restore state and cancel stale debounce, including unchanged q", async () => {
