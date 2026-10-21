@@ -7,7 +7,7 @@ import { SeasonsSection } from "../components/tv-details/seasons-section";
 
 // Run the real mutation handlers against a small in-memory database.
 function context() {
-  const tables = { dataOperations: [], userTvSeries: [], userEpisodes: [], userMovies: [] };
+  const tables = { dataOperations: [], statsRebuilds: [], userTvSeries: [], userEpisodes: [], userMovies: [] };
   const scheduled = [];
   const reads = [];
   const readRows = [];

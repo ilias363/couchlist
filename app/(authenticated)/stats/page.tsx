@@ -1,8 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useConvexAuth, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,8 +36,7 @@ import {
   Calendar,
   AlertCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useState, useRef } from "react";
-import { UserStats } from "@/lib/types";
+import { useStatsSnapshot } from "@/components/providers/stats-snapshot-provider";
 import { Section } from "@/components/stats/section";
 import { AccentHeader } from "@/components/stats/accent-header";
 import { Sparkline } from "@/components/stats/spark-line";
@@ -49,40 +46,15 @@ import { EmptyState } from "@/components/common/empty-state";
 import { PageTitle } from "@/components/layout/page-title";
 
 export default function StatsPage() {
-  const { isAuthenticated } = useConvexAuth();
-  const [data, setData] = useState<UserStats | undefined>(undefined);
-  const [loadError, setLoadError] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const getStats = useMutation(api.stats.getUserStats);
-  const refreshStats = useMutation(api.stats.refreshStats);
-  const requestedRef = useRef(false);
-
-  const loadStats = useCallback(async () => {
-    requestedRef.current = true;
-    setLoadError(false);
-    try {
-      setData(await getStats());
-    } catch {
-      setLoadError(true);
-      requestedRef.current = false;
-    }
-  }, [getStats]);
-
-  // Convex mutations only carry the user's identity once the client has
-  // authenticated - wait for that to avoid an "Unauthorized" error on cold load.
-  useEffect(() => {
-    if (!isAuthenticated || requestedRef.current) return;
-    void loadStats();
-  }, [isAuthenticated, loadStats]);
-
-  if (loadError && !data) {
+  const { data, message, refresh, running, stalled, failed, blocked, disabled } = useStatsSnapshot();
+  if ((failed || blocked) && !data) {
     return (
       <EmptyState
         icon={AlertCircle}
-        title="Couldn't load your stats"
-        description="Something went wrong while crunching your numbers."
+        title={blocked ? "Stats are paused" : "Couldn't refresh your stats"}
+        description={message}
         action={
-          <Button onClick={() => void loadStats()} variant="outline" className="gap-2">
+          <Button onClick={() => void refresh()} disabled={disabled} variant="outline" className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Retry
           </Button>
@@ -91,7 +63,7 @@ export default function StatsPage() {
       />
     );
   }
-  if (!data) return <LoadingState />;
+  if (!data) return <div className="space-y-4"><p role="status">{message}</p>{stalled && <Button onClick={() => void refresh()}>Resume refresh</Button>}<LoadingState /></div>;
   const {
     overview,
     distributions,
@@ -168,24 +140,17 @@ export default function StatsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={async () => {
-                setIsRefreshing(true);
-                try {
-                  const newStats = await refreshStats();
-                  setData(newStats);
-                } finally {
-                  setIsRefreshing(false);
-                }
-              }}
-              disabled={isRefreshing}
+              onClick={() => void refresh()}
+              disabled={disabled}
               className="w-full sm:w-auto"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
+              <RefreshCw className={`h-4 w-4 mr-2 ${running && !stalled ? "animate-spin" : ""}`} />
+              {failed ? "Retry refresh" : stalled ? "Resume refresh" : "Refresh"}
             </Button>
           </div>
         }
       />
+      <p role="status" className="text-sm text-muted-foreground">{message}</p>
 
       {/* Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

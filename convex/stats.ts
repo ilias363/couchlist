@@ -1,328 +1,177 @@
-import { assertDataWritable } from "./lib/dataOperationLock";
-import { mutation, MutationCtx } from "./_generated/server";
+import { v } from "convex/values";
+import { query, mutation, internalMutation, type MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
+import type { UserStats } from "../lib/types";
+import { currentOperation, requireOwner } from "./lib/dataOperationLock";
+import { currentStatsJob, cancelStatsPass } from "./lib/statsFence";
+import { activityDay, addMovie, addSeries, addEpisode, emptyStats, finishStats, statsValidator, STATS_TTL, DAY } from "./lib/statsModel";
 
-async function calculateUserStats(db: MutationCtx["db"], userId: string) {
-  const userMovies = await db
-    .query("userMovies")
-    .withIndex("by_user", q => q.eq("userId", userId))
-    .collect();
+export const STATS_BATCH_SIZE = 64;
+export const STATS_LEASE_MS = 60_000;
+// Tighter than Convex 1.43's transaction limits. The outer wrapper retains
+// headroom to record failure after a nested batch rolls back, including limits.
+export const STATS_BATCH_LIMITS = {
+  documentsRead: 512, databaseQueries: 256, documentsWritten: 192,
+  bytesRead: 4 * 1024 * 1024, bytesWritten: 1024 * 1024,
+  functionsScheduled: 1, scheduledFunctionArgsBytes: 1024,
+};
+const checkpointArgs = { jobId: v.id("statsRebuilds"), revision: v.number() };
+const jobStatus = v.object({
+  jobId: v.id("statsRebuilds"), status: v.union(v.literal("running"), v.literal("failed"), v.literal("complete")),
+  phase: v.string(), processed: v.number(), restarts: v.number(), updatedAt: v.number(),
+  error: v.union(v.string(), v.null()),
+});
 
-  const userTvSeries = await db
-    .query("userTvSeries")
-    .withIndex("by_user", q => q.eq("userId", userId))
-    .collect();
-
-  const watchedEpisodes = await db
-    .query("userEpisodes")
-    .withIndex("by_user_watched", q => q.eq("userId", userId).eq("isWatched", true))
-    .collect();
-
-  const movieStats = {
-    total: userMovies.length,
-    watched: userMovies.filter(m => m.status === "watched").length,
-    wantToWatch: userMovies.filter(m => m.status === "want_to_watch").length,
-    onHold: userMovies.filter(m => m.status === "on_hold").length,
-    dropped: userMovies.filter(m => m.status === "dropped").length,
-  };
-
-  const tvStats = {
-    total: userTvSeries.length,
-    watched: userTvSeries.filter(tv => tv.status === "watched").length,
-    currentlyWatching: userTvSeries.filter(tv => tv.status === "currently_watching").length,
-    upToDate: userTvSeries.filter(tv => tv.status === "up_to_date").length,
-    wantToWatch: userTvSeries.filter(tv => tv.status === "want_to_watch").length,
-    onHold: userTvSeries.filter(tv => tv.status === "on_hold").length,
-    dropped: userTvSeries.filter(tv => tv.status === "dropped").length,
-  };
-
-  const episodeStats = {
-    totalWatchedEpisodes: watchedEpisodes.length,
-    totalWatchedSeasons: new Set(watchedEpisodes.map(e => e.seasonId)).size,
-  };
-
-  const totalMovieWatchTime = userMovies.reduce(
-    (sum, m) => sum + (m.status === "watched" && m.runtime ? m.runtime : 0),
-    0
-  );
-
-  const totalEpisodeWatchTime = watchedEpisodes.reduce(
-    (sum, e) => sum + (e.runtime ? e.runtime : 0),
-    0
-  );
-
-  const totalWatchTime = totalMovieWatchTime + totalEpisodeWatchTime;
-
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-
-  const recentMovies = userMovies.filter(m => m.watchedDate && m.watchedDate > thirtyDaysAgo);
-
-  const recentEpisodes = watchedEpisodes.filter(
-    e => e.watchedDate && e.watchedDate > thirtyDaysAgo
-  );
-
-  const recentActivity = {
-    moviesWatched: recentMovies.length,
-    episodesWatched: recentEpisodes.length,
-    totalItems: recentMovies.length + recentEpisodes.length,
-  };
-
-  const watchTimeBreakdown = {
-    moviesMinutes: totalMovieWatchTime,
-    episodesMinutes: totalEpisodeWatchTime,
-    totalMinutes: totalWatchTime,
-  };
-
-  // Daily activity last 30 days
-  const days: { date: string; movies: number; episodes: number }[] = [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayMs = 24 * 60 * 60 * 1000;
-
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * dayMs);
-    const key = d.toISOString().slice(0, 10);
-    days.push({ date: key, movies: 0, episodes: 0 });
-  }
-
-  const dayIndex = new Map(days.map((d, idx) => [d.date, idx]));
-
-  for (const m of userMovies) {
-    if (!m.watchedDate || m.status !== "watched") continue;
-    const d = new Date(m.watchedDate);
-    d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
-    const idx = dayIndex.get(key);
-    if (idx !== undefined) days[idx].movies += 1;
-  }
-
-  for (const e of watchedEpisodes) {
-    if (!e.watchedDate) continue;
-    const d = new Date(e.watchedDate);
-    d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
-    const idx = dayIndex.get(key);
-    if (idx !== undefined) days[idx].episodes += 1;
-  }
-
-  const dailyActivity = days.map(d => ({ ...d, total: d.movies + d.episodes }));
-
-  // Weekday distribution (0=Mon .. 6=Sun) aggregated over all activity
-  const weekdayCounts: { weekday: number; movies: number; episodes: number }[] = Array.from(
-    { length: 7 },
-    (_, i) => ({ weekday: i, movies: 0, episodes: 0 })
-  );
-
-  for (const m of userMovies) {
-    if (!m.watchedDate || m.status !== "watched") continue;
-    const wd = new Date(m.watchedDate).getDay();
-    weekdayCounts[wd].movies += 1;
-  }
-  for (const e of watchedEpisodes) {
-    if (!e.watchedDate) continue;
-    const wd = new Date(e.watchedDate).getDay();
-    weekdayCounts[wd].episodes += 1;
-  }
-  const weekdayDistribution = weekdayCounts.map(w => ({
-    weekday: w.weekday,
-    movies: w.movies,
-    episodes: w.episodes,
-    total: w.movies + w.episodes,
-  }));
-
-  // Get longest streak
-  const allActivityDates = new Set<string>();
-
-  for (const m of userMovies) {
-    if (m.watchedDate && m.status === "watched") {
-      const d = new Date(m.watchedDate);
-      d.setHours(0, 0, 0, 0);
-      allActivityDates.add(d.toISOString().slice(0, 10));
-    }
-  }
-
-  for (const e of watchedEpisodes) {
-    if (e.watchedDate) {
-      const d = new Date(e.watchedDate);
-      d.setHours(0, 0, 0, 0);
-      allActivityDates.add(d.toISOString().slice(0, 10));
-    }
-  }
-
-  const sortedDates = Array.from(allActivityDates).sort();
-  let longestStreak = 0;
-  let currentStreak = 0;
-  let prevTime: number | null = null;
-
-  for (const dateStr of sortedDates) {
-    const t = new Date(dateStr).getTime();
-    if (prevTime === null || t - prevTime === dayMs) {
-      currentStreak += 1;
-    } else if (t - prevTime! > dayMs) {
-      currentStreak = 1;
-    }
-    if (currentStreak > longestStreak) longestStreak = currentStreak;
-    prevTime = t;
-  }
-
-  // Calculate current streak up to today (if last activity was today or yesterday contiguous)
-  // (already handled by loop). To ensure currentStreak refers to last sequence ending at most
-  // today- if gap since last date > 1 day, current streak should be 0
-  if (prevTime && today.getTime() - prevTime > dayMs) {
-    currentStreak = 0;
-  }
-  const streaks = { current: currentStreak, longest: longestStreak };
-
-  const completionRates = {
-    movies:
-      movieStats.total - movieStats.wantToWatch
-        ? movieStats.watched / (movieStats.total - movieStats.wantToWatch)
-        : 100,
-    tvSeries:
-      tvStats.total - tvStats.wantToWatch
-        ? (tvStats.watched + tvStats.upToDate) / (tvStats.total - tvStats.wantToWatch)
-        : 100,
-  };
-
-  // Build weekly activity timeline (last 12 weeks)
-  const now = Date.now();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const weeks: { label: string; start: number; end: number; movies: number; episodes: number }[] =
-    [];
-
-  for (let i = 11; i >= 0; i--) {
-    const end = now - i * weekMs;
-    const start = end - weekMs;
-    const startDate = new Date(start);
-    const label = `${startDate.getMonth() + 1}/${startDate.getDate()}`;
-    weeks.push({ label, start, end, movies: 0, episodes: 0 });
-  }
-
-  for (const m of userMovies) {
-    if (!m.watchedDate) continue;
-    for (const w of weeks) {
-      if (m.watchedDate > w.start && m.watchedDate <= w.end) {
-        if (m.status === "watched") w.movies += 1;
-        break;
-      }
-    }
-  }
-
-  for (const e of watchedEpisodes) {
-    if (!e.watchedDate) continue;
-    for (const w of weeks) {
-      if (e.watchedDate > w.start && e.watchedDate <= w.end) {
-        w.episodes += 1;
-        break;
-      }
-    }
-  }
-
-  const statusDistributionMovies = [
-    { status: "Watched", value: movieStats.watched },
-    { status: "Want to Watch", value: movieStats.wantToWatch },
-    { status: "On Hold", value: movieStats.onHold },
-    { status: "Dropped", value: movieStats.dropped },
-  ];
-
-  const statusDistributionTv = [
-    { status: "Watched", value: tvStats.watched },
-    { status: "Currently Watching", value: tvStats.currentlyWatching },
-    { status: "Up to Date", value: tvStats.upToDate },
-    { status: "Want to Watch", value: tvStats.wantToWatch },
-    { status: "On Hold", value: tvStats.onHold },
-    { status: "Dropped", value: tvStats.dropped },
-  ];
-
-  return {
-    overview: {
-      totalStartedMovies: movieStats.total - movieStats.wantToWatch,
-      totalStartedTvSeries: tvStats.total - tvStats.wantToWatch,
-      totalWatchedMovies: movieStats.watched,
-      totalWatchedTvSeries: tvStats.watched + tvStats.upToDate,
-      totalWatchedEpisodes: episodeStats.totalWatchedEpisodes,
-      totalWatchedSeasons: episodeStats.totalWatchedSeasons,
-      totalWatchTimeMinutes: totalWatchTime,
-      totalWatchTimeHours: Math.round(totalWatchTime / 60),
-    },
-    distributions: {
-      movies: statusDistributionMovies,
-      tvSeries: statusDistributionTv,
-    },
-    weeklyActivity: weeks,
-    dailyActivity,
-    weekdayDistribution,
-    watchTimeBreakdown,
-    streaks,
-    completionRates,
-    movies: movieStats,
-    tvSeries: tvStats,
-    episodes: episodeStats,
-    recentActivity,
-    generatedAt: now,
-  };
-}
-
-export const getUserStats = mutation({
+// Read only: three indexed point reads, no history, clock, writes or scheduling.
+export const getUserStats = query({
   args: {},
+  returns: v.object({ ownerId: v.string(), stats: v.union(statsValidator, v.null()), lastRefreshed: v.union(v.number(), v.null()), blocked: v.boolean(), job: v.union(jobStatus, v.null()) }),
   handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
-    }
-    const userId = identity.subject;
-    await assertDataWritable(ctx, userId);
-
-    // Try to get cached stats
-    const cached = await ctx.db
-      .query("userStats")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    // If cache exists and is less than 24 hours old, return it
-    if (cached && now - cached.lastRefreshed < oneDayMs) {
-      return cached.stats;
-    }
-
-    // If cache is stale or missing, calculate fresh stats
-    const stats = await calculateUserStats(ctx.db, userId);
-
-    // Update or insert the cache
-    if (cached) {
-      await ctx.db.patch(cached._id, { stats, lastRefreshed: now });
-    } else {
-      await ctx.db.insert("userStats", { userId, stats, lastRefreshed: now });
-    }
-
-    return stats;
+    const userId = await requireOwner(ctx);
+    const snapshot = await ctx.db.query("userStats").withIndex("by_user", q => q.eq("userId", userId)).unique();
+    const job = await currentStatsJob(ctx, userId);
+    const operation = await currentOperation(ctx, userId);
+    // Hide snapshots immediately when account deletion starts, even before the
+    // bounded deletion pass reaches userStats.
+    const deletingAccount = operation?.kind === "account";
+    return {
+      ownerId: userId,
+      stats: deletingAccount ? null : (snapshot?.stats as UserStats | undefined) ?? null,
+      lastRefreshed: deletingAccount ? null : snapshot?.lastRefreshed ?? null,
+      blocked: !!operation && operation.phase !== "complete",
+      job: job ? { jobId: job._id, status: job.status, phase: job.phase, processed: job.processed, restarts: job.restarts, updatedAt: job.updatedAt, error: job.error ?? null } : null,
+    };
   },
 });
 
-export const refreshStats = mutation({
-  args: {},
-  handler: async ctx => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthorized");
+async function requestRebuild(ctx: MutationCtx, force: boolean) {
+  const userId = await requireOwner(ctx);
+  const operation = await currentOperation(ctx, userId);
+  if (operation && operation.phase !== "complete") throw new Error("A data operation is in progress. Finish or resume it in Settings first.");
+  const now = Date.now();
+  const job = await currentStatsJob(ctx, userId);
+  if (job && job.status !== "complete") {
+    // Strict Mode, remounts and tabs converge on the same checkpoint. Explicit
+    // retry resumes a failed batch; a lost scheduled callback has a short lease.
+    if ((force && job.status === "failed") || (job.status === "running" && now - job.updatedAt >= STATS_LEASE_MS)) {
+      await ctx.db.patch(job._id, { status: "running", error: undefined, updatedAt: now, revision: job.revision + 1 });
+      await ctx.scheduler.runAfter(0, internal.stats.runBatch, { jobId: job._id, revision: job.revision + 1 });
     }
-    const userId = identity.subject;
-    await assertDataWritable(ctx, userId);
+    return job._id;
+  }
+  const snapshot = await ctx.db.query("userStats").withIndex("by_user", q => q.eq("userId", userId)).unique();
+  if (!force && snapshot && now - snapshot.lastRefreshed < STATS_TTL) return null;
+  if (job) await ctx.db.delete(job._id);
+  const jobId = await ctx.db.insert("statsRebuilds", {
+    userId, status: "running", phase: "movies", revision: 0, cursor: null,
+    stats: emptyStats(now), processed: 0, restarts: 0, sourceChanged: false, updatedAt: now,
+  });
+  await ctx.scheduler.runAfter(0, internal.stats.runBatch, { jobId, revision: 0 });
+  return jobId;
+}
+export const ensureStats = mutation({ args: {}, returns: v.union(v.id("statsRebuilds"), v.null()), handler: ctx => requestRebuild(ctx, false) });
+export const refreshStats = mutation({ args: {}, returns: v.union(v.id("statsRebuilds"), v.null()), handler: ctx => requestRebuild(ctx, true) });
 
-    const stats = await calculateUserStats(ctx.db, userId);
+async function fact(ctx: MutationCtx, job: Doc<"statsRebuilds">, kind: "day" | "season", key: number) {
+  const existing = await ctx.db.query("statsFacts").withIndex("by_job_kind_key", q => q.eq("jobId", job._id).eq("kind", kind).eq("key", key)).unique();
+  if (existing) return false;
+  await ctx.db.insert("statsFacts", { userId: job.userId, jobId: job._id, kind, key });
+  return true;
+}
+const pageOptions = (cursor: string | null) => ({ cursor, numItems: STATS_BATCH_SIZE, maximumRowsRead: STATS_BATCH_SIZE, maximumBytesRead: 256 * 1024 });
 
-    const existing = await ctx.db
-      .query("userStats")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, { stats, lastRefreshed: Date.now() });
+export const processBatch = internalMutation({
+  args: checkpointArgs, returns: v.null(),
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.revision !== args.revision || job.status !== "running") return null;
+    const operation = await currentOperation(ctx, job.userId);
+    if (operation && operation.phase !== "complete") { await cancelStatsPass(ctx, job.userId); return null; }
+    const advance = (phase: Doc<"statsRebuilds">["phase"]) => { job.phase = phase; job.cursor = null; };
+    // Discard mixed input, collect scratch in bounded chunks, then take a new
+    // reference time and restart. Never block ordinary watch edits for stats.
+    if (job.sourceChanged) advance("cleanup");
+    if (job.phase === "movies") {
+      const page = await ctx.db.query("userMovies").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
+      for (const movie of page.page) {
+        addMovie(job.stats, movie);
+        const day = activityDay(movie.watchedDate);
+        if (movie.status === "watched" && day !== null) await fact(ctx, job, "day", day);
+      }
+      job.processed += page.page.length; job.cursor = page.continueCursor;
+      if (page.isDone) advance("tv");
+    } else if (job.phase === "tv") {
+      const page = await ctx.db.query("userTvSeries").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
+      for (const series of page.page) addSeries(job.stats, series);
+      job.processed += page.page.length; job.cursor = page.continueCursor;
+      if (page.isDone) advance("episodes");
+    } else if (job.phase === "episodes") {
+      const page = await ctx.db.query("userEpisodes").withIndex("by_user_watched", q => q.eq("userId", job.userId).eq("isWatched", true)).paginate(pageOptions(job.cursor));
+      for (const episode of page.page) {
+        addEpisode(job.stats, episode);
+        if (await fact(ctx, job, "season", episode.seasonId)) job.stats.episodes.totalWatchedSeasons++;
+        const day = activityDay(episode.watchedDate);
+        if (day !== null) await fact(ctx, job, "day", day);
+      }
+      job.processed += page.page.length; job.cursor = page.continueCursor;
+      if (page.isDone) advance("streaks");
+    } else if (job.phase === "streaks") {
+      const page = await ctx.db.query("statsFacts").withIndex("by_job_kind_key", q => q.eq("jobId", job._id).eq("kind", "day")).paginate(pageOptions(job.cursor));
+      for (const day of page.page) {
+        job.stats.streaks.current = job.previousDay === undefined || day.key - job.previousDay === DAY ? job.stats.streaks.current + 1 : 1;
+        job.stats.streaks.longest = Math.max(job.stats.streaks.longest, job.stats.streaks.current);
+        job.previousDay = day.key;
+      }
+      job.cursor = page.continueCursor;
+      if (page.isDone) { finishStats(job.stats, job.previousDay); advance("cleanup"); }
     } else {
-      await ctx.db.insert("userStats", { userId, stats, lastRefreshed: Date.now() });
+      const rows = await ctx.db.query("statsFacts").withIndex("by_job_kind_key", q => q.eq("jobId", job._id)).take(STATS_BATCH_SIZE);
+      for (const row of rows) await ctx.db.delete(row._id);
+      if (rows.length < STATS_BATCH_SIZE) {
+        if (job.sourceChanged) {
+          job.stats = emptyStats(Date.now()); job.processed = 0; job.restarts++;
+          job.previousDay = undefined; job.sourceChanged = false; advance("movies");
+        } else {
+          const snapshot = await ctx.db.query("userStats").withIndex("by_user", q => q.eq("userId", job.userId)).unique();
+          // TTL starts at the captured input time, not completion of a long job.
+          const value = { stats: job.stats, lastRefreshed: job.stats.generatedAt };
+          if (snapshot) await ctx.db.patch(snapshot._id, value);
+          else await ctx.db.insert("userStats", { userId: job.userId, ...value });
+          job.status = "complete";
+        }
+      }
     }
+    const { _id, _creationTime, ...fields } = job;
+    void _creationTime;
+    await ctx.db.replace(_id, { ...fields, revision: job.revision + 1, updatedAt: Date.now() });
+    if (job.status === "running") await ctx.scheduler.runAfter(0, internal.stats.runBatch, { jobId: _id, revision: job.revision + 1 });
+    return null;
+  },
+});
 
-    return stats;
+export const runBatch = internalMutation({
+  args: checkpointArgs, returns: v.null(),
+  handler: async (ctx, args) => {
+    const job = await ctx.db.get(args.jobId);
+    if (!job || job.revision !== args.revision || job.status !== "running") return null;
+    try {
+      await ctx.runMutation(internal.stats.processBatch, args, { transactionLimits: STATS_BATCH_LIMITS });
+    } catch (error) {
+      await ctx.db.patch(job._id, { status: "failed", updatedAt: Date.now(), error: error instanceof Error ? error.message.slice(0, 300) : "Stats batch failed. Retry refresh." });
+    }
+    return null;
+  },
+});
+
+export const cleanupFacts = internalMutation({
+  args: { jobId: v.id("statsRebuilds") }, returns: v.null(),
+  handler: async (ctx, args) => {
+    // Only collect cancelled jobs; duplicate garbage collectors are harmless.
+    if (await ctx.db.get(args.jobId)) return null;
+    const rows = await ctx.db.query("statsFacts").withIndex("by_job_kind_key", q => q.eq("jobId", args.jobId)).take(STATS_BATCH_SIZE);
+    for (const row of rows) await ctx.db.delete(row._id);
+    if (rows.length === STATS_BATCH_SIZE) await ctx.scheduler.runAfter(0, internal.stats.cleanupFacts, args);
+    return null;
   },
 });

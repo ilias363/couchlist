@@ -2,6 +2,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { backupRow, recordCounts } from "./lib/backupFormat";
+import { statsValidator } from "./lib/statsModel";
 
 export default defineSchema({
   // One current operation per account. This row is also the transaction fence
@@ -9,7 +10,7 @@ export default defineSchema({
   dataOperations: defineTable({
     userId: v.string(),
     kind: v.union(v.literal("export"), v.literal("import"), v.literal("clear_movies"), v.literal("clear_tv"), v.literal("delete_series"), v.literal("account"), v.literal("repair_tv")),
-    phase: v.union(v.literal("upload"), v.literal("export"), v.literal("apply"), v.literal("prune_movies"), v.literal("prune_tv"), v.literal("prune_episodes"), v.literal("reset_summaries"), v.literal("summaries"), v.literal("delete_movies"), v.literal("delete_tv"), v.literal("delete_episodes"), v.literal("delete_stats"), v.literal("cleanup"), v.literal("complete"), v.literal("awaiting_identity")),
+    phase: v.union(v.literal("upload"), v.literal("export"), v.literal("apply"), v.literal("prune_movies"), v.literal("prune_tv"), v.literal("prune_episodes"), v.literal("reset_summaries"), v.literal("summaries"), v.literal("delete_movies"), v.literal("delete_tv"), v.literal("delete_episodes"), v.literal("delete_stats"), v.literal("delete_stats_work"), v.literal("cleanup"), v.literal("complete"), v.literal("awaiting_identity")),
     mode: v.optional(v.union(v.literal("merge"), v.literal("replace"))),
     fingerprint: v.optional(v.string()),
     expected: recordCounts,
@@ -114,4 +115,22 @@ export default defineSchema({
     stats: v.any(), // Stores the full stats object
     lastRefreshed: v.number(),
   }).index("by_user", ["userId"]),
+
+  // Only new, initially empty tables need indexes; existing history needs no
+  // index backfill. One current checkpoint per owner, fixed-size accumulator.
+  statsRebuilds: defineTable({
+    userId: v.string(),
+    status: v.union(v.literal("running"), v.literal("failed"), v.literal("complete")),
+    phase: v.union(v.literal("movies"), v.literal("tv"), v.literal("episodes"), v.literal("streaks"), v.literal("cleanup")),
+    revision: v.number(), cursor: v.union(v.string(), v.null()),
+    stats: statsValidator, processed: v.number(), restarts: v.number(),
+    sourceChanged: v.boolean(), updatedAt: v.number(),
+    previousDay: v.optional(v.number()), error: v.optional(v.string()),
+  }).index("by_user", ["userId"]),
+  // Arbitrarily many unique days/seasons never enter one Convex value. The
+  // ordered day index supports a streaming streak reduction; cleanup is paged.
+  statsFacts: defineTable({
+    userId: v.string(), jobId: v.id("statsRebuilds"),
+    kind: v.union(v.literal("day"), v.literal("season")), key: v.number(),
+  }).index("by_job_kind_key", ["jobId", "kind", "key"]).index("by_user", ["userId"]),
 });

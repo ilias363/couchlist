@@ -33,7 +33,7 @@ const phaseLabels = {
   prune_movies: "Removing old movies", prune_tv: "Removing old TV shows", prune_episodes: "Removing old episode history",
   reset_summaries: "Updating watch history", summaries: "Updating watch history",
   delete_movies: "Removing movies", delete_tv: "Removing TV shows", delete_episodes: "Removing episode history",
-  delete_stats: "Removing saved statistics", cleanup: "Finishing", complete: "Complete",
+  delete_stats: "Removing saved statistics", delete_stats_work: "Removing saved statistics", cleanup: "Finishing", complete: "Complete",
   awaiting_identity: "Ready to finish account deletion",
 };
 

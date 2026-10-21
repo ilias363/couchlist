@@ -6,6 +6,7 @@ import schema from "./schema";
 import { BATCH_SIZE, type BackupRow, type BackupKind } from "./lib/backupFormat";
 import { currentOperation, requireOwner } from "./lib/dataOperationLock";
 import { isValidWatchDate } from "./lib/tvWatchDates";
+import { cancelStatsPass } from "./lib/statsFence";
 
 type Job = Doc<"dataOperations">;
 const emptyCounts = () => ({ movies: 0, tvSeries: 0, episodes: 0 });
@@ -33,6 +34,7 @@ export async function createOperation(
     throw new Error("Another data operation is in progress. Finish or resume it in Settings first.");
   }
   if (existing) await ctx.db.delete(existing._id);
+  await cancelStatsPass(ctx, userId);
   const repairSeries = kind === "repair_tv"
     ? await ctx.db.query("userTvSeries").withIndex("by_user_tv_series", q => q.eq("userId", userId).eq("tvSeriesId", options.tvSeriesId!)).unique()
     : null;
@@ -242,7 +244,14 @@ export const processBatch = internalMutation({
       const page = await ctx.db.query("userStats").withIndex("by_user", q => q.eq("userId", job.userId)).paginate(pageOptions(job.cursor));
       for (const row of page.page) await ctx.db.delete(row._id);
       job.cursor = page.continueCursor;
-      if (page.isDone) advance("cleanup");
+      if (page.isDone) advance("delete_stats_work");
+    } else if (job.phase === "delete_stats_work") {
+      // Also covers operations started before rollout. Awaiting identity must
+      // mean all stats work and owner-scoped scratch have already been removed.
+      await cancelStatsPass(ctx, job.userId);
+      const rows = await ctx.db.query("statsFacts").withIndex("by_user", q => q.eq("userId", job.userId)).take(BATCH_SIZE);
+      for (const row of rows) await ctx.db.delete(row._id);
+      if (rows.length < BATCH_SIZE) advance("cleanup");
     } else if (job.phase === "cleanup") {
       const rows = await ctx.db.query("dataImportRows").withIndex("by_job_position", q => q.eq("jobId", job._id)).take(BATCH_SIZE);
       for (const row of rows) await ctx.db.delete(row._id);

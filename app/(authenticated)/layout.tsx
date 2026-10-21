@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { LastPageTracker } from "@/components/last-page-tracker";
+import { StatsSnapshotProvider } from "@/components/providers/stats-snapshot-provider";
 
 export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <StatsSnapshotProvider>
       <Suspense fallback={null}>
         <LastPageTracker />
       </Suspense>
@@ -20,6 +21,6 @@ export default function AuthenticatedLayout({ children }: { children: React.Reac
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
         <Footer />
       </div>
-    </>
+    </StatsSnapshotProvider>
   );
 }

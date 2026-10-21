@@ -15,7 +15,7 @@ import { tmdbKeys } from "../lib/tmdb/react-query";
 // Match the existing handler-test convention. Track indexed reads and disallow
 // status scans so a return to collect() fails even with a small fixture.
 function context(size = 0, subject = "owner") {
-  const tables = { dataOperations: [], userMovies: [], userTvSeries: [], userEpisodes: [] };
+  const tables = { dataOperations: [], statsRebuilds: [], userMovies: [], userTvSeries: [], userEpisodes: [] };
   for (let id = 1; id <= size; id++) {
     const common = { userId: "owner", status: "on_hold", createdAt: id, updatedAt: id };
     tables.userMovies.push({ ...common, _id: `movie:${id}`, movieId: id });
