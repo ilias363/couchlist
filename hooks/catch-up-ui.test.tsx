@@ -20,26 +20,28 @@ function view(overrides: Partial<ReturnType<typeof useCatchUpData>> = {}) {
     totalUnwatchedEpisodes: 0, totalUpcoming: 0, ...overrides };
   return renderToStaticMarkup(<CatchUpPage />);
 }
-test("loading, partial pagination and failure never announce caught up; completed cards stay visible", () => {
-  expect(view({ isLoading: true })).not.toContain("all caught up");
+test("normal loading stays quiet and partial totals never announce caught up", () => {
+  const loading = view({ isLoading: true });
+  expect(loading).not.toContain("all caught up"); expect(loading).not.toContain("Partial totals");
   const page = view({ canLoadMore: true });
-  expect(page).toContain("Partial totals"); expect(page).toContain("Load more shows");
+  expect(page).not.toContain("Partial totals"); expect(page).toContain("Load more shows");
   expect(page).toContain("0+"); expect(page).not.toContain("all caught up");
   const failed = view({ failedShows: 1 });
   expect(failed).toContain("Results are incomplete"); expect(failed).toContain("Retry failed checks");
   expect(failed).not.toContain("all caught up");
-  expect(view({ isUpdating: true, isLoading: true })).toContain("Your library is being updated");
+  expect(view({ isUpdating: true, isLoading: true })).not.toContain("Your library is being updated");
   const progressive = view({ isLoading: true, catchUpItems: [{
     tvSeriesId: 1, name: "Ready show", posterPath: null, tmdbStatus: "Returning Series",
     totalEpisodes: 1, watchedEpisodes: 0, unwatchedEpisodes: 1, unknownDateEpisodes: 0, unwatchedSeasons: [], upcomingSeasons: [],
   }] });
-  expect(progressive).toContain("Ready show"); expect(progressive).toContain("Partial totals");
+  expect(progressive).toContain("Ready show"); expect(progressive).not.toContain("Partial totals");
+  expect(progressive).toContain("0+");
   expect(view({ isComplete: true })).toContain("all caught up");
 });
 
-test("home keeps viewport deferral and links to all checks when results are partial", async () => {
+test("home defers activation, keeps loading quiet, then offers pagination", async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  view({ canLoadMore: true }); state.hook.mockClear();
+  view({ canLoadMore: true, isLoading: true }); state.hook.mockClear();
   let activate!: IntersectionObserverCallback;
   const disconnect = vi.fn();
   vi.stubGlobal("IntersectionObserver", class {
@@ -52,7 +54,12 @@ test("home keeps viewport deferral and links to all checks when results are part
     await act(async () => root.render(<CatchUpSection />));
     expect(state.hook).not.toHaveBeenCalled();
     await act(async () => activate([{ isIntersecting: true }] as IntersectionObserverEntry[], {} as IntersectionObserver));
-    expect(state.hook).toHaveBeenCalled(); expect(element.textContent).toContain("View all catch-up checks");
+    expect(state.hook).toHaveBeenCalled();
+    expect(element.textContent).not.toContain("Showing completed checks");
+    expect(element.textContent).not.toContain("View all catch-up checks");
+    view({ canLoadMore: true });
+    await act(async () => root.render(<CatchUpSection />));
+    expect(element.textContent).toContain("View all catch-up checks");
   } finally { await act(async () => root.unmount()); element.remove(); vi.unstubAllGlobals(); }
   expect(disconnect).toHaveBeenCalled();
 });
