@@ -10,7 +10,7 @@ import { StatusFilter } from "@/components/media/status-filter";
 import { EmptyState } from "@/components/common/empty-state";
 import { WatchStatus } from "@/lib/tmdb/types";
 import { useBatchTMDBTvSeries } from "@/lib/tmdb/react-query";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { PageTitle } from "@/components/layout/page-title";
 import Link from "next/link";
 import { CalendarClock, Filter, Search, Tv } from "lucide-react";
@@ -25,20 +25,22 @@ export default function TvSeriesPage() {
 
 function TvSeriesView() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const statusParam = searchParams.get("status");
   const status = WATCH_STATUSES.some(s => s.value === statusParam) ? statusParam : undefined;
 
   const setStatus = (newStatus: string | undefined) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+    if (newStatus ? params.get("status") === newStatus : !params.has("status")) return;
     if (newStatus) {
       params.set("status", newStatus);
     } else {
       params.delete("status");
     }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    if (url.href !== window.location.href) {
+      window.history.replaceState(null, "", url);
+    }
   };
 
   const {
