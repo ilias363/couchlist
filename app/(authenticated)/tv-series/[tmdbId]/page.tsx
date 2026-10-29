@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -11,7 +12,7 @@ import { TvHeroSection } from "@/components/tv-details/hero-section";
 import { TvDetailsGrid } from "@/components/tv-details/details-grid";
 import { CastSection } from "@/components/details-shared/cast-section";
 import { DetailPageSkeleton } from "@/components/details-shared/detail-skeleton";
-import { SeasonsSection } from "@/components/tv-details/seasons-section";
+import { SeasonsSection, SeasonsSectionSkeleton } from "@/components/tv-details/seasons-section";
 
 export default function TvSeriesDetailsPage() {
   const { tmdbId } = useParams<{ tmdbId: string }>();
@@ -75,6 +76,17 @@ export default function TvSeriesDetailsPage() {
       />
 
       <div className="mt-4 space-y-4 md:mt-8 md:space-y-8">
+        <Suspense fallback={<SeasonsSectionSkeleton />}>
+          {userSeries === undefined ? <SeasonsSectionSkeleton /> : (
+            <SeasonsSection
+              key={series.id}
+              seriesId={series.id}
+              seasons={series.seasons}
+              seasonWatchedCounts={userSeries?.seasonWatchedCounts}
+            />
+          )}
+        </Suspense>
+
         <TvDetailsGrid
           firstAirDate={series.first_air_date}
           status={series.status}
@@ -92,12 +104,6 @@ export default function TvSeriesDetailsPage() {
         />
 
         <CastSection cast={series.credits?.cast} />
-
-        <SeasonsSection
-          seriesId={series.id}
-          seasons={series.seasons}
-          seasonWatchedCounts={userSeries === null ? {} : userSeries?.seasonWatchedCounts}
-        />
 
         {series.recommendations.results.length > 0 ? (
           <MediaCarousel

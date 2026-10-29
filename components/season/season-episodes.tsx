@@ -25,11 +25,13 @@ import { ConfirmButton } from "@/components/common/confirm-dialog";
 export function SeasonEpisodes({
   episodes,
   statusMap,
-  onToggle
+  onToggle,
+  disabled = false,
 }: {
   episodes: SeasonEpisode[];
   statusMap: Map<number, EpisodeStatus>;
   onToggle: (ep: SeasonEpisode, watchedAt?: number) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SeasonEpisode | null>(null);
@@ -207,6 +209,7 @@ export function SeasonEpisodes({
 
                     {watched ? (
                       <ConfirmButton
+                        disabled={disabled}
                         size="sm"
                         variant="ghost"
                         title="Unwatch episode?"
@@ -221,6 +224,7 @@ export function SeasonEpisodes({
                       </ConfirmButton>
                     ) : (
                       <Button
+                        disabled={disabled}
                         size="sm"
                         variant={isNext ? "default" : "outline"}
                         onClick={() => handleWatchClick(ep, Date.now())}
