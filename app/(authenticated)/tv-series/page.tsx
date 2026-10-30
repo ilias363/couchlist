@@ -63,12 +63,12 @@ function TvSeriesView() {
         title="My TV Series"
         subtitle="Tracked series ordered by recent updates"
         actions={
-          <Link href="/tv-series/catch-up">
-            <Button variant="outline" size="sm" className="gap-2">
-              <CalendarClock className="h-4 w-4" />
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link href="/tv-series/catch-up">
+              <CalendarClock className="size-4" aria-hidden="true" />
               Catch Up
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         }
       />
 
