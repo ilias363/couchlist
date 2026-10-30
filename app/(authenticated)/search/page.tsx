@@ -119,10 +119,19 @@ function SearchView() {
       {/* Search Controls */}
       <div className="p-4 rounded-xl bg-card border border-border/50 space-y-4">
         {/* Search Input */}
-        <div className="relative">
+        <form
+          className="flex items-center gap-2"
+          onSubmit={event => {
+            event.preventDefault();
+            debouncedUpdate(rawQuery);
+            debouncedUpdate.flush();
+          }}
+        >
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground z-10" />
           <Input
             id="search-input"
+            type="search"
             placeholder="Search for movies, TV series..."
             value={rawQuery}
             onChange={onChangeQuery}
@@ -130,9 +139,11 @@ function SearchView() {
             aria-label="Search movies or TV series"
           />
           {loading && debouncedQuery && (
-            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground z-10" />
+            <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground z-10" />
           )}
         </div>
+        <Button type="submit" size="sm" className="rounded-xl">Search</Button>
+        </form>
 
         {/* Mode Filters */}
         <div className="flex flex-wrap gap-2">

@@ -91,12 +91,12 @@ function TvSeriesView() {
                   Clear filter
                 </Button>
               )}
-              <Link href="/search">
-                <Button size="sm" className="gap-2">
-                  <Search className="h-4 w-4" />
+              <Button asChild size="sm" className="gap-2">
+                <Link href="/search?mode=tv">
+                  <Search className="size-4" aria-hidden="true" />
                   Search series
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </>
           }
         />

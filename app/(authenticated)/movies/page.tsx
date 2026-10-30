@@ -95,12 +95,12 @@ function MoviesView() {
                   Clear filter
                 </Button>
               )}
-              <Link href="/search">
-                <Button size="sm" className="gap-2">
-                  <Search className="h-4 w-4" />
+              <Button asChild size="sm" className="gap-2">
+                <Link href="/search?mode=movie">
+                  <Search className="size-4" aria-hidden="true" />
                   Search movies
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </>
           }
         />

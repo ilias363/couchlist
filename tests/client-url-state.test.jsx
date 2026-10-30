@@ -106,6 +106,10 @@ async function mount(Page, path) {
       const props = input[Object.keys(input).find(key => key.startsWith("__reactProps$"))];
       await act(() => props.onChange({ target: { value } }));
     },
+    async submit() {
+      await act(() => container.querySelector("form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })));
+      await wait();
+    },
     async click(label) {
       const button = [...container.querySelectorAll("button")].find(button => button.textContent.trim() === label);
       expect(button).toBeDefined();
@@ -165,6 +169,21 @@ test("search keeps the space between words across a debounced URL commit", async
   await view.wait(550);
   expect(view.input().value).toBe("star wars");
   expect(view.window.location.search).toBe("?q=star+wars");
+});
+
+test("search submits immediately and native clearing preserves the original URL behavior", async () => {
+  const view = await mount(SearchPage, "/search?mode=movie&source=library#results");
+  expect(view.input().type).toBe("search");
+  await view.type("arrival");
+  await view.submit();
+  expect(new URLSearchParams(view.window.location.search).get("q")).toBe("arrival");
+  expect(view.searches.some(call => call.method === "searchMovies" && call.q === "arrival")).toBe(true);
+  expect([...view.container.querySelectorAll("button")].some(button => button.textContent.trim() === "Clear search")).toBe(false);
+  expect(view.container.querySelector('[role="status"]')).toBeNull();
+  await view.type("");
+  await view.wait(550);
+  expect(view.window.location.search).toBe("?mode=movie&source=library");
+  expect(view.window.location.hash).toBe("#results");
 });
 
 test("search Back/Forward and same-page links restore state and cancel stale debounce, including unchanged q", async () => {
