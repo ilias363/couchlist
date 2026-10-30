@@ -18,7 +18,8 @@ export function useMediaStatuses(items: MediaStatusItem[], userId: string | unde
   // This identity scopes the client cache only; queries still authorize on the server.
   const [previous, setPrevious] = useState(() => ({
     userId,
-    statuses: new Map<string, WatchStatus>(),
+    // null means the title was checked and is not tracked.
+    statuses: new Map<string, WatchStatus | null>(),
   }));
   const queries = useMemo(() => {
     const targets: MediaStatusTarget[] = [];
@@ -36,18 +37,20 @@ export function useMediaStatuses(items: MediaStatusItem[], userId: string | unde
   >;
 
   const statuses = useMemo(() => {
-    const map = new Map<string, WatchStatus>();
+    const map = new Map<string, WatchStatus | null>();
     for (const [key, query] of Object.entries(queries)) {
       const result = results[key];
       if (result instanceof Error) throw result;
       if (result === undefined && userId !== undefined && previous.userId === userId) {
-        // Re-batching can replace every subscription. Retain only still-requested
-        // titles while pending; a resolved missing row must clear its old status.
+        // Re-batching can replace every subscription. Retain still-requested
+        // titles, including known untracked titles, while the new batches load.
         for (const item of query.args.items) {
           const key = `${item.mediaType}:${item.id}`;
           const status = previous.statuses.get(key);
           if (status !== undefined) map.set(key, status);
         }
+      } else if (result !== undefined) {
+        for (const item of query.args.items) map.set(`${item.mediaType}:${item.id}`, null);
       }
       for (const item of result ?? []) map.set(`${item.mediaType}:${item.id}`, item.status);
     }
@@ -63,8 +66,12 @@ export function useMediaStatuses(items: MediaStatusItem[], userId: string | unde
     setPrevious({ userId, statuses });
   }
   const getStatus = useCallback(
-    (id: number, mediaType: "movie" | "tv") => statuses.get(`${mediaType}:${id}`),
+    (id: number, mediaType: "movie" | "tv") => statuses.get(`${mediaType}:${id}`) ?? undefined,
     [statuses],
   );
-  return { getStatus, isLoading: Object.values(results).some(result => result === undefined) };
+  const isStatusLoading = useCallback(
+    (id: number, mediaType: "movie" | "tv") => !statuses.has(`${mediaType}:${id}`),
+    [statuses],
+  );
+  return { getStatus, isStatusLoading, isLoading: Object.values(results).some(result => result === undefined) };
 }

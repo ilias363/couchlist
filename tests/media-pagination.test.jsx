@@ -67,29 +67,40 @@ function queryClient(resolve) {
 }
 
 function Statuses({ items, userId }) {
-  const { getStatus, isLoading } = useMediaStatuses(items, userId);
+  const { getStatus, isStatusLoading, isLoading } = useMediaStatuses(items, userId);
   return (
     <div data-loading={isLoading}>
-      {items.map(item => <output key={item.id} data-id={item.id}>{getStatus(item.id, "movie") ?? ""}</output>)}
+      {items.map(item => (
+        <output key={item.id} data-id={item.id} data-status-loading={isStatusLoading(item.id, item.media_type)}>
+          {getStatus(item.id, item.media_type) ?? ""}
+        </output>
+      ))}
       <output data-removed>{getStatus(101, "movie") ?? ""}</output>
     </div>
   );
 }
 
-test("mounted status subscriptions retain requested badges during re-batching, then apply updates and removals", async () => {
+test("mounted status subscriptions retain tracked and untracked readiness during re-batching, then apply updates and removals", async () => {
   const view = mount();
   let pending = false;
-  const client = queryClient((_name, { items }) => pending ? undefined : items.map(item => ({ ...item, status: "on_hold" })));
+  const client = queryClient((_name, { items }) => pending ? undefined :
+    items.filter(item => item.id !== 103).map(item => ({ ...item, status: "on_hold" })));
   let items = Array.from({ length: 200 }, (_, i) => ({ id: i + 101, media_type: "movie" }));
   const render = () => view.render(<ConvexProvider client={client}><Statuses items={items} userId="owner" /></ConvexProvider>);
   await render();
   expect(view.container.querySelector('[data-id="102"]').textContent).toBe("on_hold");
+  expect(view.container.querySelector('[data-id="103"]').textContent).toBe("");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(0);
 
   pending = true;
   items = [...items, { id: 1, media_type: "movie" }];
   await render();
   expect(view.container.querySelector('[data-id="102"]').textContent).toBe("on_hold");
   expect(view.container.querySelector('[data-id="1"]').textContent).toBe("");
+  expect(view.container.querySelector('[data-id="103"]').textContent).toBe("");
+  const pendingStatuses = view.container.querySelectorAll('[data-status-loading="true"]');
+  expect(pendingStatuses).toHaveLength(1);
+  expect(pendingStatuses[0].getAttribute("data-id")).toBe("1");
   expect(view.container.querySelector('[data-loading="true"]')).not.toBeNull();
   const active = [...client.entries.values()].filter(entry => entry.listeners.size);
   expect(active).toHaveLength(3);
@@ -105,27 +116,34 @@ test("mounted status subscriptions retain requested badges during re-batching, t
   expect(view.container.querySelector('[data-id="102"]').textContent).toBe("");
   expect(view.container.querySelector('[data-id="103"]').textContent).toBe("watched");
   expect(view.container.querySelector('[data-id="1"]').textContent).toBe("watched");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(0);
   expect(view.container.querySelector('[data-loading="false"]')).not.toBeNull();
 });
 
 test("mounted status cache is cleared on account changes and sign-out", async () => {
   const view = mount();
-  const client = queryClient((_name, { items }) => items.map(item => ({ ...item, status: "watched" })));
-  const items = [{ id: 1, media_type: "movie" }];
+  const client = queryClient((_name, { items }) => items.filter(item => item.id === 1).map(item => ({ ...item, status: "watched" })));
+  const items = [{ id: 1, media_type: "movie" }, { id: 2, media_type: "movie" }];
   const render = userId => view.render(<ConvexProvider client={client}><Statuses items={items} userId={userId} /></ConvexProvider>);
   await render("owner");
   expect(view.container.querySelector("output").textContent).toBe("watched");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(0);
   await act(() => client.publish(() => true, undefined));
   expect(view.container.querySelector("output").textContent).toBe("watched");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(0);
   await render("other");
   expect(view.container.querySelector("output").textContent).toBe("");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(2);
   await act(() => client.publish(() => true, [{ id: 1, mediaType: "movie", status: "on_hold" }]));
   expect(view.container.querySelector("output").textContent).toBe("on_hold");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(0);
   await act(() => client.publish(() => true, undefined));
   await render(undefined);
   expect(view.container.querySelector("output").textContent).toBe("");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(2);
   await render("other");
   expect(view.container.querySelector("output").textContent).toBe("");
+  expect(view.container.querySelectorAll('[data-status-loading="true"]')).toHaveLength(2);
 });
 
 test("TV pagination keeps existing table and rows mounted while the next page's TMDB details load", async () => {

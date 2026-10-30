@@ -14,6 +14,7 @@ import type {
 const state = vi.hoisted(() => ({
   statuses: new Map<string, WatchStatus>(),
   statusesLoading: false,
+  pendingStatuses: new Set<string>(),
   prefetch: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({
@@ -39,7 +40,9 @@ vi.mock("./use-media-statuses", () => ({
   useMediaStatuses: () => ({
     getStatus: (id: number, type: string) =>
       state.statuses.get(`${type}:${id}`),
-    isLoading: state.statusesLoading,
+    isLoading: state.statusesLoading || state.pendingStatuses.size > 0,
+    isStatusLoading: (id: number, type: string) =>
+      state.statusesLoading || state.pendingStatuses.has(`${type}:${id}`),
   }),
 }));
 import SearchPage from "@/app/(authenticated)/search/page";
@@ -81,6 +84,7 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   state.statuses.clear();
   state.statusesLoading = false;
+  state.pendingStatuses.clear();
 });
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
@@ -205,6 +209,36 @@ test("people-only pages keep pagination reachable and later-page failures keep e
     view.container.querySelector('a[href="/tv-series/2"]')?.textContent,
   ).toContain("Severance");
   expect(view.container.textContent).toContain("reached the end");
+});
+
+test("loading new result statuses keeps existing watchlist buttons and menus usable", async () => {
+  const nextMovie = { ...movie, id: 3, title: "Dune: Part Two" } as TMDBSearchResult;
+  vi.spyOn(tmdbClient, "searchMulti").mockImplementation(async (_q, number = 1) =>
+    number === 1 ? page([movie, series], 1, 2) : page([nextMovie], 2, 2),
+  );
+  state.statuses.set("tv:2", "currently_watching");
+  const view = await mount();
+  const watchlist = view.button("Add to Watchlist: Dune");
+  const movieMenu = view.button("Manage status for Dune");
+  const seriesMenu = view.button("Manage status for Severance");
+
+  state.pendingStatuses.add("movie:3");
+  await view.click("Load more");
+  expect(view.button("Add to Watchlist: Dune")).toBe(watchlist);
+  expect(watchlist.disabled).toBe(false);
+  expect(view.button("Manage status for Dune")).toBe(movieMenu);
+  expect(movieMenu.disabled).toBe(false);
+  expect(view.button("Manage status for Severance")).toBe(seriesMenu);
+  expect(seriesMenu.disabled).toBe(false);
+  expect(view.button("Manage status for Dune: Part Two").disabled).toBe(true);
+  expect(view.container.textContent).toContain("Checking status…");
+  expect(view.container.querySelector('[aria-label="Add to Watchlist: Dune: Part Two"]')).toBeNull();
+
+  state.pendingStatuses.clear();
+  await view.render();
+  expect(view.button("Add to Watchlist: Dune: Part Two").disabled).toBe(false);
+  expect(view.button("Manage status for Dune: Part Two").disabled).toBe(false);
+  expect(view.container.textContent).not.toContain("Checking status…");
 });
 
 test("initial errors offer retry and media-scoped empty results can broaden the query", async () => {

@@ -116,7 +116,7 @@ function SearchView() {
     ],
     [data?.pages],
   );
-  const { getStatus, isLoading: statusesLoading } = useMediaStatuses(
+  const { getStatus, isStatusLoading } = useMediaStatuses(
     results,
     user?.id,
   );
@@ -388,7 +388,7 @@ function SearchView() {
                 <MediaCard
                   item={r}
                   status={getStatus(r.id, r.media_type)}
-                  statusLoading={statusesLoading || !user?.id}
+                  statusLoading={isStatusLoading(r.id, r.media_type) || !user?.id}
                   layout="row"
                 />
               </li>

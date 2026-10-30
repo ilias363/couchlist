@@ -249,6 +249,8 @@ test("displayed-title hook batches, deduplicates, and reuses statuses supplied b
   expect(view.requests.flatMap(request => request.items)).toHaveLength(1025);
   expect(view.getStatus(1025, "movie")).toBe("on_hold");
   expect(view.getStatus(1026, "tv")).toBe("up_to_date");
+  expect(view.isStatusLoading(1025, "movie")).toBe(false);
+  expect(view.isStatusLoading(1026, "tv")).toBe(false);
   expect(renderStatuses([known], []).requests).toEqual([]);
   expect(renderStatuses([], undefined).isLoading).toBe(false);
 });
@@ -256,9 +258,12 @@ test("displayed-title hook batches, deduplicates, and reuses statuses supplied b
 test("displayed-title hook preserves loading, errors, changed status, and removal", () => {
   const items = [{ id: 1, media_type: "movie" }];
   expect(renderStatuses(items, undefined).isLoading).toBe(true);
+  expect(renderStatuses(items, undefined).isStatusLoading(1, "movie")).toBe(true);
   expect(renderStatuses(items, [{ id: 1, mediaType: "movie", status: "watched" }]).getStatus(1, "movie"))
     .toBe("watched");
   expect(renderStatuses(items, []).getStatus(1, "movie")).toBeUndefined();
+  expect(renderStatuses(items, []).isStatusLoading(1, "movie")).toBe(false);
+  expect(renderStatuses(items, []).isStatusLoading(1, "tv")).toBe(true);
   expect(() => renderStatuses(items, new Error("query failed"))).toThrow("query failed");
 });
 
