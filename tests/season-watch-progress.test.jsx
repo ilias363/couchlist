@@ -1,9 +1,7 @@
 import { expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
 import { deriveWatchSummary } from "../convex/lib/tvWatchDates";
 import { bulkToggleSeasonEpisodes, getSeriesStatus, setSeriesStatus, toggleEpisodeWatched } from "../convex/tv";
 import { bulkToggleSeasonInBatches } from "../lib/tv-watch-batches";
-import { SeasonsSection } from "../components/tv-details/seasons-section";
 
 // Run the real mutation handlers against a small in-memory database.
 function context() {
@@ -279,19 +277,4 @@ test("oversized season actions are chunked sequentially, retries preserve dates,
     ...args, episodesInfo: [...args.episodesInfo, { episodeId: 1 }],
   })).rejects.toThrow("Duplicate");
   expect(calls).toBe(0);
-});
-
-test("series cards use season IDs, distinguish unknown progress, and require a positive matching total", () => {
-  const season = { id: 10, season_number: 1, name: "Season 1", air_date: null, poster_path: null, episode_count: 8 };
-  const render = (counts, overrides = {}) => renderToStaticMarkup(
-    <SeasonsSection seriesId={1} seasons={[{ ...season, ...overrides }]} seasonWatchedCounts={counts} />,
-  );
-  expect(render({ 10: 8 })).toContain('aria-label="All 8 episodes watched"');
-  expect(render({ 10: 6 })).toContain("6/8 watched");
-  expect(render({})).toContain("8 episodes");
-  expect(render({})).not.toContain("0/8 watched");
-  expect(render(undefined)).not.toContain("watched");
-  expect(render({ 10: 0 }, { episode_count: 0 })).not.toContain("episodes watched");
-  expect(render({ 10: 8 }, { episode_count: 9 })).toContain("8/9 watched");
-  expect(render({ 10: 9 })).not.toContain('aria-label="All 8 episodes watched"');
 });

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { SeasonEpisode } from "@/lib/tmdb/types";
 import { EpisodeStatus } from "@/lib/types";
 import { StillImage } from "@/components/media/tmdb-image";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Eye,
   EyeOff,
@@ -25,18 +24,21 @@ import { ConfirmButton } from "@/components/common/confirm-dialog";
 export function SeasonEpisodes({
   episodes,
   statusMap,
-  onToggle
+  onToggle,
+  disabled = false,
+  actions,
 }: {
   episodes: SeasonEpisode[];
   statusMap: Map<number, EpisodeStatus>;
   onToggle: (ep: SeasonEpisode, watchedAt?: number) => void;
+  disabled?: boolean;
+  actions?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SeasonEpisode | null>(null);
   const [defaultMs, setDefaultMs] = useState<number | undefined>(undefined);
   const orderedEpisodes = [...episodes].sort((a, b) => a.episode_number - b.episode_number);
   const watchedCount = episodes.filter(ep => statusMap.get(ep.id)?.isWatched).length;
-  const allWatched = episodes.length > 0 && watchedCount === episodes.length;
   const today = new Date();
   const nextEpisode = orderedEpisodes.find(
     ep =>
@@ -60,45 +62,36 @@ export function SeasonEpisodes({
 
   if (episodes.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <Play className="h-12 w-12 mx-auto mb-3 opacity-50" />
-        <p>No episodes available for this season yet</p>
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-end">{actions}</div>
+        <div className="text-center py-12 text-muted-foreground">
+          <Play className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p>No episodes available for this season yet</p>
+        </div>
       </div>
     );
   }
 
   return (
     <section aria-labelledby="episodes-heading" className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1.5">
-          <h2 id="episodes-heading" className="text-xl font-semibold flex items-center gap-2">
-            <Play className="size-5 text-primary" aria-hidden="true" />
-            Episodes
-          </h2>
-          <div
-            className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground"
-            role="status"
-          >
-            {allWatched && (
-              <Badge variant="watched">
-                <Check aria-hidden="true" />
-                Season complete
-              </Badge>
-            )}
-            <span>
-              {watchedCount} of {episodes.length} watched
-              {!allWatched && ` · ${episodes.length - watchedCount} remaining`}
-            </span>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="episodes-heading" className="min-w-0 text-xl font-semibold">
+          Episodes
+          <span role="status" aria-label={`${watchedCount} of ${episodes.length} watched`} className="ml-3 inline-block font-sans text-sm font-normal tabular-nums tracking-normal text-muted-foreground">
+            {watchedCount}/{episodes.length} watched
+          </span>
+        </h2>
+        <div className="flex shrink-0 items-center gap-1">
+          {nextEpisode && (
+            <Button asChild variant="link" size="icon" className="size-9 sm:w-auto sm:px-3">
+              <a href={`#episode-${nextEpisode.id}`} aria-label="Jump to next episode">
+                <span className="hidden sm:inline">Jump to next</span>
+                <ArrowDown data-icon="inline-end" aria-hidden="true" />
+              </a>
+            </Button>
+          )}
+          {actions}
         </div>
-        {nextEpisode && (
-          <Button asChild variant="link" size="icon" className="size-9 sm:w-auto sm:px-3">
-            <a href={`#episode-${nextEpisode.id}`} aria-label="Jump to next episode">
-              <span className="hidden sm:inline">Jump to next</span>
-              <ArrowDown data-icon="inline-end" aria-hidden="true" />
-            </a>
-          </Button>
-        )}
       </div>
       <ol className="flex flex-col gap-3">
         {orderedEpisodes.map(ep => {
@@ -207,6 +200,7 @@ export function SeasonEpisodes({
 
                     {watched ? (
                       <ConfirmButton
+                        disabled={disabled}
                         size="sm"
                         variant="ghost"
                         title="Unwatch episode?"
@@ -221,6 +215,7 @@ export function SeasonEpisodes({
                       </ConfirmButton>
                     ) : (
                       <Button
+                        disabled={disabled}
                         size="sm"
                         variant={isNext ? "default" : "outline"}
                         onClick={() => handleWatchClick(ep, Date.now())}
