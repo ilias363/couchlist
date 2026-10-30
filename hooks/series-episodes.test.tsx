@@ -69,11 +69,6 @@ function button(text: string) {
   expect(result, `Button containing ${text}`).toBeDefined();
   return result!;
 }
-async function openSeasons() {
-  await act(async () => element.querySelector('[aria-label^="Select season"]')!.dispatchEvent(
-    new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }),
-  ));
-}
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   window.history.replaceState(null, "", "/tv-series/1");
@@ -123,17 +118,36 @@ test("waits for progress, fetches only the first unfinished season, and keeps it
 test("season selection preserves query params, updates the URL, and reuses cached details on Back", async () => {
   window.history.replaceState(null, "", "/tv-series/1?season=3&source=library");
   await render(); await until(() => expect(element.textContent).toContain("Episode 3-1"));
-  await openSeasons();
-  expect(document.body.textContent).toContain("2/2 watched");
-  expect(document.body.textContent).toContain("1/2 watched");
-  const option = [...document.querySelectorAll('[role="menuitemradio"]')].find(option => option.textContent?.startsWith("Season 2"))!;
-  await act(async () => (option as HTMLElement).click());
+  const nav = element.querySelector('nav[aria-label="Seasons"]')!;
+  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Season 3");
+  expect(nav.querySelector('[aria-label="Season 1, 2 of 2 episodes watched"]')).not.toBeNull();
+  const option = nav.querySelector<HTMLAnchorElement>('[aria-label="Season 2, 1 of 2 episodes watched"]')!;
+  expect(option.getAttribute("href")).toBe("/tv-series/1?season=2&source=library#episodes");
+  await act(async () => option.click());
   await until(() => expect(element.textContent).toContain("Episode 2-1"));
+  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Season 2");
   expect(window.location.pathname + window.location.search + window.location.hash).toBe("/tv-series/1?season=2&source=library#episodes");
   await act(async () => window.history.back());
   await until(() => expect(element.textContent).toContain("Episode 3-1"));
+  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Season 3");
   expect(fetchMock).toHaveBeenCalledTimes(3);
   expect([...state.queriedSeasons]).toEqual([103, 102]);
+});
+
+test("season links preserve modified clicks and selecting the current season adds no history", async () => {
+  await render(); await until(() => expect(element.textContent).toContain("Episode 2-1"));
+  const nav = element.querySelector('nav[aria-label="Seasons"]')!;
+  const selected = nav.querySelector<HTMLAnchorElement>('[aria-current="page"]')!;
+  const other = nav.querySelector<HTMLAnchorElement>('a[href*="season=3"]')!;
+  await act(async () => selected.click());
+  expect(window.history.pushState).not.toHaveBeenCalled();
+  for (const modifier of ["ctrlKey", "metaKey", "shiftKey", "altKey"]) {
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, [modifier]: true });
+    await act(async () => other.dispatchEvent(click));
+    expect(click.defaultPrevented).toBe(false);
+  }
+  expect(window.history.pushState).not.toHaveBeenCalled();
+  expect(fetchMock).toHaveBeenCalledTimes(2);
 });
 
 test.each(["-1", "999", "NaN", "1.5"])("invalid season %s falls back without fetching the invalid season", async query => {

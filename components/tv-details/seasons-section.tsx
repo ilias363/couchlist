@@ -1,22 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
-import { ChevronDown, Film } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { SeasonEpisodes } from "@/components/season/season-episodes";
 import { SeasonHeader } from "@/components/season/season-header";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useTMDBSeason } from "@/lib/tmdb/react-query";
 import type { BaseTMDBSeason, SeasonEpisode } from "@/lib/tmdb/types";
 import type { EpisodeStatus } from "@/lib/types";
@@ -32,6 +24,7 @@ interface SeasonsSectionProps {
 
 export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, className }: SeasonsSectionProps) {
   const searchParams = useSearchParams();
+  const seasonsNav = useRef<HTMLElement>(null);
   const regularSeasons = seasons.filter(s => s.season_number > 0)
     .sort((a, b) => a.season_number - b.season_number);
   const selectableSeasons = [...regularSeasons, ...seasons.filter(s => s.season_number === 0)];
@@ -53,51 +46,50 @@ export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, classNa
     }
   }, []);
 
-  if (!selectedSeason) return null;
+  useEffect(() => {
+    const nav = seasonsNav.current;
+    const selectedLink = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !selectedLink) return;
+    const selectedBounds = selectedLink.getBoundingClientRect();
+    // Reveal the selected season horizontally without moving the page past the series hero.
+    nav.scrollLeft += selectedBounds.left - nav.getBoundingClientRect().left - (nav.clientWidth - selectedBounds.width) / 2;
+  }, [selectedSeason?.season_number]);
 
-  const selectSeason = (value: string) => {
-    if (value === String(selectedSeason.season_number)) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("season", value);
-    url.hash = "episodes";
-    window.history.pushState(null, "", url);
-  };
+  if (!selectedSeason) return null;
 
   return (
     <section id="episodes" aria-labelledby="seasons-heading" className={cn("flex scroll-mt-24 flex-col gap-6", className)}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="seasons-heading" className="flex items-center gap-2 text-xl font-semibold">
-          <Film className="size-5 text-primary" aria-hidden="true" />
-          Seasons &amp; episodes
-        </h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" aria-label={`Select season, current: ${selectedSeason.name}`}>
-              {selectedSeason.name}
-              <ChevronDown data-icon="inline-end" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="max-h-80 w-64 overflow-y-auto">
-            <DropdownMenuRadioGroup value={String(selectedSeason.season_number)} onValueChange={selectSeason}>
-              {selectableSeasons.map(season => {
-                const watched = seasonWatchedCounts?.[String(season.id)] ?? 0;
-                return (
-                  <DropdownMenuRadioItem key={season.id} value={String(season.season_number)}>
-                    <span className="flex flex-col gap-0.5">
-                      <span>{season.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {seasonWatchedCounts !== undefined && watched > 0
-                          ? `${watched}/${season.episode_count} watched`
-                          : `${season.episode_count} episodes`}
-                      </span>
-                    </span>
-                  </DropdownMenuRadioItem>
-                );
-              })}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <h2 id="seasons-heading" className="sr-only">Seasons &amp; episodes</h2>
+      <nav ref={seasonsNav} aria-label="Seasons" className="flex overflow-x-auto border-b border-border/60 scrollbar-thin">
+        {selectableSeasons.map(season => {
+          const watched = seasonWatchedCounts?.[String(season.id)] ?? 0;
+          const selected = season.season_number === selectedSeason.season_number;
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("season", String(season.season_number));
+          return (
+            <a
+              key={season.id}
+              href={`/tv-series/${seriesId}?${params}#episodes`}
+              aria-current={selected ? "page" : undefined}
+              aria-label={watched > 0
+                ? `${season.name}, ${watched} of ${season.episode_count} episodes watched`
+                : `${season.name}, ${season.episode_count} episodes`}
+              onClick={event => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                if (!selected) window.history.pushState(null, "", event.currentTarget.href);
+              }}
+              className={cn(
+                "inline-flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-5 py-3 text-sm font-medium transition-colors hover:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:text-base",
+                selected ? "border-primary text-primary" : "border-transparent text-foreground/80"
+              )}
+            >
+              {season.name}
+              <span className="tabular-nums opacity-70">({watched > 0 ? `${watched}/${season.episode_count}` : season.episode_count})</span>
+            </a>
+          );
+        })}
+      </nav>
       <SelectedSeason key={selectedSeason.season_number} seriesId={seriesId} seasonNumber={selectedSeason.season_number} />
     </section>
   );
