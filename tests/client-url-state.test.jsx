@@ -20,14 +20,20 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });
 
-async function mount(Page, path) {
+async function mount(Page, path, { pauseNextPage = false } = {}) {
   // Keep lodash's debounce clock deterministic even on a busy build machine.
   setSystemTime(new Date("2026-10-21T12:00:00Z"));
   const window = new Window({ url: `http://localhost:3000${path}` });
+  const observers = [];
+  class IntersectionObserver {
+    constructor(callback) { this.callback = callback; this.targets = new Set(); observers.push(this); }
+    observe(target) { this.targets.add(target); }
+    disconnect() { this.targets.clear(); }
+  }
   const globals = {
     window, document: window.document, navigator: window.navigator,
     localStorage: window.localStorage, HTMLElement: window.HTMLElement, Node: window.Node,
-    IS_REACT_ACT_ENVIRONMENT: true,
+    IS_REACT_ACT_ENVIRONMENT: true, IntersectionObserver,
   };
   const previous = Object.fromEntries(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   for (const [key, value] of Object.entries(globals)) {
@@ -35,12 +41,23 @@ async function mount(Page, path) {
   }
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
   const queries = [];
+  const queryEntries = new Map();
   const client = {
     watchQuery(ref, args) {
-      queries.push({ name: getFunctionName(ref), args });
+      const name = getFunctionName(ref);
+      const key = JSON.stringify([name, args]);
+      const query = queryEntries.get(key) ?? {
+        name, args, listeners: new Set(),
+        value: args.paginationOpts.cursor !== null && pauseNextPage
+          ? undefined
+          : { page: [], isDone: args.paginationOpts.cursor !== null, continueCursor: "next" },
+      };
+      queryEntries.set(key, query);
+      queries.push(query);
       return {
-        localQueryResult: () => ({ page: [], isDone: args.paginationOpts.cursor !== null, continueCursor: "next" }),
-        onUpdate: () => () => {}, journal: () => undefined,
+        localQueryResult: () => query.value,
+        onUpdate(callback) { query.listeners.add(callback); return () => query.listeners.delete(callback); },
+        journal: () => undefined,
       };
     },
   };
@@ -97,7 +114,7 @@ async function mount(Page, path) {
   });
   await wait();
   return {
-    window, container, queries, searches, replace, wait,
+    window, container, queries, searches, replace, wait, observers,
     unmount: () => act(unmount),
     input: () => container.querySelector("input"),
     async type(value) {
@@ -114,6 +131,27 @@ async function mount(Page, path) {
       const button = [...container.querySelectorAll("button")].find(button => button.textContent.trim() === label);
       expect(button).toBeDefined();
       await act(() => button.dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
+      await wait();
+    },
+    async scrollToEnd() {
+      const active = observers.filter(observer => observer.targets.size);
+      expect(active).toHaveLength(1);
+      const observer = active[0];
+      await act(() => {
+        const entries = [{ isIntersecting: true, target: [...observer.targets][0] }];
+        observer.callback(entries, observer);
+        observer.callback(entries, observer);
+      });
+      await wait();
+    },
+    async finishNextPage() {
+      await act(() => {
+        for (const query of queryEntries.values()) {
+          if (query.args.paginationOpts.cursor === null || !query.listeners.size) continue;
+          query.value = { page: [], isDone: true, continueCursor: "done" };
+          for (const listener of query.listeners) listener();
+        }
+      });
       await wait();
     },
     async link(path) {
@@ -216,19 +254,27 @@ for (const [Page, path, name, pageSize] of [
   [TvSeriesPage, "/tv-series", "tv:listUserTvSeries", 60],
 ]) {
   test(`${path} filters preserve URL state, pagination, and Back/Forward synchronization`, async () => {
-    const view = await mount(Page, `${path}?status=watched&source=a%20b#list`);
+    const view = await mount(Page, `${path}?status=watched&source=a%20b#list`, { pauseNextPage: true });
     const { window } = view;
     const length = window.history.length;
     expect(view.replace).not.toHaveBeenCalled();
     await view.click("Watched");
     expect(view.replace).not.toHaveBeenCalled();
     expect(view.queries.some(query => query.name === name && query.args.status === "watched")).toBe(true);
-    await view.click("Load More");
+    expect([...view.container.querySelectorAll("button")].some(button => button.textContent === "Load More")).toBe(false);
+    await view.scrollToEnd();
     expect(view.queries.some(query => query.args.paginationOpts.cursor === "next" && query.args.paginationOpts.numItems === pageSize)).toBe(true);
+    expect(new Set(view.queries.filter(query => query.args.paginationOpts.cursor === "next").map(query => JSON.stringify(query.args)))).toHaveLength(1);
+    expect(view.container.textContent).toContain("Loading more...");
+    expect(view.observers.filter(observer => observer.targets.size)).toHaveLength(0);
+    await view.finishNextPage();
+    expect(view.container.textContent).not.toContain("Loading more...");
+    expect(view.observers.filter(observer => observer.targets.size)).toHaveLength(0);
     await view.click("On Hold");
     expect(new URLSearchParams(window.location.search).get("status")).toBe("on_hold");
     expect(view.queries.at(-1).args.status).toBe("on_hold");
     expect(view.queries.at(-1).args.paginationOpts.cursor).toBeNull();
+    expect(view.observers.filter(observer => observer.targets.size)).toHaveLength(1);
     expect(new URLSearchParams(window.location.search).get("source")).toBe("a b");
     expect(window.location.hash).toBe("#list");
     expect(window.history.length).toBe(length);

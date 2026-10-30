@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { MOVIE_STATUSES } from "@/lib/tmdb/utils";
@@ -13,7 +13,7 @@ import { MovieWatchStatus } from "@/lib/tmdb/types";
 import { useSearchParams } from "next/navigation";
 import { PageTitle } from "@/components/layout/page-title";
 import Link from "next/link";
-import { Film, Filter, Search } from "lucide-react";
+import { Film, Filter, Search, Loader2 } from "lucide-react";
 
 export default function MoviesPage() {
   return (
@@ -61,6 +61,16 @@ function MoviesView() {
     paginationStatus === "LoadingFirstPage" ||
     paginationStatus === "LoadingMore";
 
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sentinelRef.current || paginationStatus !== "CanLoadMore") return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMore(30);
+    });
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [paginationStatus, loadMore, results.length, status]);
+
   return (
     <div className="mx-auto space-y-6">
       <PageTitle
@@ -105,7 +115,7 @@ function MoviesView() {
           }
         />
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div aria-busy={loading} className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {loading &&
             results.length === 0 &&
             Array.from({ length: 12 }).map((_, i) => (
@@ -127,16 +137,14 @@ function MoviesView() {
         </div>
       )}
 
-      {paginationStatus === "CanLoadMore" && (
-        <div className="flex justify-center md:pt-2">
-          <Button
-            variant="link"
-            disabled={loading}
-            onClick={() => loadMore(30)}
-            className="hover:cursor-pointer"
-          >
-            Load More
-          </Button>
+      <p role="status" className="sr-only">
+        {paginationStatus === "LoadingFirstPage" ? "Loading movies…" : ""}
+      </p>
+      <div ref={sentinelRef} />
+      {paginationStatus === "LoadingMore" && (
+        <div role="status" className="flex items-center justify-center py-8 gap-2">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+          <span className="text-muted-foreground">Loading more...</span>
         </div>
       )}
     </div>
