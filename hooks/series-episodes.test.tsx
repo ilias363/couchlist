@@ -51,6 +51,7 @@ const seasonMeta = (n: number): BaseTMDBSeason => ({
   air_date: "2020-01-01", episode_count: 2, overview: `Overview ${n}`, poster_path: null, vote_average: 0,
 });
 let seasons: BaseTMDBSeason[];
+let seasonOverview: string | undefined;
 let client: QueryClient;
 let root: Root;
 let element: HTMLDivElement;
@@ -69,6 +70,15 @@ function button(text: string) {
   expect(result, `Button containing ${text}`).toBeDefined();
   return result!;
 }
+async function chooseSeasonAction(text: string) {
+  await act(async () => element.querySelector('[aria-label="Season actions"]')!.dispatchEvent(
+    new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerType: "mouse" }),
+  ));
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(item => item.textContent === text);
+  expect(item).toBeDefined();
+  await act(async () => item!.click());
+  await until(() => expect(document.querySelector('[role="alertdialog"]')).not.toBeNull());
+}
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   window.history.replaceState(null, "", "/tv-series/1");
@@ -80,13 +90,14 @@ beforeEach(() => {
   state.seriesStatus = { seasonWatchedCounts: { 101: 2, 102: 1 } };
   state.statuses = {}; state.queriedSeasons.clear(); state.mutate.mockReset().mockResolvedValue(null);
   seasons = [seasonMeta(1), seasonMeta(2), seasonMeta(3), seasonMeta(0)];
+  seasonOverview = undefined;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 600_000, gcTime: Infinity } } });
   element = document.createElement("div"); document.body.append(element); root = createRoot(element);
   fetchMock.mockReset().mockImplementation(async (url: string) => {
     const match = url.match(/\/season\/(\d+)$/);
     if (!match) return Response.json({ id: 1, seasons, recommendations: { results: [] }, similar: { results: [] } });
     const n = Number(match[1]);
-    return Response.json({ ...seasonMeta(n), episodes: [1, 2].map(i => ({
+    return Response.json({ ...seasonMeta(n), overview: seasonOverview ?? seasonMeta(n).overview, episodes: [1, 2].map(i => ({
       id: n * 10 + i, name: `Episode ${n}-${i}`, episode_number: i, season_number: n, runtime: 45,
       air_date: "2020-01-01", still_path: null, overview: "", crew: [], guest_stars: [],
     })) });
@@ -119,6 +130,7 @@ test("season selection preserves query params, updates the URL, and reuses cache
   window.history.replaceState(null, "", "/tv-series/1?season=3&source=library");
   await render(); await until(() => expect(element.textContent).toContain("Episode 3-1"));
   const nav = element.querySelector('nav[aria-label="Seasons"]')!;
+  expect([...nav.querySelectorAll("a")].map(link => link.textContent)).toEqual(["Season 1", "Season 2", "Season 3", "Specials"]);
   expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Season 3");
   expect(nav.querySelector('[aria-label="Season 1, 2 of 2 episodes watched"]')).not.toBeNull();
   const option = nav.querySelector<HTMLAnchorElement>('[aria-label="Season 2, 1 of 2 episodes watched"]')!;
@@ -181,9 +193,9 @@ test("season loading stays local, retries failures, and waits for watch statuses
   fetchMock.mockImplementation(goodFetch);
   await act(async () => button("Retry season").click());
   await until(() => expect(element.querySelector('[aria-label="Loading season episodes"]')).not.toBeNull());
-  expect(element.textContent).not.toContain("0 of 2 watched");
+  expect(element.textContent).not.toContain("0/2 watched");
   state.statuses[102] = [{ episodeId: 21, isWatched: true, watchedDate: 123 }];
-  await render(); await until(() => expect(element.textContent).toContain("1 of 2 watched"));
+  await render(); await until(() => expect(element.textContent).toContain("1/2 watched"));
 });
 
 test("episode and season updates keep IDs and watch dates scoped to the selected season and show errors", async () => {
@@ -195,16 +207,44 @@ test("episode and season updates keep IDs and watch dates scoped to the selected
   });
   state.statuses[102] = [{ episodeId: 21, isWatched: true, watchedDate: 123 }];
   await render();
-  await act(async () => button("Mark season watched").click());
+  state.mutate.mockClear();
+  await chooseSeasonAction("Mark season watched");
+  expect(state.mutate).not.toHaveBeenCalled();
+  await act(async () => button("Watch All").click());
   expect(state.mutate).toHaveBeenLastCalledWith("tv:bulkToggleSeasonEpisodes", {
     tvSeriesId: 1, seasonId: 102, episodesInfo: [{ episodeId: 21, runtime: 45 }, { episodeId: 22, runtime: 45 }], isWatched: true,
   });
   state.mutate.mockRejectedValueOnce(new Error("offline"));
-  await act(async () => button("Unwatch season").click());
+  await chooseSeasonAction("Unwatch season");
+  await act(async () => button("Unwatch All").click());
   expect(element.querySelector('[role="alert"]')?.textContent).toBe("offline");
-  await act(async () => button("Unwatch season").click());
+  await chooseSeasonAction("Unwatch season");
+  await act(async () => button("Unwatch All").click());
   expect(element.querySelector('[role="alert"]')).toBeNull();
   expect(state.mutate).toHaveBeenLastCalledWith("tv:bulkToggleSeasonEpisodes", expect.objectContaining({ seasonId: 102, isWatched: false }));
+});
+
+test("details follow the tabs, progress stays beside Episodes, and canceled actions do not write", async () => {
+  seasonOverview = "A long season overview. ".repeat(12);
+  state.statuses[102] = [{ episodeId: 21, isWatched: true }];
+  await render(); await until(() => expect(element.textContent).toContain("Episode 2-1"));
+  expect(element.textContent?.match(/1\/2 watched/g)).toHaveLength(1);
+  expect(element.querySelector('[role="progressbar"]')).toBeNull();
+  const nav = element.querySelector('nav[aria-label="Seasons"]')!;
+  const details = nav.nextElementSibling?.querySelector('section[aria-label="Season 2 details"]')!;
+  expect(details.textContent).toContain(seasonOverview);
+  expect(details.compareDocumentPosition(element.querySelector('#episodes-heading')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(button("Read more").getAttribute("aria-expanded")).toBe("false");
+  await act(async () => button("Read more").click());
+  expect(button("Show less").getAttribute("aria-expanded")).toBe("true");
+  const episodeHeading = element.querySelector('section[aria-labelledby="episodes-heading"] > div')!;
+  expect(episodeHeading.textContent).not.toContain("2020");
+  await chooseSeasonAction("Mark season watched");
+  expect(document.querySelector('[role="alertdialog"]')?.textContent).toContain("Already-watched episodes keep their dates");
+  await act(async () => button("Cancel").click());
+  expect(document.querySelector('[role="alertdialog"]')).toBeNull();
+  await until(() => expect(document.activeElement?.getAttribute("aria-label")).toBe("Season actions"));
+  expect(state.mutate).not.toHaveBeenCalled();
 });
 
 test("series without seasons keep the rest of the page usable without season requests", async () => {

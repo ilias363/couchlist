@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { SeasonEpisodes } from "@/components/season/season-episodes";
-import { SeasonHeader } from "@/components/season/season-header";
+import { SeasonActions } from "@/components/season/season-actions";
 import { CrewAndGuests } from "@/components/season/crew-and-guests";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,7 +58,7 @@ export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, classNa
   if (!selectedSeason) return null;
 
   return (
-    <section id="episodes" aria-labelledby="seasons-heading" className={cn("flex scroll-mt-24 flex-col gap-6", className)}>
+    <section id="episodes" aria-labelledby="seasons-heading" className={cn("flex scroll-mt-24 flex-col gap-4", className)}>
       <h2 id="seasons-heading" className="sr-only">Seasons &amp; episodes</h2>
       <nav ref={seasonsNav} aria-label="Seasons" className="flex overflow-x-auto border-b border-border/60 scrollbar-thin">
         {selectableSeasons.map(season => {
@@ -85,7 +85,6 @@ export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, classNa
               )}
             >
               {season.name}
-              <span className="tabular-nums opacity-70">({watched > 0 ? `${watched}/${season.episode_count}` : season.episode_count})</span>
             </a>
           );
         })}
@@ -103,6 +102,8 @@ function SelectedSeason({ seriesId, seasonNumber }: { seriesId: number; seasonNu
   const bulkToggle = useMutation(api.tv.bulkToggleSeasonEpisodes);
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const overviewId = useId();
   const statusMap = useMemo(() => new Map<number, EpisodeStatus>(
     episodeStatuses?.map(status => [status.episodeId, { isWatched: status.isWatched, watchedDate: status.watchedDate }])
   ), [episodeStatuses]);
@@ -158,18 +159,50 @@ function SelectedSeason({ seriesId, seasonNumber }: { seriesId: number; seasonNu
   if (!season) return null;
 
   const watchedCount = season.episodes.filter(ep => statusMap.get(ep.id)?.isWatched).length;
+  const longOverview = season.overview.length > 220;
   return (
-    <div className="flex flex-col gap-6">
-      <SeasonHeader
-        season={season}
-        allWatched={season.episodes.length > 0 && watchedCount === season.episodes.length}
-        anyWatched={watchedCount > 0}
-        bulkUpdating={updating}
-        onMarkAllWatched={() => markSeason(true)}
-        onMarkAllUnwatched={() => markSeason(false)}
-      />
+    <div className="flex flex-col gap-4">
+      <section aria-label={`${season.name} details`} className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          {season.air_date && <>{season.air_date.slice(0, 4)}<span className="mx-2" aria-hidden="true">·</span></>}
+          {season.episodes.length} episodes
+        </p>
+        {season.overview && (
+          <div className="flex flex-col items-start gap-1">
+            <p id={overviewId} className={cn("max-w-3xl text-sm leading-relaxed text-muted-foreground", longOverview && !overviewExpanded && "line-clamp-3")}>
+              {season.overview}
+            </p>
+            {longOverview && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto px-0 py-0.5"
+                aria-expanded={overviewExpanded}
+                aria-controls={overviewId}
+                onClick={() => setOverviewExpanded(expanded => !expanded)}
+              >
+                {overviewExpanded ? "Show less" : "Read more"}
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
       {updateError && <p role="alert" className="text-sm text-destructive">{updateError}</p>}
-      <SeasonEpisodes episodes={season.episodes} statusMap={statusMap} onToggle={handleToggleEpisode} disabled={updating} />
+      <SeasonEpisodes
+        episodes={season.episodes}
+        statusMap={statusMap}
+        onToggle={handleToggleEpisode}
+        disabled={updating}
+        actions={(
+          <SeasonActions
+            season={season}
+            watchedCount={watchedCount}
+            bulkUpdating={updating}
+            onMarkAllWatched={() => markSeason(true)}
+            onMarkAllUnwatched={() => markSeason(false)}
+          />
+        )}
+      />
       <CrewAndGuests season={season} />
     </div>
   );
