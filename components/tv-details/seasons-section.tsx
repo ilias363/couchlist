@@ -60,7 +60,7 @@ export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, classNa
   return (
     <section id="episodes" aria-labelledby="seasons-heading" className={cn("flex scroll-mt-24 flex-col gap-4", className)}>
       <h2 id="seasons-heading" className="sr-only">Seasons &amp; episodes</h2>
-      <nav ref={seasonsNav} aria-label="Seasons" className="flex overflow-x-auto border-b border-border/60 scrollbar-thin">
+      <nav ref={seasonsNav} aria-label="Seasons" className="flex overflow-x-auto border-b-2 border-border/60 scrollbar-thin">
         {selectableSeasons.map(season => {
           const watched = seasonWatchedCounts?.[String(season.id)] ?? 0;
           const selected = season.season_number === selectedSeason.season_number;
@@ -80,7 +80,7 @@ export function SeasonsSection({ seriesId, seasons, seasonWatchedCounts, classNa
                 if (!selected) window.history.pushState(null, "", event.currentTarget.href);
               }}
               className={cn(
-                "inline-flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-5 py-3 text-sm font-medium transition-colors hover:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:text-base",
+                "inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-5 py-2 text-sm font-medium transition-colors hover:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:text-base",
                 selected ? "border-primary text-primary" : "border-transparent text-foreground/80"
               )}
             >
