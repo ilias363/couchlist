@@ -35,6 +35,8 @@ interface MediaCardMenuProps {
   onRemove: () => Promise<void> | void;
   removing: boolean;
   isMovie: boolean;
+  title?: string;
+  inline?: boolean;
 }
 
 export function MediaCardMenu({
@@ -50,18 +52,28 @@ export function MediaCardMenu({
   onRemove,
   removing,
   isMovie,
+  title,
+  inline = false,
 }: MediaCardMenuProps) {
   return (
-    <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+    <div
+      className={cn(
+        "flex items-center gap-1",
+        !inline && "absolute right-2 top-2 z-10",
+      )}
+    >
       <DropdownMenu open={menuOpen} onOpenChange={onMenuOpenChange}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             className={cn(
-              "inline-flex h-8 w-8 items-center justify-center rounded-full border bg-background/80 text-muted-foreground transition hover:bg-background hover:text-foreground",
-              updating ? "opacity-60" : ""
+              "inline-flex items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              inline
+                ? "size-11"
+                : "size-8 rounded-full border bg-background/80 hover:bg-background",
+              updating ? "opacity-60" : "",
             )}
-            aria-label="Manage status"
+            aria-label={title ? `Manage status for ${title}` : "Manage status"}
             disabled={updating}
           >
             {updating ? (
@@ -74,14 +86,16 @@ export function MediaCardMenu({
         <DropdownMenuContent align="end">
           <DropdownMenuLabel className="flex items-center justify-between space-x-1 text-xs uppercase tracking-wide">
             <span>Status</span>
-            <span className="text-muted-foreground">{statusLabel ?? "Not set"}</span>
+            <span className="text-muted-foreground">
+              {statusLabel ?? "Not set"}
+            </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {statusOptions.map(option => (
+          {statusOptions.map((option) => (
             <DropdownMenuItem
               key={option.value}
               className="cursor-pointer"
-              onSelect={event => {
+              onSelect={(event) => {
                 event.preventDefault();
                 onStatusSelect(option.value as WatchStatus);
               }}
@@ -100,7 +114,7 @@ export function MediaCardMenu({
                 variant="destructive"
                 className="cursor-pointer"
                 disabled={updating}
-                onSelect={event => {
+                onSelect={(event) => {
                   event.preventDefault();
                   onMenuOpenChange(false);
                   onRemoveDialogOpenChange(true);
@@ -114,7 +128,10 @@ export function MediaCardMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={removeDialogOpen} onOpenChange={onRemoveDialogOpenChange}>
+      <AlertDialog
+        open={removeDialogOpen}
+        onOpenChange={onRemoveDialogOpenChange}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove from your list?</AlertDialogTitle>

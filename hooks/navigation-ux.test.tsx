@@ -19,6 +19,9 @@ test("mobile menu contains focus, closes on Escape, and restores the trigger", a
   const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
   try {
     await act(() => root.render(<Navbar />));
+    const search = [...container.querySelectorAll('a[href="/search"]')]
+      .find(link => link.textContent === "Search movies and TV series");
+    expect(search).toBeDefined();
     expect(document.querySelector('[aria-label="Mobile navigation"]')).toBeNull();
     const trigger = container.querySelector<HTMLButtonElement>('[aria-haspopup="dialog"]')!;
     await act(() => { trigger.focus(); trigger.click(); });

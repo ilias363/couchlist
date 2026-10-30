@@ -209,19 +209,29 @@ test("search keeps the space between words across a debounced URL commit", async
   expect(view.window.location.search).toBe("?q=star+wars");
 });
 
-test("search submits immediately and native clearing preserves the original URL behavior", async () => {
+test("search submits immediately, announces results, and clearing preserves other URL state", async () => {
   const view = await mount(SearchPage, "/search?mode=movie&source=library#results");
   expect(view.input().type).toBe("search");
   await view.type("arrival");
   await view.submit();
   expect(new URLSearchParams(view.window.location.search).get("q")).toBe("arrival");
   expect(view.searches.some(call => call.method === "searchMovies" && call.q === "arrival")).toBe(true);
-  expect([...view.container.querySelectorAll("button")].some(button => button.textContent.trim() === "Clear search")).toBe(false);
-  expect(view.container.querySelector('[role="status"]')).toBeNull();
+  expect(view.container.querySelector('[aria-label="Clear search"]')).not.toBeNull();
+  expect(view.container.querySelector('[role="status"]').textContent).toContain("arrival");
+  expect([...view.container.querySelectorAll('[aria-pressed="true"]')].map(button => button.textContent.trim())).toEqual(["Movies"]);
   await view.type("");
   await view.wait(550);
   expect(view.window.location.search).toBe("?mode=movie&source=library");
   expect(view.window.location.hash).toBe("#results");
+  await view.type("pending search");
+  const clear = view.container.querySelector('[aria-label="Clear search"]');
+  await act(() => clear.click());
+  await view.wait(550);
+  expect(view.input().value).toBe("");
+  expect(view.window.document.activeElement).toBe(view.input());
+  expect(view.window.location.search).toBe("?mode=movie&source=library");
+  expect(view.window.location.hash).toBe("#results");
+  expect(view.searches.some(call => call.q === "pending search")).toBe(false);
 });
 
 test("search Back/Forward and same-page links restore state and cancel stale debounce, including unchanged q", async () => {

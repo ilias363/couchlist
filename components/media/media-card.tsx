@@ -1,18 +1,17 @@
 "use client";
 
-import {
-  memo,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { TMDBSearchResult, type StatusOption, WatchStatus } from "@/lib/tmdb/types";
+import {
+  TMDBSearchResult,
+  type StatusOption,
+  WatchStatus,
+} from "@/lib/tmdb/types";
 import { PosterImage } from "./tmdb-image";
-import { Film, Tv } from "lucide-react";
+import { Film, Tv, Loader2, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -34,6 +33,8 @@ interface MediaCardProps {
   status?: WatchStatus | null;
   posterSizes?: string;
   className?: string;
+  layout?: "card" | "row";
+  statusLoading?: boolean;
 }
 
 type MovieCardItem = Extract<TMDBSearchResult, { media_type: "movie" }>;
@@ -69,7 +70,7 @@ interface MediaCardLayoutProps {
   statusOptions: StatusOption[];
   menuOpen: boolean;
   onMenuOpenChange: (open: boolean) => void;
-  onStatusSelect: (status: WatchStatus) => void;
+  onStatusSelect: (status: WatchStatus) => void | Promise<void>;
   updating: boolean;
   removeDialogOpen: boolean;
   onRemoveDialogOpenChange: (open: boolean) => void;
@@ -83,6 +84,8 @@ interface MediaCardLayoutProps {
   onLinkIntent: () => void;
   posterSizes?: string;
   className?: string;
+  layout?: "card" | "row";
+  statusLoading?: boolean;
 }
 
 function MediaCardLayout({
@@ -106,84 +109,193 @@ function MediaCardLayout({
   onLinkIntent,
   posterSizes,
   className,
+  layout = "card",
+  statusLoading = false,
 }: MediaCardLayoutProps) {
   const isMovie = item.media_type === "movie";
   const title = isMovie ? item.title : item.name;
   const date = isMovie ? item.release_date : item.first_air_date;
   const itemLink = getItemLink(item.id, item.media_type);
+  const originalTitle = isMovie ? item.original_title : item.original_name;
+  const [saveError, setSaveError] = useState(false);
+
+  const quickSave = async () => {
+    if (statusLoading || updating || currentStatus) return;
+    setSaveError(false);
+    try {
+      await onStatusSelect("want_to_watch");
+    } catch {
+      setSaveError(true);
+    }
+  };
 
   return (
     <div
       className={cn(
-        "group relative h-full flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500",
+        layout === "row"
+          ? "grid grid-cols-[3rem_minmax(0,1fr)_2.75rem] items-start gap-x-3 gap-y-2 border-b border-border/50 py-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_auto_2.75rem]"
+          : "group relative h-full flex flex-col overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30 transition-all duration-500",
         className,
       )}
     >
-      <MediaCardMenu
-        menuOpen={menuOpen}
-        onMenuOpenChange={onMenuOpenChange}
-        statusLabel={statusLabel}
-        statusOptions={statusOptions}
-        currentStatus={currentStatus}
-        onStatusSelect={onStatusSelect}
-        updating={updating}
-        removeDialogOpen={removeDialogOpen}
-        onRemoveDialogOpenChange={onRemoveDialogOpenChange}
-        onRemove={onRemove}
-        removing={removing}
-        isMovie={isMovie}
-      />
-
-      <Link
-        href={itemLink}
-        className="flex h-full flex-col"
-        prefetch={false}
-        onMouseEnter={onLinkIntent}
-        onFocus={onLinkIntent}
-      >
-        <div className="relative overflow-hidden">
-          <PosterImage
-            src={item.poster_path}
-            size="w780"
-            sizesAttr={posterSizes ?? "(max-width: 639px) calc(50vw - 24px), (max-width: 767px) calc(33.33vw - 27px), (max-width: 1023px) calc(25vw - 24px), (max-width: 1279px) calc(20vw - 26px), 190px"}
-            alt={title ?? ""}
-            className="w-full transition-transform duration-500 group-hover:scale-105"
-            fallbackType={isMovie ? "movie" : "tv"}
-            hoverZoom
-          />
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-          <span
-            className={cn(
-              "absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-background/90 px-2.5 py-1.5 text-xs font-semibold backdrop-blur-xl shadow-sm",
-              isMovie ? "text-primary" : "text-primary",
-            )}
+      {layout === "row" && (
+        <>
+          <Link
+            href={itemLink}
+            className="col-span-2 flex min-w-0 gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            prefetch={false}
+            onMouseEnter={onLinkIntent}
+            onFocus={onLinkIntent}
           >
-            {isMovie ? <Film className="h-3 w-3" /> : <Tv className="h-3 w-3" />}{" "}
-            {isMovie ? "Movie" : "TV"}
-          </span>
-          {currentStatus ? (
-            <Badge
-              variant={currentStatus}
-              className="absolute left-2 bottom-2 backdrop-blur-xl shadow-sm"
+            <div className="w-12 shrink-0 sm:w-14">
+              <PosterImage
+                src={item.poster_path}
+                size="w185"
+                sizesAttr="56px"
+                alt=""
+                fallbackType={item.media_type}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1 pt-0.5">
+              <h3 className="line-clamp-2 font-semibold leading-snug">
+                {title}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {isMovie ? "Movie" : "TV series"}
+                {date ? ` · ${date.slice(0, 4)}` : ""}
+              </p>
+              {originalTitle && originalTitle !== title && (
+                <p className="line-clamp-1 text-sm text-muted-foreground">
+                  {originalTitle}
+                </p>
+              )}
+            </div>
+          </Link>
+          <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1 sm:self-center">
+            {currentStatus ? (
+              <Badge variant={currentStatus}>{statusLabel}</Badge>
+            ) : statusLoading ? (
+              <span className="text-sm text-muted-foreground">
+                Checking status…
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="h-8 rounded-lg"
+                disabled={updating}
+                onClick={() => void quickSave()}
+                aria-label={
+                  updating
+                    ? `Saving ${title} to Watchlist`
+                    : `Add to Watchlist: ${title}`
+                }
+              >
+                {updating ? (
+                  <Loader2
+                    data-icon="inline-start"
+                    className="animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Plus data-icon="inline-start" aria-hidden="true" />
+                )}
+                {updating ? "Saving…" : "Watchlist"}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      <div
+        className={
+          layout === "row"
+            ? "col-start-3 row-start-1 sm:col-start-4 sm:self-center"
+            : undefined
+        }
+      >
+        <MediaCardMenu
+          menuOpen={menuOpen}
+          onMenuOpenChange={onMenuOpenChange}
+          statusLabel={statusLabel}
+          statusOptions={statusOptions}
+          currentStatus={currentStatus}
+          onStatusSelect={onStatusSelect}
+          updating={updating || statusLoading}
+          removeDialogOpen={removeDialogOpen}
+          onRemoveDialogOpenChange={onRemoveDialogOpenChange}
+          onRemove={onRemove}
+          removing={removing}
+          isMovie={isMovie}
+          title={title}
+          inline={layout === "row"}
+        />
+      </div>
+      {layout === "row" && saveError && !currentStatus && (
+        <p role="alert" className="col-span-full text-sm text-destructive">
+          Couldn’t save {title}. Try again.
+        </p>
+      )}
+
+      {layout === "card" && (
+        <Link
+          href={itemLink}
+          className="flex h-full flex-col"
+          prefetch={false}
+          onMouseEnter={onLinkIntent}
+          onFocus={onLinkIntent}
+        >
+          <div className="relative overflow-hidden">
+            <PosterImage
+              src={item.poster_path}
+              size="w780"
+              sizesAttr={
+                posterSizes ??
+                "(max-width: 639px) calc(50vw - 24px), (max-width: 767px) calc(33.33vw - 27px), (max-width: 1023px) calc(25vw - 24px), (max-width: 1279px) calc(20vw - 26px), 190px"
+              }
+              alt={title ?? ""}
+              className="w-full transition-transform duration-500 group-hover:scale-105"
+              fallbackType={isMovie ? "movie" : "tv"}
+              hoverZoom
+            />
+            <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <span
+              className={cn(
+                "absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-lg bg-background/90 px-2.5 py-1.5 text-xs font-semibold backdrop-blur-xl shadow-sm",
+                isMovie ? "text-primary" : "text-primary",
+              )}
             >
-              {statusLabel}
-            </Badge>
-          ) : null}
-        </div>
-        <div className="flex flex-1 flex-col p-3.5">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-tight tracking-tight">
-            {title}
-          </h3>
-          {date && (
-            <p className="mt-1.5 text-xs text-muted-foreground font-medium">
-              {new Date(date).getFullYear()}
+              {isMovie ? (
+                <Film className="h-3 w-3" />
+              ) : (
+                <Tv className="h-3 w-3" />
+              )}{" "}
+              {isMovie ? "Movie" : "TV"}
+            </span>
+            {currentStatus ? (
+              <Badge
+                variant={currentStatus}
+                className="absolute left-2 bottom-2 backdrop-blur-xl shadow-sm"
+              >
+                {statusLabel}
+              </Badge>
+            ) : null}
+          </div>
+          <div className="flex flex-1 flex-col p-3.5">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-tight tracking-tight">
+              {title}
+            </h3>
+            {date && (
+              <p className="mt-1.5 text-xs text-muted-foreground font-medium">
+                {new Date(date).getFullYear()}
+              </p>
+            )}
+            <p className="mt-2.5 line-clamp-3 text-xs text-muted-foreground leading-relaxed">
+              {item.overview || "No overview available."}
             </p>
-          )}
-          <p className="mt-2.5 line-clamp-3 text-xs text-muted-foreground leading-relaxed">
-            {item.overview || "No overview available."}
-          </p>
-        </div>
-      </Link>
+          </div>
+        </Link>
+      )}
 
       <WatchedDateDialog
         open={watchedDialogOpen}
@@ -196,8 +308,8 @@ function MediaCardLayout({
         {watchedDialogChildren ?? null}
         {!isMovie && (
           <p className="mt-2 text-xs text-muted-foreground">
-            When marking all episodes, already-watched episodes keep their dates.
-            Newly watched episodes have unknown dates.
+            When marking all episodes, already-watched episodes keep their
+            dates. Newly watched episodes have unknown dates.
           </p>
         )}
       </WatchedDateDialog>
@@ -205,17 +317,25 @@ function MediaCardLayout({
   );
 }
 
-interface MovieMediaCardProps {
+type MovieMediaCardProps = Omit<MediaCardProps, "item"> & {
   item: MovieCardItem;
-  status?: WatchStatus | null;
-  posterSizes?: string;
-  className?: string;
-}
+};
 
-function MovieMediaCard({ item, status, posterSizes, className }: MovieMediaCardProps) {
+function MovieMediaCard({
+  item,
+  status,
+  posterSizes,
+  className,
+  layout,
+  statusLoading,
+}: MovieMediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
-  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
+  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(
+    status ?? null,
+  );
+  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<
+    number | undefined
+  >();
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -236,7 +356,7 @@ function MovieMediaCard({ item, status, posterSizes, className }: MovieMediaCard
 
   const onLinkIntent = useCardPrefetch(item.id, "movie");
   const statusLabel = currentStatus
-    ? MOVIE_STATUSES.find(s => s.value === currentStatus)?.label
+    ? MOVIE_STATUSES.find((s) => s.value === currentStatus)?.label
     : undefined;
 
   const onDialogOpenChange = (open: boolean) => {
@@ -310,21 +430,29 @@ function MovieMediaCard({ item, status, posterSizes, className }: MovieMediaCard
       onLinkIntent={onLinkIntent}
       posterSizes={posterSizes}
       className={className}
+      layout={layout}
+      statusLoading={statusLoading}
     />
   );
 }
 
-interface TvMediaCardProps {
-  item: TvCardItem;
-  status?: WatchStatus | null;
-  posterSizes?: string;
-  className?: string;
-}
+type TvMediaCardProps = Omit<MediaCardProps, "item"> & { item: TvCardItem };
 
-function TvMediaCard({ item, status, posterSizes, className }: TvMediaCardProps) {
+function TvMediaCard({
+  item,
+  status,
+  posterSizes,
+  className,
+  layout,
+  statusLoading,
+}: TvMediaCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(status ?? null);
-  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<number | undefined>();
+  const [currentStatus, setCurrentStatus] = useState<WatchStatus | null>(
+    status ?? null,
+  );
+  const [watchedDialogDefaultMs, setWatchedDialogDefaultMs] = useState<
+    number | undefined
+  >();
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -345,10 +473,13 @@ function TvMediaCard({ item, status, posterSizes, className }: TvMediaCardProps)
     handleRemove,
   } = useTvSeriesStatus(item.id);
 
-  const { filteredSeasons, fetchAllSeasons } = useSeasonData(item.id, tvDetails?.seasons);
+  const { filteredSeasons, fetchAllSeasons } = useSeasonData(
+    item.id,
+    tvDetails?.seasons,
+  );
   const onLinkIntent = useCardPrefetch(item.id, "tv");
   const statusLabel = currentStatus
-    ? WATCH_STATUSES.find(s => s.value === currentStatus)?.label
+    ? WATCH_STATUSES.find((s) => s.value === currentStatus)?.label
     : undefined;
 
   const onDialogOpenChange = (open: boolean) => {
@@ -406,7 +537,7 @@ function TvMediaCard({ item, status, posterSizes, className }: TvMediaCardProps)
     <label className="flex items-center gap-2 text-sm">
       <Checkbox
         checked={markEntireSeries}
-        onCheckedChange={value => setMarkEntireSeries(Boolean(value))}
+        onCheckedChange={(value) => setMarkEntireSeries(Boolean(value))}
         disabled={updating || filteredSeasons.length === 0}
       />
       <span>Also mark all episodes in this series as watched</span>
@@ -435,6 +566,8 @@ function TvMediaCard({ item, status, posterSizes, className }: TvMediaCardProps)
       onLinkIntent={onLinkIntent}
       posterSizes={posterSizes}
       className={className}
+      layout={layout}
+      statusLoading={statusLoading}
     />
   );
 }
@@ -463,22 +596,33 @@ function areMediaCardPropsEqual(prev: MediaCardProps, next: MediaCardProps) {
   return (
     prev.className === next.className &&
     prev.posterSizes === next.posterSizes &&
+    prev.layout === next.layout &&
+    prev.statusLoading === next.statusLoading &&
     prev.status === next.status &&
     prev.item.id === next.item.id &&
     prev.item.media_type === next.item.media_type &&
     getComparablePoster(prev.item) === getComparablePoster(next.item) &&
     getComparableOverview(prev.item) === getComparableOverview(next.item) &&
     getComparableTitle(prev.item) === getComparableTitle(next.item) &&
+    (prev.item.media_type === "movie"
+      ? prev.item.original_title
+      : prev.item.original_name) ===
+      (next.item.media_type === "movie"
+        ? next.item.original_title
+        : next.item.original_name) &&
     getComparableDate(prev.item) === getComparableDate(next.item)
   );
 }
 
-export const MediaCard = memo(function MediaCard({ item, status, posterSizes, className }: MediaCardProps) {
+export const MediaCard = memo(function MediaCard({
+  item,
+  ...props
+}: MediaCardProps) {
   if (item.media_type === "movie") {
-    return <MovieMediaCard item={item} status={status} posterSizes={posterSizes} className={className} />;
+    return <MovieMediaCard item={item} {...props} />;
   }
   if (item.media_type === "tv") {
-    return <TvMediaCard item={item} status={status} posterSizes={posterSizes} className={className} />;
+    return <TvMediaCard item={item} {...props} />;
   }
   return null;
 }, areMediaCardPropsEqual);

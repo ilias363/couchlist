@@ -52,7 +52,7 @@ export function Navbar() {
           aria-label="Main navigation"
           className="hidden md:flex items-center gap-0.5"
         >
-          {navItems.map(item => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -96,6 +96,20 @@ export function Navbar() {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-1.5">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="size-11 md:hidden"
+          >
+            <Link
+              href="/search"
+              aria-current={pathname === "/search" ? "page" : undefined}
+            >
+              <Search aria-hidden="true" />
+              <span className="sr-only">Search movies and TV series</span>
+            </Link>
+          </Button>
           <Button
             asChild
             variant="ghost"
