@@ -114,7 +114,7 @@ export function StatusSelector({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="flex flex-wrap items-center justify-center gap-2">
+      <div role="group" aria-label="Watch status" className="flex flex-wrap items-center justify-center gap-2">
         {statuses.map(status => {
           const isActive = currentStatus === status.value;
           const colors = STATUS_COLORS[status.value];
@@ -124,6 +124,8 @@ export function StatusSelector({
               variant="outline"
               size="sm"
               disabled={disabled}
+              aria-label={status.label}
+              aria-pressed={isActive}
               data-active={isActive}
               className={cn(
                 "transition-all duration-200",
@@ -132,7 +134,7 @@ export function StatusSelector({
               )}
               onClick={() => handleClick(status.value, Date.now())}
             >
-              <span className={colors.iconColor}>{status.icon}</span>
+              <span className={colors.iconColor} aria-hidden="true">{status.icon}</span>
               <span className="ml-1.5 hidden sm:inline">{status.label}</span>
             </Button>
           );
@@ -152,8 +154,8 @@ export function StatusSelector({
             confirmText="Remove"
             className="text-destructive hover:text-destructive hover:bg-destructive/10"
           >
-            <Trash2 className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1.5">Remove</span>
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only sm:ml-1.5">Remove</span>
           </ConfirmButton>
         )}
         {/* Help icon with legend dropdown - visible only on mobile */}
@@ -162,22 +164,23 @@ export function StatusSelector({
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Watch status legend"
               className="sm:hidden text-muted-foreground hover:text-foreground"
             >
-              <HelpCircle className="h-4 w-4" />
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="bottom" align="end">
             <div className="flex flex-col gap-1.5 p-2">
               {statuses.map(status => (
                 <div key={status.value} className="flex items-center gap-2">
-                  <span className={STATUS_COLORS[status.value].iconColor}>{status.icon}</span>
+                  <span className={STATUS_COLORS[status.value].iconColor} aria-hidden="true">{status.icon}</span>
                   <span className="text-sm">{status.label}</span>
                 </div>
               ))}
               {currentStatus && onRemove && (
                 <div className="flex items-center gap-2">
-                  <Trash2 className="h-4 w-4 text-destructive" />
+                  <Trash2 className="h-4 w-4 text-destructive" aria-hidden="true" />
                   <span className="text-sm">Remove</span>
                 </div>
               )}
