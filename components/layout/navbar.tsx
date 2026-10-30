@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MobileMenu } from "./mobile-menu";
 import { HeaderShell } from "./header-shell";
 import { Logo } from "./logo";
@@ -32,11 +33,17 @@ export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const closeMobile = () => setMobileMenuOpen(false);
-  const openMobile = () => setMobileMenuOpen(true);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileMenuOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
 
   return (
-    <>
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
       <HeaderShell>
         <Logo href="/home" size="sm" />
 
@@ -111,28 +118,24 @@ export function Navbar() {
           <UserMenu />
 
           {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "md:hidden h-9 w-9 rounded-lg transition-all duration-300",
-              "hover:bg-primary/10 hover:text-primary",
-              mobileMenuOpen && "bg-primary/10 text-primary",
-            )}
-            onClick={openMobile}
-          >
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Open menu</span>
-          </Button>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "md:hidden size-10 rounded-lg transition-colors duration-300",
+                "hover:bg-primary/10 hover:text-primary",
+                mobileMenuOpen && "bg-primary/10 text-primary",
+              )}
+            >
+              <Menu className="size-5" aria-hidden="true" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </SheetTrigger>
         </div>
       </HeaderShell>
 
-      {/* Mobile Menu — always mounted, CSS-driven visibility */}
-      <MobileMenu
-        open={mobileMenuOpen}
-        onClose={closeMobile}
-        navItems={navItems}
-      />
-    </>
+      <MobileMenu navItems={navItems} />
+    </Sheet>
   );
 }

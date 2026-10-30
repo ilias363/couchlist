@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { X, Settings, LucideIcon } from "lucide-react";
+import { Settings, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { useEffect, useRef } from "react";
+import {
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface NavItem {
   href: string;
@@ -13,146 +18,57 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-interface MobileMenuProps {
-  open: boolean;
-  onClose: () => void;
-  navItems: NavItem[];
-}
-
-export function MobileMenu({ open, onClose, navItems }: MobileMenuProps) {
+export function MobileMenu({ navItems }: { navItems: NavItem[] }) {
   const pathname = usePathname();
-  const prevPathname = useRef(pathname);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on route change (only when path actually changes)
-  useEffect(() => {
-    if (prevPathname.current !== pathname) {
-      prevPathname.current = pathname;
-      onClose();
-    }
-  }, [pathname, onClose]);
-
-  // Prevent body scroll when menu is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  // Trap focus & handle Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
 
   return (
-    <div
-      className={cn(
-        "fixed inset-0 z-50 md:hidden",
-        // Always in DOM, toggle pointer-events & visibility via CSS
-        open ? "pointer-events-auto" : "pointer-events-none",
-      )}
-      aria-hidden={!open}
+    <SheetContent
+      aria-modal="true"
+      className="w-[min(85vw,20rem)] gap-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
     >
-      {/* Backdrop — opacity transition only, no blur to avoid GPU stalls */}
-      <div
-        className={cn(
-          "absolute inset-0 bg-black/60 transition-opacity duration-300 ease-out",
-          open ? "opacity-100" : "opacity-0",
-        )}
-        onClick={onClose}
-      />
+      <SheetHeader className="border-b border-border/30 px-5 py-5 pr-16">
+        <SheetTitle>Menu</SheetTitle>
+        <SheetDescription className="sr-only">
+          Navigate your watchlist, discover titles, and manage your account.
+        </SheetDescription>
+      </SheetHeader>
 
-      {/* Slide-in panel from the right */}
-      <div
-        ref={panelRef}
-        className={cn(
-          "absolute inset-y-0 right-0 w-[min(80vw,320px)] flex flex-col",
-          "bg-background/95 backdrop-blur-md border-l border-border/40",
-          "shadow-[-4px_0_20px_rgba(0,0,0,0.08)] dark:shadow-[-4px_0_30px_rgba(0,0,0,0.3)]",
-          // GPU-composited slide transition
-          "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] will-change-transform",
-          open ? "translate-x-0" : "translate-x-full",
-        )}
+      <nav
+        aria-label="Mobile navigation"
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-3"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
-          <span className="font-display text-lg tracking-tight text-foreground">Menu</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-9 w-9 rounded-lg hover:bg-primary/10 hover:text-primary transition-colors duration-200"
-          >
-            <X className="h-5 w-5" />
-            <span className="sr-only">Close menu</span>
-          </Button>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex-1 flex flex-col px-3 py-3 gap-0.5 overflow-y-auto overscroll-contain">
-          {navItems.map(item => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
+        {[
+          ...navItems,
+          { href: "/settings", label: "Settings", icon: Settings },
+        ].map(item => {
+          const Icon = item.icon;
+          const isActive =
+            pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <SheetClose key={item.href} asChild>
               <Link
-                key={item.href}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium",
-                  "transition-colors duration-200",
-                  "active:scale-[0.98] active:transition-transform",
+                  "flex items-center gap-3 rounded-xl px-4 py-3.5 text-base font-medium transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  item.href === "/settings" && "mt-2 border-t border-border/50",
                   isActive
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
-                {/* Active left accent */}
-                {isActive && (
-                  <span className="absolute left-1 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-full bg-primary" />
-                )}
-                <Icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
+                <Icon className="size-5 shrink-0" aria-hidden="true" />
                 {item.label}
               </Link>
-            );
-          })}
+            </SheetClose>
+          );
+        })}
+      </nav>
 
-          <div className="my-2 mx-3 h-px bg-border/80" />
-
-          <Link
-            href="/settings"
-            className={cn(
-              "relative flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium",
-              "transition-colors duration-200",
-              "active:scale-[0.98] active:transition-transform",
-              pathname === "/settings"
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-            )}
-          >
-            {pathname === "/settings" && (
-              <span className="absolute left-1 top-1/2 -translate-y-1/2 w-0.75 h-5 rounded-full bg-primary" />
-            )}
-            <Settings
-              className={cn("h-5 w-5 shrink-0", pathname === "/settings" && "text-primary")}
-            />
-            Settings
-          </Link>
-        </nav>
-
-        {/* Bottom ambient line */}
-        <div className="h-px mx-4 bg-linear-to-r from-transparent via-border/40 to-transparent" />
-        <div className="px-5 py-4 text-xs text-muted-foreground/60 text-center">CouchList</div>
+      <div className="mx-4 border-t border-border/40 px-5 py-4 text-center text-xs text-muted-foreground">
+        CouchList
       </div>
-    </div>
+    </SheetContent>
   );
 }
