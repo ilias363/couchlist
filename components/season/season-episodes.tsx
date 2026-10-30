@@ -76,7 +76,8 @@ export function SeasonEpisodes({
     <section aria-labelledby="episodes-heading" className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 id="episodes-heading" className="text-xl font-semibold">Episodes</h2>
+          {/* Playfair's visible text sits lower than the adjacent sans-serif text. */}
+          <h2 id="episodes-heading" className="-translate-y-0.5 text-xl font-semibold">Episodes</h2>
           <span role="status" aria-label={`${watchedCount} of ${episodes.length} watched`} className="text-sm tabular-nums text-muted-foreground">
             {watchedCount}/{episodes.length} watched
           </span>
